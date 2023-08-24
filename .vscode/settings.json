@@ -1,0 +1,15 @@
+{
+    "files.associations": {
+        "renderer.h": "c",
+        "platform.h": "c",
+        "vec2.h": "c",
+        "gl.h": "c",
+        "windows.h": "c",
+        "opengl_renderer.h": "c",
+        "opengl_platform.h": "c",
+        "glext.h": "c",
+        "glu.h": "c",
+        "basic_shape_glsl.h": "c",
+        "defines.h": "c"
+    }
+}
