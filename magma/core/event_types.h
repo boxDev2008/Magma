@@ -1,6 +1,6 @@
 #pragma once
 
-#include "defines.h"
+#include "base.h"
 
 #include "platform/platform.h"
 #include "input.h"
@@ -13,19 +13,19 @@ mg_application_quit_event_data_t;
 
 typedef struct mg_resized_event_data
 {
-    u32 width, height;
+    uint32_t width, height;
 }
 mg_resized_event_data_t;
 
 typedef struct mg_mouse_moved_event_data
 {
-    i32 x, y;
+    int32_t x, y;
 }
 mg_mouse_moved_event_data_t;
 
 typedef struct mg_mouse_wheel_event_data
 {
-    i32 z_delta;
+    int32_t z_delta;
 }
 mg_mouse_wheel_event_data_t;
 

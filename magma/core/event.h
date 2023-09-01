@@ -1,6 +1,6 @@
 #pragma once
 
-#include "defines.h"
+#include "base.h"
 
 typedef void (*PFN_on_event)(void *data);
 

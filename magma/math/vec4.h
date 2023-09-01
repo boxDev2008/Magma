@@ -1,23 +1,23 @@
 #pragma once
 
-#include "defines.h"
+#include "base.h"
 
-typedef union vec4
+typedef union mg_vec4
 {
     struct
     {
-        f32 x;
-        f32 y;
-        f32 z;
-        f32 w;
+        float x;
+        float y;
+        float z;
+        float w;
     };
     struct
     {
-        f32 r;
-        f32 g;
-        f32 b;
-        f32 a;
+        float r;
+        float g;
+        float b;
+        float a;
     };
-    f32 v[4];
+    float v[4];
 }
-vec4;
+mg_vec4_t;

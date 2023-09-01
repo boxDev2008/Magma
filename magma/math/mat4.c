@@ -2,9 +2,9 @@
 
 #include <math.h>
 
-mat4 mg_mat4_identity(void)
+mg_mat4_t mg_mat4_identity(void)
 {
-	mat4 result;
+	mg_mat4_t result;
 
 	result.m11 = 1.0f;
 	result.m21 = 0.0f;
@@ -29,12 +29,12 @@ mat4 mg_mat4_identity(void)
 	return result;
 }
 
-mat4 mg_mat4_ortho(f32 bottom, f32 top, f32 left, f32 right, f32 near, f32 far)
+mg_mat4_t mg_mat4_ortho(float bottom, float top, float left, float right, float near, float far)
 {
-	mat4 result = mg_mat4_identity();
+	mg_mat4_t result = mg_mat4_identity();
 
     result.m11 = 2.0f / (right - left); 
-    result.m22 = 2.0f / (top - bottom); 
+    result.m22 = -2.0f / (top - bottom);
     result.m33 = -2.0f / (far - near);  
     result.m14 = -(right + left) / (right - left); 
     result.m24 = -(top + bottom) / (top - bottom); 
@@ -43,9 +43,9 @@ mat4 mg_mat4_ortho(f32 bottom, f32 top, f32 left, f32 right, f32 near, f32 far)
 	return result;
 }
 
-mat4 mg_mat4_add(mat4 first, mat4 second)
+mg_mat4_t mg_mat4_add(mg_mat4_t first, mg_mat4_t second)
 {
-	mat4 result;
+	mg_mat4_t result;
 
 	result.m11 = first.m11 + second.m11;
 	result.m21 = first.m21 + second.m21;
@@ -70,9 +70,9 @@ mat4 mg_mat4_add(mat4 first, mat4 second)
 	return result;
 }
 
-mat4 mg_mat4_multiply(mat4 first, mat4 second)
+mg_mat4_t mg_mat4_multiply(mg_mat4_t first, mg_mat4_t second)
 {
-	mat4 result;
+	mg_mat4_t result;
 
 	result.m11 = first.m11 * second.m11 + first.m21 * second.m12 + first.m31 * second.m13 + first.m41 * second.m14;
 	result.m21 = first.m11 * second.m21 + first.m21 * second.m22 + first.m31 * second.m23 + first.m41 * second.m24;
@@ -97,9 +97,9 @@ mat4 mg_mat4_multiply(mat4 first, mat4 second)
 	return result;
 }
 
-mat4 mg_mat4_translate(mat4 matrix, vec3 v)
+mg_mat4_t mg_mat4_translate(mg_mat4_t matrix, mg_vec3_t v)
 {
-	mat4 translation = mg_mat4_identity();
+	mg_mat4_t translation = mg_mat4_identity();
 	translation.m14 = v.x;
 	translation.m24 = v.y;
 	translation.m34 = v.z;
@@ -107,9 +107,9 @@ mat4 mg_mat4_translate(mat4 matrix, vec3 v)
 	return mg_mat4_multiply(matrix, translation);
 }
 
-mat4 mg_mat4_scale(mat4 matrix, vec3 v)
+mg_mat4_t mg_mat4_scale(mg_mat4_t matrix, mg_vec3_t v)
 {
-	mat4 scale = mg_mat4_identity();
+	mg_mat4_t scale = mg_mat4_identity();
 	scale.m11 = v.x;
 	scale.m22 = v.y;
 	scale.m33 = v.z;
@@ -117,12 +117,12 @@ mat4 mg_mat4_scale(mat4 matrix, vec3 v)
 	return mg_mat4_multiply(matrix, scale);
 }
 
-mat4 mg_mat4_rotate_z(mat4 matrix, float angle)
+mg_mat4_t mg_mat4_rotate_z(mg_mat4_t matrix, float angle)
 {
-	const f32 cos0 = cos(angle);
-	const f32 sin0 = sin(angle);
+	const float cos0 = cos(angle);
+	const float sin0 = sin(angle);
 
-	mat4 z = mg_mat4_identity();
+	mg_mat4_t z = mg_mat4_identity();
 
 	z.m11 = cos0;
 	z.m12 = -sin0;

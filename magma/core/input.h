@@ -1,6 +1,6 @@
 #pragma once
 
-#include "defines.h"
+#include "base.h"
 
 typedef enum mg_mouse_buttons
 {
@@ -166,13 +166,13 @@ typedef enum mg_keys
 }
 mg_keys_t;
 
-void mg_input_process_key(mg_keys_t key, b8 pressed);
-void mg_input_process_mouse_button(mg_mouse_buttons_t button, b8 pressed);
-void mg_input_process_mouse_move(i16 x, i16 y);
-void mg_input_process_mouse_wheel(i8 z_delta);
+void mg_input_process_key           (mg_keys_t key, bool pressed);
+void mg_input_process_mouse_button  (mg_mouse_buttons_t button, bool pressed);
+void mg_input_process_mouse_move    (int16_t x, int16_t y);
+void mg_input_process_mouse_wheel   (int8_t z_delta);
 
-MG_API b8 mg_input_is_key_down          (mg_keys_t key);
-MG_API b8 mg_input_is_mouse_button_down (mg_mouse_buttons_t button);
+MG_API bool     mg_input_is_key_down            (mg_keys_t key);
+MG_API bool     mg_input_is_mouse_button_down   (mg_mouse_buttons_t button);
 
-MG_API b8 mg_input_get_mouse_delta      (void);
-MG_API void mg_input_get_mouse_position (i32 *x, i32 *y);
+MG_API int8_t   mg_input_get_mouse_delta        (void);
+MG_API void     mg_input_get_mouse_position     (int32_t *x, int32_t *y);

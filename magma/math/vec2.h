@@ -1,19 +1,19 @@
 #pragma once
 
-#include "defines.h"
+#include "base.h"
 
-typedef union vec2
+typedef union mg_vec2
 {
     struct
     {
-        f32 x;
-        f32 y;
+        float x;
+        float y;
     };
     struct
     {
-        f32 r;
-        f32 g;
+        float r;
+        float g;
     };
-    f32 v[2];
+    float v[2];
 }
-vec2;
+mg_vec2_t;
