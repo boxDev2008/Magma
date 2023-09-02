@@ -54,27 +54,61 @@ void mg_vulkan_copy_buffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSiz
 mg_vulkan_buffer_t *mg_vulkan_create_buffer(mg_buffer_create_info_t *create_info)
 {
     mg_vulkan_buffer_t *buffer = (mg_vulkan_buffer_t*)malloc(sizeof(mg_vulkan_buffer_t));
-    mg_vulkan_allocate_buffer(create_info->size, (VkBufferUsageFlags)create_info->usage,
-    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-    &buffer->buffer, &buffer->memory);
-
     buffer->mapped_at_creation = create_info->mapped_at_creation;
+    buffer->frequency = create_info->frequency;
 
-    if (create_info->mapped_at_creation)
-        vkMapMemory(context.device.handle, buffer->memory, 0, create_info->size, 0, &buffer->data);
+    if (create_info->frequency == MG_BUFFER_UPDATE_FREQUENCY_STATIC) // Puts buffer on the GPU
+    {
+        mg_vulkan_allocate_buffer(create_info->size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        &buffer->staging_buffer, &buffer->staging_memory);
+
+        mg_vulkan_allocate_buffer(create_info->size,
+        VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        &buffer->buffer, &buffer->memory);
+
+        if (create_info->mapped_at_creation)
+            vkMapMemory(context.device.handle, buffer->staging_memory, 0, create_info->size, 0, &buffer->data);
+    }
+    else // Puts buffer on the CPU
+    {
+        mg_vulkan_allocate_buffer(create_info->size, (VkBufferUsageFlags)create_info->usage,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        &buffer->buffer, &buffer->memory);
+
+        if (create_info->mapped_at_creation)
+            vkMapMemory(context.device.handle, buffer->memory, 0, create_info->size, 0, &buffer->data);
+    }
 
     return buffer;
 }
 
 void mg_vulkan_update_buffer(mg_vulkan_buffer_t *buffer, mg_buffer_update_info_t *update_info)
 {
-    if (buffer->mapped_at_creation)
-        memcpy(buffer->data, update_info->data, update_info->size);
+    if (buffer->frequency == MG_BUFFER_UPDATE_FREQUENCY_STATIC)
+    {
+        if (buffer->mapped_at_creation)
+            memcpy(buffer->data, update_info->data, update_info->size);
+        else
+        {
+            vkMapMemory(context.device.handle, buffer->staging_memory, 0, update_info->size, 0, &buffer->data);
+            memcpy(buffer->data, update_info->data, update_info->size);
+            vkUnmapMemory(context.device.handle, buffer->staging_memory);
+        }
+
+        mg_vulkan_copy_buffer(buffer->staging_buffer, buffer->buffer, update_info->size);
+    }
     else
     {
-        vkMapMemory(context.device.handle, buffer->memory, 0, update_info->size, 0, &buffer->data);
-        memcpy(buffer->data, update_info->data, update_info->size);
-        vkUnmapMemory(context.device.handle, buffer->memory);
+        if (buffer->mapped_at_creation)
+            memcpy(buffer->data, update_info->data, update_info->size);
+        else
+        {
+            vkMapMemory(context.device.handle, buffer->memory, 0, update_info->size, 0, &buffer->data);
+            memcpy(buffer->data, update_info->data, update_info->size);
+            vkUnmapMemory(context.device.handle, buffer->memory);
+        }
     }
 }
 

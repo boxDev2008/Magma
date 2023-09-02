@@ -80,6 +80,9 @@
         "vulkan_program.h": "c",
         "frag.spv.h": "c",
         "cassert": "cpp",
-        "vulkan_graphics_pipeline.h": "c"
+        "vulkan_graphics_pipeline.h": "c",
+        "vulkan_descriptor_set.h": "c",
+        "bitset": "c",
+        "regex": "c"
     }
 }

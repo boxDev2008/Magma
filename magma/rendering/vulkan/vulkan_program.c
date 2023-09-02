@@ -21,8 +21,8 @@ mg_vulkan_program_t *mg_vulkan_create_program(mg_program_create_info_t *create_i
 {
     mg_vulkan_program_t *program = (mg_vulkan_program_t*)malloc(sizeof(mg_vulkan_program_t));
 
-    VkShaderModule vert_shader_module = mg_vulkan_create_shader(create_info->vertex_shader.code, create_info->vertex_shader.code_size);
-    VkShaderModule frag_shader_module = mg_vulkan_create_shader(create_info->fragment_shader.code, create_info->fragment_shader.code_size);
+    VkShaderModule vert_shader_module = mg_vulkan_create_shader(create_info->vertex_shader->code, create_info->vertex_shader->code_size);
+    VkShaderModule frag_shader_module = mg_vulkan_create_shader(create_info->fragment_shader->code, create_info->fragment_shader->code_size);
 
     VkPipelineShaderStageCreateInfo vert_shader_stage_info = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
     vert_shader_stage_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
@@ -50,7 +50,7 @@ mg_vulkan_program_t *mg_vulkan_create_program(mg_program_create_info_t *create_i
     binding_description.stride = create_info->vertex_layout.stride;
     binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
     
-    VkVertexInputAttributeDescription attribute_descriptions[MG_MAX_VERTEX_ATTRIBUTES];
+    VkVertexInputAttributeDescription attribute_descriptions[create_info->vertex_layout.attribute_count];
 
     for (uint32_t i = 0; i < create_info->vertex_layout.attribute_count; i++)
     {
@@ -59,7 +59,7 @@ mg_vulkan_program_t *mg_vulkan_create_program(mg_program_create_info_t *create_i
         attribute_descriptions[0].format = (VkFormat)create_info->vertex_layout.attributes[i].format;
         attribute_descriptions[0].offset = create_info->vertex_layout.attributes[i].offset;
     }
-    
+
     VkPipelineVertexInputStateCreateInfo vertex_input_info = {VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
     vertex_input_info.vertexBindingDescriptionCount = 1;
     vertex_input_info.pVertexBindingDescriptions = &binding_description;
@@ -120,6 +120,9 @@ mg_vulkan_program_t *mg_vulkan_create_program(mg_program_create_info_t *create_i
     color_blending.pAttachments = &color_blend_attachment;
 
     VkPipelineLayoutCreateInfo pipeline_layout_info = {VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
+
+    pipeline_layout_info.setLayoutCount = create_info->desctriptor_set_layout_count;
+    pipeline_layout_info.pSetLayouts = (VkDescriptorSetLayout*)create_info->desctriptor_set_layouts;
 
     if (create_info->has_push_constants)
     {

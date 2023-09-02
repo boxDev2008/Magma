@@ -1,6 +1,7 @@
 #pragma once
 
 #include "base.h"
+#include "../llapi_renderer.h"
 
 #include <volk.h>
 
@@ -32,6 +33,7 @@ struct mg_vulkan_buffer
 
     void *data;
 
+    mg_buffer_update_frequency_t frequency;
     bool mapped_at_creation;
 };
 
