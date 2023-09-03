@@ -59,6 +59,54 @@ struct mg_buffer
     mg_handle internal_data;
 };
 
+
+typedef struct mg_texture_image_create_info mg_texture_image_create_info_t;
+struct mg_texture_image_create_info
+{
+    uint32_t width, height;
+    void *data;
+};
+
+typedef struct mg_texture_image mg_texture_image_t;
+struct mg_texture_image
+{
+    mg_handle internal_data;
+};
+
+typedef enum mg_sampler_filter mg_sampler_filter_t;
+enum mg_sampler_filter
+{
+    MG_SAMPLER_FILTER_NEAREST = 0,
+    MG_SAMPLER_FILTER_LINEAR = 1
+};
+
+typedef enum mg_sampler_address_mode mg_sampler_address_mode_t;
+enum mg_sampler_address_mode
+{
+    MG_SAMPLER_ADDRESS_MODE_REPEAT = 0,
+    MG_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT = 1,
+    MG_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE = 2,
+    MG_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER = 3,
+    MG_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE = 4
+};
+
+typedef struct mg_sampler_create_info mg_sampler_create_info_t;
+struct mg_sampler_create_info
+{
+    mg_sampler_filter_t mag_filter;
+    mg_sampler_filter_t min_filter;
+
+    mg_sampler_address_mode_t address_mode_u;
+    mg_sampler_address_mode_t address_mode_v;
+    mg_sampler_address_mode_t address_mode_w;
+};
+
+typedef struct mg_sampler mg_sampler_t;
+struct mg_sampler
+{
+    mg_handle internal_data;
+};
+
 typedef enum mg_primitive_topology mg_primitive_topology_t;
 enum mg_primitive_topology
 {
@@ -157,9 +205,8 @@ struct mg_descriptor_buffer_info
 typedef struct mg_descriptor_image_info mg_descriptor_image_info_t;
 struct mg_descriptor_image_info
 {
-    //VkSampler sampler;
-    //VkImageView imageView;
-    //VkImageLayout imageLayout;
+    mg_sampler_t sampler;
+    mg_texture_image_t image;
 };
 
 typedef struct mg_descriptor_write mg_descriptor_write_t;
@@ -262,7 +309,7 @@ MG_API void mg_llapi_renderer_present_frame (void);
 MG_API void mg_llapi_renderer_wait          (void);
 
 MG_API void mg_llapi_renderer_draw          (uint32_t vertex_count, uint32_t first_vertex);
-MG_API void mg_llapi_renderer_draw_indexed  (uint32_t vertex_index, uint32_t first_index);
+MG_API void mg_llapi_renderer_draw_indexed  (uint32_t index_count, uint32_t first_index);
 
 MG_API mg_descriptor_set_layout_t   mg_llapi_renderer_create_descriptor_set_layout  (mg_descriptor_set_layout_create_info_t *create_info);
 MG_API void                         mg_llapi_renderer_destroy_descriptor_set_layout (mg_descriptor_set_layout_t descriptor_set_layout);
@@ -270,7 +317,7 @@ MG_API void                         mg_llapi_renderer_destroy_descriptor_set_lay
 MG_API mg_descriptor_set_t          mg_llapi_renderer_create_descriptor_set         (mg_descriptor_set_create_info_t *create_info);
 MG_API void                         mg_llapi_renderer_update_descriptor_set         (mg_descriptor_set_t descriptor_set, mg_descriptor_write_t *descriptor_write);
 MG_API void                         mg_llapi_renderer_destroy_descriptor_set        (mg_descriptor_set_t descriptor_set);
-MG_API void                         mg_llapi_bind_descriptor_set                    (mg_descriptor_set_t descriptor_set, mg_program_t program, uint32_t first_set);
+MG_API void                         mg_llapi_bind_descriptor_set                    (mg_descriptor_set_t descriptor_set, mg_program_t program, uint32_t set_index);
 
 MG_API mg_program_t                 mg_llapi_renderer_create_program                (mg_program_create_info_t *create_info);
 MG_API void                         mg_llapi_renderer_destroy_program               (mg_program_t program);
@@ -280,5 +327,13 @@ MG_API mg_buffer_t                  mg_llapi_renderer_create_buffer             
 MG_API void                         mg_llapi_renderer_update_buffer                 (mg_buffer_t buffer, mg_buffer_update_info_t *update_info);
 MG_API void                         mg_llapi_renderer_destroy_buffer                (mg_buffer_t buffer);
 
+MG_API mg_texture_image_t           mg_llapi_renderer_create_texture_image          (mg_texture_image_create_info_t *create_info);
+MG_API void                         mg_llapi_renderer_destroy_texture_image         (mg_texture_image_t texture_image);
+
+MG_API mg_sampler_t                 mg_llapi_renderer_create_sampler                (mg_sampler_create_info_t *create_info);
+MG_API void                         mg_llapi_renderer_destroy_sampler               (mg_sampler_t sampler);
+
 MG_API void                         mg_llapi_renderer_bind_vertex_buffer            (mg_buffer_t buffer);
 MG_API void                         mg_llapi_renderer_bind_index_buffer             (mg_buffer_t buffer, mg_index_type_t index_type);
+
+MG_API void                         mg_llapi_renderer_push_constants                (mg_program_t program, uint32_t size, void *data);

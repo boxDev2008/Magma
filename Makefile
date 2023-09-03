@@ -12,4 +12,4 @@ MAGMA_DEFINES = -D=VK_USE_PLATFORM_WIN32_KHR
 
 all:
 	gcc -O2 -shared -o bin/libmagma.dll $(MAGMA_SRC_DIRS) $(MAGMA_INCLUDE_FLAGS) $(MAGMA_LIB_FLAGS) $(MAGMA_DEFINES)
-	gcc -O2 -o bin/a.exe *.c -Imagma -Lbin -llibmagma
+	gcc -O2 -o bin/a.exe *.c -Imagma -Lbin -llibmagma $(MAGMA_INCLUDE_FLAGS)

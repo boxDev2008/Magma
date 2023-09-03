@@ -13,13 +13,16 @@ struct mg_vulkan_sampler
     VkSampler sampler;
 };
 
-typedef struct mg_vulkan_image mg_vulkan_image_t;
-struct mg_vulkan_image
+typedef struct mg_vulkan_texture_image mg_vulkan_texture_image_t;
+struct mg_vulkan_texture_image
 {
     VkImage image;
     VkImageView view;
 
     VkDeviceMemory memory;
+
+    VkBuffer staging_buffer;
+    VkDeviceMemory staging_memory;
 };
 
 typedef struct mg_vulkan_buffer mg_vulkan_buffer_t;

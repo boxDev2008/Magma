@@ -15,6 +15,7 @@ VkDescriptorSetLayout mg_vulkan_create_descriptor_set_layout(mg_descriptor_set_l
         layout_bindings[i].descriptorType = create_info->descriptors[i].type;
         layout_bindings[i].descriptorCount = 1;
         layout_bindings[i].stageFlags = create_info->descriptors[i].stage;
+        layout_bindings[i].pImmutableSamplers = NULL;
     }
 
     VkDescriptorSetLayoutCreateInfo layout_info = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
@@ -58,17 +59,27 @@ void mg_vulkan_update_descriptor_set(VkDescriptorSet descriptor_set, mg_descript
     write.descriptorCount = 1;
 
     VkDescriptorBufferInfo buffer_info;
+    VkDescriptorImageInfo image_info;
 
     if (descriptor_write->buffer_info)
     {
-        buffer_info.buffer = ((mg_vulkan_buffer_t*)descriptor_write->buffer_info->buffer.internal_data)->buffer;
+        mg_vulkan_buffer_t *buffer = (mg_vulkan_buffer_t*)descriptor_write->buffer_info->buffer.internal_data;
+        buffer_info.buffer = buffer->buffer;
         buffer_info.offset = descriptor_write->buffer_info->offset;
         buffer_info.range = descriptor_write->buffer_info->range;
 
         write.pBufferInfo = &buffer_info;
     }
 
-    //write.pImageInfo = (VkDescriptorImageInfo*)descriptor_write->image_info;
+    if (descriptor_write->image_info)
+    {
+        mg_vulkan_texture_image_t *image = (mg_vulkan_texture_image_t*)descriptor_write->image_info->image.internal_data;
+        image_info.sampler = descriptor_write->image_info->sampler.internal_data;
+        image_info.imageView = image->view;
+        image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+        write.pImageInfo = &image_info;
+    }
 
     vkUpdateDescriptorSets(context.device.handle, 1, &write, 0, NULL);
 }

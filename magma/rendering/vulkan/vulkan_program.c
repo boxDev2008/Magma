@@ -52,12 +52,13 @@ mg_vulkan_program_t *mg_vulkan_create_program(mg_program_create_info_t *create_i
     
     VkVertexInputAttributeDescription attribute_descriptions[create_info->vertex_layout.attribute_count];
 
-    for (uint32_t i = 0; i < create_info->vertex_layout.attribute_count; i++)
+    uint32_t i;
+    for (i = 0; i < create_info->vertex_layout.attribute_count; i++)
     {
-        attribute_descriptions[0].binding = 0;
-        attribute_descriptions[0].location = create_info->vertex_layout.attributes[i].location;
-        attribute_descriptions[0].format = (VkFormat)create_info->vertex_layout.attributes[i].format;
-        attribute_descriptions[0].offset = create_info->vertex_layout.attributes[i].offset;
+        attribute_descriptions[i].binding = 0;
+        attribute_descriptions[i].location = create_info->vertex_layout.attributes[i].location;
+        attribute_descriptions[i].format = create_info->vertex_layout.attributes[i].format;
+        attribute_descriptions[i].offset = create_info->vertex_layout.attributes[i].offset;
     }
 
     VkPipelineVertexInputStateCreateInfo vertex_input_info = {VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
@@ -92,10 +93,10 @@ mg_vulkan_program_t *mg_vulkan_create_program(mg_program_create_info_t *create_i
     VkPipelineRasterizationStateCreateInfo rasterizer = {VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};
     rasterizer.depthClampEnable = VK_FALSE;
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
-    rasterizer.polygonMode = (VkPolygonMode)create_info->polygon_mode;
+    rasterizer.polygonMode = create_info->polygon_mode;
     rasterizer.lineWidth = 1.0f;
-    rasterizer.cullMode = (VkCullModeFlagBits)create_info->cull_mode;
-    rasterizer.frontFace = (VkFrontFace)create_info->front_face;
+    rasterizer.cullMode = create_info->cull_mode;
+    rasterizer.frontFace = create_info->front_face;
     rasterizer.depthBiasEnable = VK_FALSE;
 
     VkPipelineMultisampleStateCreateInfo multisampling = {VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO};
@@ -121,8 +122,13 @@ mg_vulkan_program_t *mg_vulkan_create_program(mg_program_create_info_t *create_i
 
     VkPipelineLayoutCreateInfo pipeline_layout_info = {VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
 
+    VkDescriptorSetLayout set_layouts[create_info->desctriptor_set_layout_count];
+
+    for (i = 0; i < create_info->desctriptor_set_layout_count; i++)
+        set_layouts[i] = create_info->desctriptor_set_layouts[i].internal_data;
+
     pipeline_layout_info.setLayoutCount = create_info->desctriptor_set_layout_count;
-    pipeline_layout_info.pSetLayouts = (VkDescriptorSetLayout*)create_info->desctriptor_set_layouts;
+    pipeline_layout_info.pSetLayouts = set_layouts;
 
     if (create_info->has_push_constants)
     {

@@ -3,6 +3,7 @@
 #include "vulkan/vulkan_renderer.h"
 #include "vulkan/vulkan_program.h"
 #include "vulkan/vulkan_buffer.h"
+#include "vulkan/vulkan_image.h"
 #include "vulkan/vulkan_descriptor_set.h"
 
 typedef struct mg_renderer_plugin mg_renderer_plugin_t;
@@ -38,11 +39,19 @@ struct mg_renderer_plugin
     void (*update_buffer)               (void *internal_data, mg_buffer_update_info_t *update_data);
     void (*destroy_buffer)              (void *internal_data);
 
+    void *(*create_texture_image)       (mg_texture_image_create_info_t *create_info);
+    void (*destroy_texture_image)       (void *internal_data);
+
+    void *(*create_sampler)       (mg_sampler_create_info_t *create_info);
+    void (*destroy_sampler)       (void *internal_data);
+
     void (*bind_vertex_buffer)          (void *internal_data);
     void (*bind_index_buffer)           (void *internal_data, mg_index_type_t index_type);
 
     void (*draw)            (uint32_t vertex_count, uint32_t first_vertex);
-    void (*draw_indexed)    (uint32_t vertex_index, uint32_t first_index);
+    void (*draw_indexed)    (uint32_t index_count, uint32_t first_index);
+
+    void (*push_constants)  (void *program, uint32_t size, void *data);
 };
 
 mg_renderer_plugin_t plugin;
@@ -81,11 +90,19 @@ void mg_llapi_renderer_initialize(mg_platform_t *platform, mg_renderer_type_t ty
             plugin.update_buffer            =   mg_vulkan_update_buffer;
             plugin.destroy_buffer           =   mg_vulkan_destroy_buffer;
 
+            plugin.create_texture_image     =   mg_vulkan_create_texture_image;
+            plugin.destroy_texture_image    =   mg_vulkan_destroy_texture_image;
+
+            plugin.create_sampler     =   mg_vulkan_create_sampler;
+            plugin.destroy_sampler    =   mg_vulkan_destroy_sampler;
+
             plugin.bind_vertex_buffer   =   mg_vulkan_bind_vertex_buffer;
             plugin.bind_index_buffer    =   mg_vulkan_bind_index_buffer;
 
             plugin.draw         =   mg_vulkan_renderer_draw;
             plugin.draw_indexed =   mg_vulkan_renderer_draw_indexed;
+
+            plugin.push_constants   =   mg_vulkan_renderer_push_constants;
         break;
     }
 
@@ -117,95 +134,124 @@ void mg_llapi_renderer_present_frame(void)
     plugin.present_frame();
 }
 
-MG_API void mg_llapi_renderer_wait(void)
+void mg_llapi_renderer_wait(void)
 {
     plugin.wait();
 }
 
-MG_API mg_descriptor_set_layout_t mg_llapi_renderer_create_descriptor_set_layout(mg_descriptor_set_layout_create_info_t *create_info)
+void mg_llapi_renderer_draw(uint32_t vertex_count, uint32_t first_vertex)
+{
+    plugin.draw(vertex_count, first_vertex);
+}
+
+void mg_llapi_renderer_draw_indexed(uint32_t index_count, uint32_t first_index)
+{
+    plugin.draw_indexed(index_count, first_index);
+}
+
+mg_descriptor_set_layout_t mg_llapi_renderer_create_descriptor_set_layout(mg_descriptor_set_layout_create_info_t *create_info)
 {
     mg_descriptor_set_layout_t descriptor_set_layout;
     descriptor_set_layout.internal_data = plugin.create_descriptor_set_layout(create_info);
     return descriptor_set_layout;
 }
 
-MG_API void mg_llapi_renderer_destroy_descriptor_set_layout(mg_descriptor_set_layout_t descriptor_set_layout)
+void mg_llapi_renderer_destroy_descriptor_set_layout(mg_descriptor_set_layout_t descriptor_set_layout)
 {
     plugin.destroy_descriptor_set_layout(descriptor_set_layout.internal_data);
 }
 
-MG_API mg_descriptor_set_t mg_llapi_renderer_create_descriptor_set(mg_descriptor_set_create_info_t *create_info)
+mg_descriptor_set_t mg_llapi_renderer_create_descriptor_set(mg_descriptor_set_create_info_t *create_info)
 {
     mg_descriptor_set_t descriptor_set;
     descriptor_set.internal_data = plugin.create_descriptor_set(create_info);
     return descriptor_set;
 }
 
-MG_API void mg_llapi_renderer_update_descriptor_set(mg_descriptor_set_t descriptor_set, mg_descriptor_write_t *descriptor_write)
+void mg_llapi_renderer_update_descriptor_set(mg_descriptor_set_t descriptor_set, mg_descriptor_write_t *descriptor_write)
 {
     plugin.update_descriptor_set(descriptor_set.internal_data, descriptor_write);
 }
 
-MG_API void mg_llapi_renderer_destroy_descriptor_set(mg_descriptor_set_t descriptor_set)
+void mg_llapi_renderer_destroy_descriptor_set(mg_descriptor_set_t descriptor_set)
 {
     plugin.destroy_descriptor_set(descriptor_set.internal_data);
 }
 
-MG_API void mg_llapi_bind_descriptor_set(mg_descriptor_set_t descriptor_set, mg_program_t program, uint32_t set_index)
+void mg_llapi_bind_descriptor_set(mg_descriptor_set_t descriptor_set, mg_program_t program, uint32_t set_index)
 {
     plugin.bind_descriptor_set(descriptor_set.internal_data, program.internal_data, set_index);
 }
 
-MG_API mg_program_t mg_llapi_renderer_create_program(mg_program_create_info_t *create_info)
+mg_program_t mg_llapi_renderer_create_program(mg_program_create_info_t *create_info)
 {
     mg_program_t program;
     program.internal_data = plugin.create_program(create_info);
     return program;
 }
 
-MG_API void mg_llapi_renderer_destroy_program(mg_program_t program)
+void mg_llapi_renderer_destroy_program(mg_program_t program)
 {
     plugin.destroy_program(program.internal_data);
 }
 
-MG_API void mg_llapi_renderer_bind_program(mg_program_t program)
+void mg_llapi_renderer_bind_program(mg_program_t program)
 {
     plugin.bind_program(program.internal_data);
 }
 
-MG_API mg_buffer_t mg_llapi_renderer_create_buffer(mg_buffer_create_info_t *create_info)
+mg_buffer_t mg_llapi_renderer_create_buffer(mg_buffer_create_info_t *create_info)
 {
     mg_buffer_t buffer;
     buffer.internal_data = plugin.create_buffer(create_info);
     return buffer;
 }
 
-MG_API void mg_llapi_renderer_destroy_buffer(mg_buffer_t buffer)
+void mg_llapi_renderer_destroy_buffer(mg_buffer_t buffer)
 {
     plugin.destroy_buffer(buffer.internal_data);
 }
 
-MG_API void mg_llapi_renderer_update_buffer(mg_buffer_t buffer, mg_buffer_update_info_t *update_info)
+void mg_llapi_renderer_update_buffer(mg_buffer_t buffer, mg_buffer_update_info_t *update_info)
 {
     plugin.update_buffer(buffer.internal_data, update_info);
 }
 
-MG_API void mg_llapi_renderer_bind_vertex_buffer(mg_buffer_t buffer)
+mg_texture_image_t mg_llapi_renderer_create_texture_image(mg_texture_image_create_info_t *create_info)
+{
+    mg_texture_image_t texture_image;
+    texture_image.internal_data = plugin.create_texture_image(create_info);
+    return texture_image;
+}
+
+void mg_llapi_renderer_destroy_texture_image(mg_texture_image_t texture_image)
+{
+    plugin.destroy_texture_image(texture_image.internal_data);
+}
+
+mg_sampler_t mg_llapi_renderer_create_sampler(mg_sampler_create_info_t *create_info)
+{
+    mg_sampler_t sampler;
+    sampler.internal_data = plugin.create_sampler(create_info);
+    return sampler;
+}
+
+void mg_llapi_renderer_destroy_sampler(mg_sampler_t sampler)
+{
+    plugin.destroy_sampler(sampler.internal_data);
+}
+
+void mg_llapi_renderer_bind_vertex_buffer(mg_buffer_t buffer)
 {
     plugin.bind_vertex_buffer(buffer.internal_data);
 }
 
-MG_API void mg_llapi_renderer_bind_index_buffer(mg_buffer_t buffer, mg_index_type_t index_type)
+void mg_llapi_renderer_bind_index_buffer(mg_buffer_t buffer, mg_index_type_t index_type)
 {
     plugin.bind_index_buffer(buffer.internal_data, index_type);
 }
 
-MG_API void mg_llapi_renderer_draw(uint32_t vertex_count, uint32_t first_vertex)
+void mg_llapi_renderer_push_constants(mg_program_t program, uint32_t size, void *data)
 {
-    plugin.draw(vertex_count, first_vertex);
-}
-
-MG_API void mg_llapi_renderer_draw_indexed(uint32_t vertex_index, uint32_t first_index)
-{
-    plugin.draw_indexed(vertex_index, first_index);
+    plugin.push_constants(program.internal_data, size, data);
 }

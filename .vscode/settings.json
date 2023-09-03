@@ -83,6 +83,10 @@
         "vulkan_graphics_pipeline.h": "c",
         "vulkan_descriptor_set.h": "c",
         "bitset": "c",
-        "regex": "c"
+        "regex": "c",
+        "vert.spv.h": "c",
+        "stb_image.h": "c",
+        "math.h": "c",
+        "mat4.h": "c"
     }
 }

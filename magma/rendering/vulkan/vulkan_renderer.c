@@ -469,7 +469,7 @@ MG_API void mg_vulkan_renderer_begin_frame(void)
     render_pass_info.renderArea.offset = (VkOffset2D){0, 0};
     render_pass_info.renderArea.extent = context.swapchain.extent;
 
-    VkClearValue clearColor = {{{0.1f, 0.1f, 0.1f, 1.0f}}};
+    VkClearValue clearColor = {{{0.005f, 0.005f, 0.005f, 1.0f}}};
     render_pass_info.clearValueCount = 1;
     render_pass_info.pClearValues = &clearColor;
 
@@ -533,7 +533,12 @@ void mg_vulkan_renderer_draw(uint32_t vertex_count, uint32_t first_vertex)
     vkCmdDraw(context.command_buffer, vertex_count, 1, first_vertex, 0);
 }
 
-void mg_vulkan_renderer_draw_indexed(uint32_t vertex_index, uint32_t first_index)
+void mg_vulkan_renderer_draw_indexed(uint32_t index_count, uint32_t first_index)
 {
-    vkCmdDrawIndexed(context.command_buffer, vertex_index, 1, first_index, 0, 0);
+    vkCmdDrawIndexed(context.command_buffer, index_count, 1, first_index, 0, 0);
+}
+
+void mg_vulkan_renderer_push_constants(mg_vulkan_program_t *program, uint32_t size, void *data)
+{
+    vkCmdPushConstants(context.command_buffer, program->pipeline_layout, VK_SHADER_STAGE_ALL, 0, size, data);
 }

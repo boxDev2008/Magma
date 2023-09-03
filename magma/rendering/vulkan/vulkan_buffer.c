@@ -114,8 +114,16 @@ void mg_vulkan_update_buffer(mg_vulkan_buffer_t *buffer, mg_buffer_update_info_t
 
 void mg_vulkan_destroy_buffer(mg_vulkan_buffer_t *buffer)
 {
+    if (buffer->frequency == MG_BUFFER_UPDATE_FREQUENCY_STATIC)
+    {
+        vkDestroyBuffer(context.device.handle, buffer->staging_buffer, NULL);
+        vkFreeMemory(context.device.handle, buffer->staging_memory, NULL);
+    }
+
     vkDestroyBuffer(context.device.handle, buffer->buffer, NULL);
     vkFreeMemory(context.device.handle, buffer->memory, NULL);
+
+    free(buffer);
 }
 
 void mg_vulkan_bind_vertex_buffer(mg_vulkan_buffer_t *buffer)

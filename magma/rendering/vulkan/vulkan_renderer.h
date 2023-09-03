@@ -28,4 +28,6 @@ void mg_vulkan_renderer_present     (void);
 void mg_vulkan_renderer_wait        (void);
 
 void mg_vulkan_renderer_draw            (uint32_t vertex_count, uint32_t first_vertex);
-void mg_vulkan_renderer_draw_indexed    (uint32_t vertex_index, uint32_t first_index);
+void mg_vulkan_renderer_draw_indexed    (uint32_t index_count, uint32_t first_index);
+
+void mg_vulkan_renderer_push_constants  (mg_vulkan_program_t *program, uint32_t size, void *data);
