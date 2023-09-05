@@ -168,11 +168,34 @@ int main(void)
     program_create_info.polygon_mode = MG_POLYGON_MODE_FILL;
     program_create_info.cull_mode = MG_CULL_MODE_BACK;
     program_create_info.front_face = MG_FRONT_FACE_CW;
+
+    mg_color_blend_t color_blend;
+    color_blend.blend_enabled = true;
+    color_blend.src_color_blend_factor = MG_BLEND_FACTOR_SRC_ALPHA;
+    color_blend.dst_color_blend_factor = MG_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    color_blend.color_blend_op = MG_BLEND_OP_ADD;
+    color_blend.src_alpha_blend_factor = MG_BLEND_FACTOR_ONE;
+    color_blend.dst_alpha_blend_factor = MG_BLEND_FACTOR_ZERO;
+    color_blend.alpha_blend_op = MG_BLEND_OP_ADD;
+
+    program_create_info.color_blend = color_blend;
     
     program_create_info.has_push_constants = true;
     program_create_info.push_constants_size = sizeof(PushConstantObject);
 
     mg_program_t program = mg_llapi_renderer_create_program(&program_create_info);
+
+    color_blend.blend_enabled = false;
+    color_blend.src_color_blend_factor = MG_BLEND_FACTOR_ONE;
+    color_blend.dst_color_blend_factor = MG_BLEND_FACTOR_ZERO;
+    color_blend.color_blend_op = MG_BLEND_OP_ADD;
+    color_blend.src_alpha_blend_factor = MG_BLEND_FACTOR_ONE;
+    color_blend.dst_alpha_blend_factor = MG_BLEND_FACTOR_ZERO;
+    color_blend.alpha_blend_op = MG_BLEND_OP_ADD;
+
+    program_create_info.color_blend = color_blend;
+
+    mg_program_t back_program = mg_llapi_renderer_create_program(&program_create_info);
 
     mg_texture_image_create_info_t texture_image_create_info = { 0 };
     int texWidth, texHeight, texChannels;
@@ -264,7 +287,7 @@ int main(void)
         mg_render_pass_begin_info_t render_pass_begin_info;
         render_pass_begin_info.framebuffer = frame_framebuffer;
         render_pass_begin_info.render_area = (mg_vec4_t){0.0f, 0.0f, 200, 200};
-        render_pass_begin_info.clear_value = (mg_vec4_t){0.0f, 0.0f, 0.0f, 1.0f};
+        render_pass_begin_info.clear_value = (mg_vec4_t){0.01f, 0.01f, 0.01f, 1.0f};
         mg_llapi_renderer_begin_render_pass(back_render_pass, &render_pass_begin_info);
         mg_llapi_renderer_renderer_viewport(200, 200);
 
@@ -312,14 +335,14 @@ int main(void)
 
         mg_llapi_renderer_update_descriptor_set(ubo_set, &descriptor_write);
 
-        mg_llapi_renderer_bind_program(program);
+        mg_llapi_renderer_bind_program(back_program);
         mg_llapi_renderer_bind_vertex_buffer(vertex_buffer);
         mg_llapi_renderer_bind_index_buffer(index_buffer, MG_INDEX_TYPE_UINT32);
-        mg_llapi_renderer_bind_descriptor_set(ubo_set, program, 0);
-        mg_llapi_renderer_bind_descriptor_set(frame_sampler_set, program, 1);
+        mg_llapi_renderer_bind_descriptor_set(ubo_set, back_program, 0);
+        mg_llapi_renderer_bind_descriptor_set(frame_sampler_set, back_program, 1);
         push.model = mg_mat4_identity();
         //push.model = mg_mat4_scale(push.model, (mg_vec3_t){457.6f * 2, 123.2f * 2, 1.0f});
-        mg_llapi_renderer_push_constants(program, sizeof(PushConstantObject), &push);
+        mg_llapi_renderer_push_constants(back_program, sizeof(PushConstantObject), &push);
         mg_llapi_renderer_draw_indexed(6, 0);
 
         mg_llapi_renderer_end_render_pass();
@@ -331,6 +354,7 @@ int main(void)
     }
 
     mg_llapi_renderer_destroy_program(program);
+    mg_llapi_renderer_destroy_program(back_program);
     mg_llapi_renderer_destroy_descriptor_set(frame_sampler_set);
     mg_llapi_renderer_destroy_descriptor_set(sampler_set);
     mg_llapi_renderer_destroy_sampler(sampler);

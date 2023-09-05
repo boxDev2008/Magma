@@ -61,7 +61,6 @@ struct mg_buffer
     mg_handle internal_data;
 };
 
-
 typedef struct mg_texture_image_create_info mg_texture_image_create_info_t;
 struct mg_texture_image_create_info
 {
@@ -181,6 +180,100 @@ enum mg_front_face
 {
     MG_FRONT_FACE_CCW = 0,
     MG_FRONT_FACE_CW = 1
+};
+
+typedef enum mg_blend_factor mg_blend_factor_t;
+enum mg_blend_factor
+{
+    MG_BLEND_FACTOR_ZERO = 0,
+    MG_BLEND_FACTOR_ONE = 1,
+    MG_BLEND_FACTOR_SRC_COLOR = 2,
+    MG_BLEND_FACTOR_ONE_MINUS_SRC_COLOR = 3,
+    MG_BLEND_FACTOR_DST_COLOR = 4,
+    MG_BLEND_FACTOR_ONE_MINUS_DST_COLOR = 5,
+    MG_BLEND_FACTOR_SRC_ALPHA = 6,
+    MG_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA = 7,
+    MG_BLEND_FACTOR_DST_ALPHA = 8,
+    MG_BLEND_FACTOR_ONE_MINUS_DST_ALPHA = 9,
+    MG_BLEND_FACTOR_CONSTANT_COLOR = 10,
+    MG_BLEND_FACTOR_ONE_MINUS_CONSTANT_COLOR = 11,
+    MG_BLEND_FACTOR_CONSTANT_ALPHA = 12,
+    MG_BLEND_FACTOR_ONE_MINUS_CONSTANT_ALPHA = 13,
+    MG_BLEND_FACTOR_SRC_ALPHA_SATURATE = 14,
+    MG_BLEND_FACTOR_SRC1_COLOR = 15,
+    MG_BLEND_FACTOR_ONE_MINUS_SRC1_COLOR = 16,
+    MG_BLEND_FACTOR_SRC1_ALPHA = 17,
+    MG_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA = 18
+};
+
+typedef enum mg_blend_op mg_blend_op_t;
+enum mg_blend_op
+{
+    MG_BLEND_OP_ADD = 0,
+    MG_BLEND_OP_SUBTRACT = 1,
+    MG_BLEND_OP_REVERSE_SUBTRACT = 2,
+    MG_BLEND_OP_MIN = 3,
+    MG_BLEND_OP_MAX = 4,
+    MG_BLEND_OP_ZERO_EXT = 1000148000,
+    MG_BLEND_OP_SRC_EXT = 1000148001,
+    MG_BLEND_OP_DST_EXT = 1000148002,
+    MG_BLEND_OP_SRC_OVER_EXT = 1000148003,
+    MG_BLEND_OP_DST_OVER_EXT = 1000148004,
+    MG_BLEND_OP_SRC_IN_EXT = 1000148005,
+    MG_BLEND_OP_DST_IN_EXT = 1000148006,
+    MG_BLEND_OP_SRC_OUT_EXT = 1000148007,
+    MG_BLEND_OP_DST_OUT_EXT = 1000148008,
+    MG_BLEND_OP_SRC_ATOP_EXT = 1000148009,
+    MG_BLEND_OP_DST_ATOP_EXT = 1000148010,
+    MG_BLEND_OP_XOR_EXT = 1000148011,
+    MG_BLEND_OP_MULTIPLY_EXT = 1000148012,
+    MG_BLEND_OP_SCREEN_EXT = 1000148013,
+    MG_BLEND_OP_OVERLAY_EXT = 1000148014,
+    MG_BLEND_OP_DARKEN_EXT = 1000148015,
+    MG_BLEND_OP_LIGHTEN_EXT = 1000148016,
+    MG_BLEND_OP_COLORDODGE_EXT = 1000148017,
+    MG_BLEND_OP_COLORBURN_EXT = 1000148018,
+    MG_BLEND_OP_HARDLIGHT_EXT = 1000148019,
+    MG_BLEND_OP_SOFTLIGHT_EXT = 1000148020,
+    MG_BLEND_OP_DIFFERENCE_EXT = 1000148021,
+    MG_BLEND_OP_EXCLUSION_EXT = 1000148022,
+    MG_BLEND_OP_INVERT_EXT = 1000148023,
+    MG_BLEND_OP_INVERT_RGB_EXT = 1000148024,
+    MG_BLEND_OP_LINEARDODGE_EXT = 1000148025,
+    MG_BLEND_OP_LINEARBURN_EXT = 1000148026,
+    MG_BLEND_OP_VIVIDLIGHT_EXT = 1000148027,
+    MG_BLEND_OP_LINEARLIGHT_EXT = 1000148028,
+    MG_BLEND_OP_PINLIGHT_EXT = 1000148029,
+    MG_BLEND_OP_HARDMIX_EXT = 1000148030,
+    MG_BLEND_OP_HSL_HUE_EXT = 1000148031,
+    MG_BLEND_OP_HSL_SATURATION_EXT = 1000148032,
+    MG_BLEND_OP_HSL_COLOR_EXT = 1000148033,
+    MG_BLEND_OP_HSL_LUMINOSITY_EXT = 1000148034,
+    MG_BLEND_OP_PLUS_EXT = 1000148035,
+    MG_BLEND_OP_PLUS_CLAMPED_EXT = 1000148036,
+    MG_BLEND_OP_PLUS_CLAMPED_ALPHA_EXT = 1000148037,
+    MG_BLEND_OP_PLUS_DARKER_EXT = 1000148038,
+    MG_BLEND_OP_MINUS_EXT = 1000148039,
+    MG_BLEND_OP_MINUS_CLAMPED_EXT = 1000148040,
+    MG_BLEND_OP_CONTRAST_EXT = 1000148041,
+    MG_BLEND_OP_INVERT_OVG_EXT = 1000148042,
+    MG_BLEND_OP_RED_EXT = 1000148043,
+    MG_BLEND_OP_GREEN_EXT = 1000148044,
+    MG_BLEND_OP_BLUE_EXT = 1000148045
+};
+
+typedef struct mg_color_blend mg_color_blend_t;
+struct mg_color_blend
+{
+    bool blend_enabled;
+
+    mg_blend_factor_t src_color_blend_factor;
+    mg_blend_factor_t dst_color_blend_factor;
+    mg_blend_op_t color_blend_op;
+    
+    mg_blend_factor_t src_alpha_blend_factor;
+    mg_blend_factor_t dst_alpha_blend_factor;
+    mg_blend_op_t alpha_blend_op;
 };
 
 typedef enum mg_shader_stage mg_shader_stage_t;
@@ -324,6 +417,7 @@ struct mg_program_create_info
     mg_polygon_mode_t polygon_mode;
     mg_cull_mode_t cull_mode;
     mg_front_face_t front_face;
+    mg_color_blend_t color_blend;
     
     mg_descriptor_set_layout_t *desctriptor_set_layouts;
     uint32_t desctriptor_set_layout_count;

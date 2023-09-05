@@ -53,8 +53,7 @@ mg_vulkan_program_t *mg_vulkan_create_program(mg_program_create_info_t *create_i
     VkVertexInputAttributeDescription *attribute_descriptions =
         (VkVertexInputAttributeDescription*)malloc(create_info->vertex_layout.attribute_count * sizeof(VkVertexInputAttributeDescription));
 
-    uint32_t i;
-    for (i = 0; i < create_info->vertex_layout.attribute_count; i++)
+    for (uint32_t i = 0; i < create_info->vertex_layout.attribute_count; i++)
     {
         attribute_descriptions[i].binding = 0;
         attribute_descriptions[i].location = create_info->vertex_layout.attributes[i].location;
@@ -104,16 +103,15 @@ mg_vulkan_program_t *mg_vulkan_create_program(mg_program_create_info_t *create_i
     multisampling.sampleShadingEnable = VK_FALSE;
     multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
-    // TODO (box): make it customizable from the create info.
     VkPipelineColorBlendAttachmentState color_blend_attachment = { 0 };
     color_blend_attachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    color_blend_attachment.blendEnable = VK_TRUE;
-    color_blend_attachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-    color_blend_attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    color_blend_attachment.colorBlendOp = VK_BLEND_OP_ADD;
-    color_blend_attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-    color_blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-    color_blend_attachment.alphaBlendOp = VK_BLEND_OP_ADD;
+    color_blend_attachment.blendEnable = create_info->color_blend.blend_enabled;
+    color_blend_attachment.srcColorBlendFactor = create_info->color_blend.src_color_blend_factor;
+    color_blend_attachment.dstColorBlendFactor = create_info->color_blend.dst_color_blend_factor;
+    color_blend_attachment.colorBlendOp = create_info->color_blend.color_blend_op;
+    color_blend_attachment.srcAlphaBlendFactor = create_info->color_blend.src_alpha_blend_factor;
+    color_blend_attachment.dstAlphaBlendFactor = create_info->color_blend.dst_alpha_blend_factor;
+    color_blend_attachment.alphaBlendOp = create_info->color_blend.alpha_blend_op;
 
     VkPipelineColorBlendStateCreateInfo color_blending = {VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO};
     color_blending.logicOpEnable = VK_FALSE;
