@@ -27,6 +27,11 @@ void mg_vulkan_renderer_present     (void);
 
 void mg_vulkan_renderer_wait        (void);
 
+VkFramebuffer   mg_vulkan_renderer_get_current_framebuffer  (void);
+mg_vec2_t       mg_vulkan_renderer_get_swapchain_extent     (void);
+
+void mg_vulkan_renderer_viewport        (int32_t width, int32_t height);
+
 void mg_vulkan_renderer_draw            (uint32_t vertex_count, uint32_t first_vertex);
 void mg_vulkan_renderer_draw_indexed    (uint32_t index_count, uint32_t first_index);
 

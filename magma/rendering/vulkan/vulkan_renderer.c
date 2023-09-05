@@ -1,5 +1,6 @@
 #include "vulkan_renderer.h"
 #include "vulkan_command_buffer.h"
+#include "vulkan_render_pass.h"
 #include "vulkan_buffer.h"
 #include "vulkan_image.h"
 
@@ -58,17 +59,13 @@ void mg_vulkan_get_physical_device(void)
             deviceFeatures.geometryShader)
         {
             context.physical_device.handle = devices[i];
+            context.physical_device.properties = deviceProperties;
+            context.physical_device.features = deviceFeatures;
             break;
         }
     }
 
     free(devices);
-
-    context.physical_device.handle_props.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
-    vkGetPhysicalDeviceProperties2(context.physical_device.handle, &context.physical_device.handle_props);
-
-    context.physical_device.features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-    vkGetPhysicalDeviceFeatures2(context.physical_device.handle, &context.physical_device.features);
 
     uint32_t queue_family_count = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(context.physical_device.handle, &queue_family_count, NULL);
@@ -224,52 +221,6 @@ void mg_vulkan_create_swapchain(int32_t width, int32_t height)
     }
 }
 
-void mg_vulkan_create_render_pass(void)
-{
-    VkAttachmentDescription colorAttachment = { 0 };
-    colorAttachment.format = context.swapchain.image_format;
-    colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-
-    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-
-    colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-
-    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-    VkAttachmentReference colorAttachmentRef = { 0 };
-    colorAttachmentRef.attachment = 0;
-    colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-    VkSubpassDescription subpass = { 0 };
-    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-
-    subpass.colorAttachmentCount = 1;
-    subpass.pColorAttachments = &colorAttachmentRef;
-
-    VkRenderPassCreateInfo renderPassInfo = {VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};
-    renderPassInfo.attachmentCount = 1;
-    renderPassInfo.pAttachments = &colorAttachment;
-    renderPassInfo.subpassCount = 1;
-    renderPassInfo.pSubpasses = &subpass;
-
-    VkSubpassDependency dependency = { 0 };
-    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-    dependency.dstSubpass = 0;
-    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependency.srcAccessMask = 0;
-    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-
-    renderPassInfo.dependencyCount = 1;
-    renderPassInfo.pDependencies = &dependency;
-
-    VkResult result = vkCreateRenderPass(context.device.handle, &renderPassInfo, NULL, &context.render_pass);
-    assert(result == VK_SUCCESS);
-}
-
 void mg_vulkan_create_swapchain_framebuffers(void)
 {
     context.swapchain.framebuffers = (VkFramebuffer*)malloc(context.swapchain.image_count * sizeof(VkFramebuffer));
@@ -278,7 +229,6 @@ void mg_vulkan_create_swapchain_framebuffers(void)
         VkFramebufferCreateInfo framebuffer_create_info = {VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
         framebuffer_create_info.attachmentCount = 1;
         framebuffer_create_info.pAttachments = &context.swapchain.image_views[i];
-        framebuffer_create_info.renderPass = context.render_pass;
         framebuffer_create_info.width = context.swapchain.extent.width;
         framebuffer_create_info.height = context.swapchain.extent.height;
         framebuffer_create_info.layers = 1;
@@ -340,36 +290,6 @@ void mg_vulkan_recreate_swapchain(void)
     mg_vulkan_create_swapchain_framebuffers();
 }
 
-/*void mg_vulkan_create_descriptor_set_layout(void)
-{
-    VkDescriptorSetLayoutBinding ubo_layout_binding = { 0 };
-    ubo_layout_binding.binding = 0;
-    ubo_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    ubo_layout_binding.descriptorCount = 1;
-    ubo_layout_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    ubo_layout_binding.pImmutableSamplers = NULL;
-
-    VkDescriptorSetLayoutBinding sampler_layout_binding = { 0 };
-    sampler_layout_binding.binding = 0;
-    sampler_layout_binding.descriptorCount = 1;
-    sampler_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    sampler_layout_binding.pImmutableSamplers = NULL;
-    sampler_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    
-    VkDescriptorSetLayoutCreateInfo layout_info = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
-    layout_info.bindingCount = 1;
-    layout_info.pBindings = &ubo_layout_binding;
-
-    VkResult result = vkCreateDescriptorSetLayout(context.device.handle, &layout_info, NULL, &context.descripto_set_layouts.ubo);
-    assert(result == VK_SUCCESS);
-
-    layout_info.bindingCount = 1;
-    layout_info.pBindings = &sampler_layout_binding;
-
-    result = vkCreateDescriptorSetLayout(context.device.handle, &layout_info, NULL, &context.descripto_set_layouts.sampler);
-    assert(result == VK_SUCCESS);
-}*/
-
 void mg_vulkan_create_descriptor_pool(void)
 {
     VkDescriptorPoolSize pool_sizes[] = {
@@ -408,7 +328,7 @@ void mg_vulkan_renderer_initialize(mg_platform_t *platform)
     mg_platform_get_window_size(platform, &context.framebuffer_width, &context.framebuffer_height);
     
     mg_vulkan_create_swapchain(context.framebuffer_width, context.framebuffer_height);
-    mg_vulkan_create_render_pass();
+    context.render_pass = mg_vulkan_create_render_pass();
     mg_vulkan_create_swapchain_framebuffers();
     mg_vulkan_create_descriptor_pool();
 }
@@ -421,13 +341,13 @@ void mg_vulkan_renderer_shutdown(void)
 
     mg_vulkan_cleanup_swapchain();
 
-    vkDestroyRenderPass(context.device.handle, context.render_pass, NULL);
+    mg_vulkan_destroy_render_pass(context.render_pass);
 
     vkDestroySemaphore(context.device.handle, context.sync_objects.image_available_semaphore, NULL);
     vkDestroySemaphore(context.device.handle, context.sync_objects.image_rendered_semaphore, NULL);
     vkDestroyFence(context.device.handle, context.sync_objects.fence, NULL);
 
-    vkFreeCommandBuffers(context.device.handle, context.command_pool, 1, &context.command_buffer);
+    mg_vulkan_free_command_buffer(context.command_buffer);
     vkDestroyCommandPool(context.device.handle, context.command_pool, NULL);
     vkDestroyDevice(context.device.handle, NULL);
     vkDestroySurfaceKHR(context.instance, context.surface, NULL);
@@ -441,7 +361,7 @@ void mg_vulkan_renderer_resize(int32_t width, int32_t height)
     context.framebuffer_resized = true;
 }
 
-MG_API void mg_vulkan_renderer_begin_frame(void)
+void mg_vulkan_renderer_begin_frame(void)
 {
     vkWaitForFences(context.device.handle, 1, &context.sync_objects.fence, VK_TRUE, UINT64_MAX);
     
@@ -462,9 +382,9 @@ MG_API void mg_vulkan_renderer_begin_frame(void)
     
     mg_vulkan_begin_command_buffer(context.command_buffer);
 
-    VkRenderPassBeginInfo render_pass_info = {VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
+    /*VkRenderPassBeginInfo render_pass_info = {VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
     render_pass_info.renderPass = context.render_pass;
-    render_pass_info.framebuffer = context.swapchain.framebuffers[context.image_index];
+    render_pass_info.framebuffer = mg_vulkan_renderer_get_current_framebuffer();
     
     render_pass_info.renderArea.offset = (VkOffset2D){0, 0};
     render_pass_info.renderArea.extent = context.swapchain.extent;
@@ -473,12 +393,10 @@ MG_API void mg_vulkan_renderer_begin_frame(void)
     render_pass_info.clearValueCount = 1;
     render_pass_info.pClearValues = &clearColor;
 
-    vkCmdBeginRenderPass(context.command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
-
-    mg_vulkan_command_buffer_set_viewport(context.command_buffer, context.swapchain.extent.width, context.swapchain.extent.height);
+    vkCmdBeginRenderPass(context.command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);*/
 }
 
-MG_API void mg_vulkan_renderer_end_frame(void)
+void mg_vulkan_renderer_end_frame(void)
 {
     mg_vulkan_end_command_buffer(context.command_buffer);
     mg_vulkan_submit_command_buffer(context.command_buffer);
@@ -501,7 +419,7 @@ MG_API void mg_vulkan_renderer_end_frame(void)
     vkQueueSubmit(context.device.graphics_queue, 1, &submit_info, context.sync_objects.fence);
 }
 
-MG_API void mg_vulkan_renderer_present(void)
+void mg_vulkan_renderer_present(void)
 {
     VkSemaphore signal_semaphores[] = {context.sync_objects.image_rendered_semaphore};
 
@@ -526,6 +444,21 @@ MG_API void mg_vulkan_renderer_present(void)
 void mg_vulkan_renderer_wait(void)
 {
     vkDeviceWaitIdle(context.device.handle);
+}
+
+VkFramebuffer mg_vulkan_renderer_get_current_framebuffer(void)
+{
+    return context.swapchain.framebuffers[context.image_index];
+}
+
+mg_vec2_t mg_vulkan_renderer_get_swapchain_extent(void)
+{
+    return (mg_vec2_t){context.swapchain.extent.width, context.swapchain.extent.height};
+}
+
+void mg_vulkan_renderer_viewport(int32_t width, int32_t height)
+{
+    mg_vulkan_command_buffer_set_viewport(context.command_buffer, width, height);
 }
 
 void mg_vulkan_renderer_draw(uint32_t vertex_count, uint32_t first_vertex)

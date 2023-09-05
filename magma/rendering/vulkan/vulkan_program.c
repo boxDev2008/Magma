@@ -50,7 +50,8 @@ mg_vulkan_program_t *mg_vulkan_create_program(mg_program_create_info_t *create_i
     binding_description.stride = create_info->vertex_layout.stride;
     binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
     
-    VkVertexInputAttributeDescription attribute_descriptions[create_info->vertex_layout.attribute_count];
+    VkVertexInputAttributeDescription *attribute_descriptions =
+        (VkVertexInputAttributeDescription*)malloc(create_info->vertex_layout.attribute_count * sizeof(VkVertexInputAttributeDescription));
 
     uint32_t i;
     for (i = 0; i < create_info->vertex_layout.attribute_count; i++)
@@ -122,13 +123,8 @@ mg_vulkan_program_t *mg_vulkan_create_program(mg_program_create_info_t *create_i
 
     VkPipelineLayoutCreateInfo pipeline_layout_info = {VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
 
-    VkDescriptorSetLayout set_layouts[create_info->desctriptor_set_layout_count];
-
-    for (i = 0; i < create_info->desctriptor_set_layout_count; i++)
-        set_layouts[i] = create_info->desctriptor_set_layouts[i].internal_data;
-
     pipeline_layout_info.setLayoutCount = create_info->desctriptor_set_layout_count;
-    pipeline_layout_info.pSetLayouts = set_layouts;
+    pipeline_layout_info.pSetLayouts = (VkDescriptorSetLayout*)create_info->desctriptor_set_layouts;
 
     if (create_info->has_push_constants)
     {
@@ -162,6 +158,8 @@ mg_vulkan_program_t *mg_vulkan_create_program(mg_program_create_info_t *create_i
 
     result = vkCreateGraphicsPipelines(context.device.handle, VK_NULL_HANDLE, 1, &pipeline_info, NULL, &program->pipeline);
     assert(result == VK_SUCCESS);
+
+    free(attribute_descriptions);
 
     return program;
 }

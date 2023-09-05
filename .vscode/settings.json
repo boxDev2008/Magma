@@ -87,6 +87,8 @@
         "vert.spv.h": "c",
         "stb_image.h": "c",
         "math.h": "c",
-        "mat4.h": "c"
+        "mat4.h": "c",
+        "vulkan_render_pass.h": "c",
+        "vec4.h": "c"
     }
 }

@@ -1,13 +1,15 @@
 #include "vulkan_descriptor_set.h"
 #include "vulkan_renderer.h"
 
+#include <stdlib.h>
 #include <assert.h>
 
 VkDescriptorSetLayout mg_vulkan_create_descriptor_set_layout(mg_descriptor_set_layout_create_info_t *create_info)
 {
     VkDescriptorSetLayout descriptor_set_layout;
 
-    VkDescriptorSetLayoutBinding layout_bindings[create_info->descriptor_count];
+    VkDescriptorSetLayoutBinding *layout_bindings =
+        (VkDescriptorSetLayoutBinding*)malloc(create_info->descriptor_count * sizeof(VkDescriptorSetLayoutBinding));
 
     for (uint32_t i = 0; i < create_info->descriptor_count; i++)
     {
@@ -24,6 +26,8 @@ VkDescriptorSetLayout mg_vulkan_create_descriptor_set_layout(mg_descriptor_set_l
 
     VkResult result = vkCreateDescriptorSetLayout(context.device.handle, &layout_info, NULL, &descriptor_set_layout);
     assert(result == VK_SUCCESS);
+
+    free(layout_bindings);
 
     return descriptor_set_layout;
 }
@@ -55,7 +59,7 @@ void mg_vulkan_update_descriptor_set(VkDescriptorSet descriptor_set, mg_descript
     write.dstBinding = descriptor_write->binding;
     write.dstArrayElement = 0;
 
-    write.descriptorType = (VkDescriptorType)descriptor_write->descriptor_type;
+    write.descriptorType = descriptor_write->descriptor_type;
     write.descriptorCount = 1;
 
     VkDescriptorBufferInfo buffer_info;
@@ -73,9 +77,8 @@ void mg_vulkan_update_descriptor_set(VkDescriptorSet descriptor_set, mg_descript
 
     if (descriptor_write->image_info)
     {
-        mg_vulkan_texture_image_t *image = (mg_vulkan_texture_image_t*)descriptor_write->image_info->image.internal_data;
         image_info.sampler = descriptor_write->image_info->sampler.internal_data;
-        image_info.imageView = image->view;
+        image_info.imageView = descriptor_write->image_info->view.internal_data;
         image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
         write.pImageInfo = &image_info;
