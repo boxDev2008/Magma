@@ -174,17 +174,17 @@ VkImageView mg_vulkan_create_texture_view(mg_vulkan_texture_image_t *texture_ima
     view_info.subresourceRange.baseArrayLayer = 0;
     view_info.subresourceRange.layerCount = 1;
 
-    VkImageView view;
+    VkImageView texture_view;
 
-    VkResult result = vkCreateImageView(context.device.handle, &view_info, NULL, &view);
+    VkResult result = vkCreateImageView(context.device.handle, &view_info, NULL, &texture_view);
     assert(result == VK_SUCCESS);
 
-    return view;
+    return texture_view;
 }
 
-void mg_vulkan_destroy_texture_view(VkImageView view)
+void mg_vulkan_destroy_texture_view(VkImageView texture_view)
 {
-    vkDestroyImageView(context.device.handle, view, NULL);
+    vkDestroyImageView(context.device.handle, texture_view, NULL);
 }
 
 VkSampler mg_vulkan_create_sampler(mg_sampler_create_info_t *create_info)

@@ -5,8 +5,10 @@
 
 VkRenderPass mg_vulkan_create_render_pass(void)
 {
+    // TODO (box): Make it customizable
+
     VkAttachmentDescription color_attachment = { 0 };
-    color_attachment.format = context.swapchain.image_format;
+    color_attachment.format = VK_FORMAT_B8G8R8A8_SRGB;
     color_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
 
     color_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;

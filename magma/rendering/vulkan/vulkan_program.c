@@ -71,24 +71,9 @@ mg_vulkan_program_t *mg_vulkan_create_program(mg_program_create_info_t *create_i
     input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     input_assembly.primitiveRestartEnable = VK_FALSE;
 
-    VkViewport viewport = { 0 };
-    viewport.x = 0.0f;
-    viewport.y = 0.0f;
-    viewport.width = (float) context.swapchain.extent.width;
-    viewport.height = (float) context.swapchain.extent.height;
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-
-    VkRect2D scissor = { 0 };
-    scissor.offset.x = 0;
-    scissor.offset.y = 0;
-    scissor.extent = context.swapchain.extent;
-
     VkPipelineViewportStateCreateInfo viewport_state = {VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO};
     viewport_state.viewportCount = 1;
-    viewport_state.pViewports = &viewport;
     viewport_state.scissorCount = 1;
-    viewport_state.pScissors = &scissor;
 
     VkPipelineRasterizationStateCreateInfo rasterizer = {VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};
     rasterizer.depthClampEnable = VK_FALSE;
@@ -151,7 +136,7 @@ mg_vulkan_program_t *mg_vulkan_create_program(mg_program_create_info_t *create_i
     pipeline_info.pDynamicState = &dynamic_state;
 
     pipeline_info.layout = program->pipeline_layout;
-    pipeline_info.renderPass = context.render_pass;
+    pipeline_info.renderPass = create_info->render_pass.internal_data;
     pipeline_info.subpass = 0;
 
     result = vkCreateGraphicsPipelines(context.device.handle, VK_NULL_HANDLE, 1, &pipeline_info, NULL, &program->pipeline);

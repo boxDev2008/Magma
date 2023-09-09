@@ -85,7 +85,7 @@ void mg_vulkan_free_command_buffer(VkCommandBuffer buffer)
     vkFreeCommandBuffers(context.device.handle, context.command_pool, 1, &buffer);
 }
 
-void mg_vulkan_command_buffer_set_viewport(VkCommandBuffer buffer, int32_t width, int32_t height)
+void mg_vulkan_command_buffer_set_viewport(VkCommandBuffer buffer, uint32_t width, uint32_t height)
 {
     VkViewport viewport = { 0 };
     viewport.width = (float)width;
@@ -98,8 +98,8 @@ void mg_vulkan_command_buffer_set_viewport(VkCommandBuffer buffer, int32_t width
     VkRect2D scissor = { 0 };
     scissor.offset.x = 0;
     scissor.offset.y = 0;
-    scissor.extent.width = (uint32_t)width;
-    scissor.extent.height = (uint32_t)height;
+    scissor.extent.width = width;
+    scissor.extent.height = height;
 
     vkCmdSetViewport(buffer, 0, 1, &viewport);
     vkCmdSetScissor(buffer, 0, 1, &scissor);

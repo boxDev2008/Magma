@@ -89,6 +89,12 @@
         "math.h": "c",
         "mat4.h": "c",
         "vulkan_render_pass.h": "c",
-        "vec4.h": "c"
+        "vec4.h": "c",
+        "fcntl.h": "c",
+        "locale.h": "c",
+        "iostream": "cpp",
+        "vulkan_swapchain.h": "c",
+        "*.idl": "c",
+        "d3d11_2.h": "c"
     }
 }

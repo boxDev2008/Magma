@@ -72,9 +72,6 @@ struct mg_vulkan_context
         VkImageView *image_views;
         VkFramebuffer *framebuffers;
 
-        VkFormat image_format;
-        VkExtent2D extent;
-
         uint32_t image_count;
     }
     swapchain;
@@ -87,14 +84,9 @@ struct mg_vulkan_context
     }
     sync_objects;
 
-    int32_t framebuffer_width;
-    int32_t framebuffer_height;
-    bool framebuffer_resized;
-
     VkCommandPool command_pool;
     VkCommandBuffer command_buffer;
     VkDescriptorPool descriptor_pool;
-    VkRenderPass render_pass;
 
     int32_t image_index;
 };

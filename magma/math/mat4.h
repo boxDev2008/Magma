@@ -45,6 +45,6 @@ MG_API mg_mat4_t mg_mat4_multiply	(mg_mat4_t first, mg_mat4_t second);
 MG_API mg_mat4_t mg_mat4_translate	(mg_mat4_t matrix, mg_vec3_t v);
 MG_API mg_mat4_t mg_mat4_scale		(mg_mat4_t matrix, mg_vec3_t v);
 
-MG_API mg_mat4_t mg_mat4_rotate_z(mg_mat4_t matrix, float angle);
+MG_API mg_mat4_t mg_mat4_rotate_z	(mg_mat4_t matrix, float angle);
 
 MG_API mg_mat4_t mg_mat4_rotate		(mg_mat4_t matrix, mg_vec3_t axis, float angle);

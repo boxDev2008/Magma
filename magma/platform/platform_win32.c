@@ -111,7 +111,7 @@ void mg_platform_shutdown(mg_platform_t *platform)
     free(handle);
 }
 
-bool mg_platform_poll_messages(mg_platform_t *platform)
+void mg_platform_poll_messages(mg_platform_t *platform)
 {
     mg_win32_handle_info_t *handle = (mg_win32_handle_info_t*)platform->handle;
 
@@ -122,8 +122,6 @@ bool mg_platform_poll_messages(mg_platform_t *platform)
         TranslateMessage(&message);
         DispatchMessageA(&message);
     }
-
-    return true;
 }
 
 LRESULT CALLBACK win32_process_message(HWND hwnd, uint32_t msg, WPARAM w_param, LPARAM l_param)

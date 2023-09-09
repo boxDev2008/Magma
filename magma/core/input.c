@@ -2,27 +2,27 @@
 #include "event.h"
 #include "event_types.h"
 
-typedef struct mg_keyboard_state
+typedef struct mg_keyboard_state mg_keyboard_state_t;
+struct mg_keyboard_state
 {
     bool keys[256];
-}
-mg_keyboard_state_t;
+};
 
-typedef struct mg_mouse_state
+typedef struct mg_mouse_state mg_mouse_state_t;
+struct mg_mouse_state
 {
     int16_t x;
     int16_t y;
     int8_t z_delta;
     bool buttons[4];
-}
-mg_mouse_state_t;
+};
 
-typedef struct mg_mg_input_state
+typedef struct mg_mg_input_state mg_mg_input_state_t;
+struct mg_mg_input_state
 {
     mg_keyboard_state_t keyboard;
     mg_mouse_state_t mouse;
-}
-mg_mg_input_state_t;
+};
 
 static mg_mg_input_state_t mg_input_state;
 

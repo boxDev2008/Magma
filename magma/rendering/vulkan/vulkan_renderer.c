@@ -1,12 +1,11 @@
 #include "vulkan_renderer.h"
+#include "vulkan_swapchain.h"
 #include "vulkan_command_buffer.h"
 #include "vulkan_render_pass.h"
 #include "vulkan_buffer.h"
 #include "vulkan_image.h"
 
 #include "platform/vulkan_platform.h"
-
-#include "math/math.h"
 
 #include <stdlib.h>
 #include <assert.h>
@@ -113,131 +112,6 @@ void mg_vulkan_create_device(void)
     vkGetDeviceQueue(context.device.handle, context.physical_device.graphics_family, 0, &context.device.graphics_queue);
 }
 
-VkSurfaceFormatKHR mg_vulkan_choose_swap_surface_format(const VkSurfaceFormatKHR *available_formats, uint32_t available_format_count)
-{
-    for (uint32_t i = 0; i < available_format_count; i++)
-        if (available_formats[i].format == VK_FORMAT_B8G8R8A8_SRGB && available_formats[i].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
-            return available_formats[i];
-
-    return available_formats[0];
-}
-
-VkExtent2D mg_vulkan_choose_swap_extent(const VkSurfaceCapabilitiesKHR *capabilities, int32_t width, int32_t height)
-{
-    if (capabilities->currentExtent.width != UINT32_MAX)
-        return capabilities->currentExtent;
-    else
-    {
-        VkExtent2D actual_extent = {
-            width,
-            height
-        };
-
-        actual_extent.width = mg_math_clamp(actual_extent.width, capabilities->minImageExtent.width, capabilities->maxImageExtent.width);
-        actual_extent.height = mg_math_clamp(actual_extent.height, capabilities->minImageExtent.height, capabilities->maxImageExtent.height);
-
-        return actual_extent;
-    }
-}
-
-void mg_vulkan_create_swapchain(int32_t width, int32_t height)
-{
-    VkSurfaceCapabilitiesKHR capabilities;
-    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(context.physical_device.handle, context.surface, &capabilities);
-
-    uint32_t format_count;
-    vkGetPhysicalDeviceSurfaceFormatsKHR(context.physical_device.handle, context.surface, &format_count, NULL);
-
-    VkSurfaceFormatKHR *formats = (VkSurfaceFormatKHR*)malloc(format_count * sizeof(VkSurfaceFormatKHR));
-    vkGetPhysicalDeviceSurfaceFormatsKHR(context.physical_device.handle, context.surface, &format_count, formats);
-    VkSurfaceFormatKHR surface_format = mg_vulkan_choose_swap_surface_format(formats, format_count);
-    free(formats);
-
-    VkExtent2D extent = mg_vulkan_choose_swap_extent(&capabilities, width, height);
-
-    context.swapchain.image_count = capabilities.minImageCount + 1;
-
-    if (capabilities.maxImageCount > 0 && context.swapchain.image_count > capabilities.maxImageCount)
-        context.swapchain.image_count = capabilities.maxImageCount;
-
-    VkSwapchainCreateInfoKHR create_info = {VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR};
-    create_info.surface = context.surface;
-    create_info.minImageCount = context.swapchain.image_count;
-
-    create_info.imageFormat = surface_format.format;
-    create_info.imageColorSpace = surface_format.colorSpace;
-
-    create_info.imageExtent = extent;
-    create_info.imageArrayLayers = 1;
-    create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-
-    create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    create_info.queueFamilyIndexCount = 0;
-    create_info.pQueueFamilyIndices = NULL;
-
-    create_info.preTransform = capabilities.currentTransform;
-
-    create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-
-    //create_info.presentMode = context_settings.enable_vsync ? VK_PRESENT_MODE_FIFO_KHR : VK_PRESENT_MODE_MAILBOX_KHR;
-    create_info.presentMode = VK_PRESENT_MODE_FIFO_KHR;
-
-    create_info.clipped = VK_TRUE;
-    
-    create_info.oldSwapchain = VK_NULL_HANDLE;
-
-    VkResult result = vkCreateSwapchainKHR(context.device.handle, &create_info, NULL, &context.swapchain.handle);
-    assert(result == VK_SUCCESS);
-
-    vkGetSwapchainImagesKHR(context.device.handle, context.swapchain.handle, &context.swapchain.image_count, NULL);
-    context.swapchain.images = (VkImage*)malloc(context.swapchain.image_count * sizeof(VkImage));
-    vkGetSwapchainImagesKHR(context.device.handle, context.swapchain.handle, &context.swapchain.image_count, context.swapchain.images);
-
-    context.swapchain.image_format = surface_format.format;
-    context.swapchain.extent = extent;
-
-    context.swapchain.image_views = (VkImageView*)malloc(context.swapchain.image_count * sizeof(VkImageView));
-
-    for (uint32_t i = 0; i < context.swapchain.image_count; i++)
-    {
-        VkImageViewCreateInfo image_view_create_info = { 0 };
-        image_view_create_info.flags = 0;
-        image_view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        image_view_create_info.image = context.swapchain.images[i];
-        image_view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        image_view_create_info.format = context.swapchain.image_format;
-        image_view_create_info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-        image_view_create_info.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-        image_view_create_info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-        image_view_create_info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-        image_view_create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        image_view_create_info.subresourceRange.baseMipLevel = 0;
-        image_view_create_info.subresourceRange.levelCount = 1;
-        image_view_create_info.subresourceRange.baseArrayLayer = 0;
-        image_view_create_info.subresourceRange.layerCount = 1;
-
-        result = vkCreateImageView(context.device.handle, &image_view_create_info, NULL, &context.swapchain.image_views[i]);
-        assert(result == VK_SUCCESS);
-    }
-}
-
-void mg_vulkan_create_swapchain_framebuffers(void)
-{
-    context.swapchain.framebuffers = (VkFramebuffer*)malloc(context.swapchain.image_count * sizeof(VkFramebuffer));
-    for (uint32_t i = 0; i < context.swapchain.image_count; i++)
-    {
-        VkFramebufferCreateInfo framebuffer_create_info = {VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
-        framebuffer_create_info.attachmentCount = 1;
-        framebuffer_create_info.pAttachments = &context.swapchain.image_views[i];
-        framebuffer_create_info.width = context.swapchain.extent.width;
-        framebuffer_create_info.height = context.swapchain.extent.height;
-        framebuffer_create_info.layers = 1;
-
-        VkResult result = vkCreateFramebuffer(context.device.handle, &framebuffer_create_info, NULL, &context.swapchain.framebuffers[i]);
-        assert(result == VK_SUCCESS);
-    }
-}
-
 void mg_vulkan_create_command_pool(void)
 {
     VkCommandPoolCreateInfo pool_info = {VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
@@ -265,31 +139,6 @@ void mg_vulkan_create_sync_objects(void)
     assert(result == VK_SUCCESS);
 }
 
-void mg_vulkan_cleanup_swapchain(void)
-{    
-    for (uint32_t i = 0; i < context.swapchain.image_count; i++)
-    {
-        vkDestroyFramebuffer(context.device.handle, context.swapchain.framebuffers[i], NULL);
-        vkDestroyImageView(context.device.handle, context.swapchain.image_views[i], NULL);
-    }
-
-    free(context.swapchain.framebuffers);
-    free(context.swapchain.image_views);
-
-    vkDestroySwapchainKHR(context.device.handle, context.swapchain.handle, NULL);
-    free(context.swapchain.images);
-}
-
-void mg_vulkan_recreate_swapchain(void)
-{
-    vkDeviceWaitIdle(context.device.handle);
-    
-    mg_vulkan_cleanup_swapchain();
-
-    mg_vulkan_create_swapchain(context.framebuffer_width, context.framebuffer_height);
-    mg_vulkan_create_swapchain_framebuffers();
-}
-
 void mg_vulkan_create_descriptor_pool(void)
 {
     VkDescriptorPoolSize pool_sizes[] = {
@@ -306,14 +155,14 @@ void mg_vulkan_create_descriptor_pool(void)
     assert(result == VK_SUCCESS);
 }
 
-void mg_vulkan_renderer_initialize(mg_platform_t *platform)
+void mg_vulkan_renderer_initialize(mg_renderer_init_info_t *init_info)
 {
     volkInitialize();
     mg_vulkan_create_instance();
 
     volkLoadInstance(context.instance);
 
-    mg_vulkan_create_surface(platform);
+    mg_vulkan_create_surface(init_info->platform);
 
     mg_vulkan_get_physical_device();
     mg_vulkan_create_device();
@@ -324,12 +173,9 @@ void mg_vulkan_renderer_initialize(mg_platform_t *platform)
     context.command_buffer = mg_vulkan_create_command_buffer();
 
     mg_vulkan_create_sync_objects();
-
-    mg_platform_get_window_size(platform, &context.framebuffer_width, &context.framebuffer_height);
     
-    mg_vulkan_create_swapchain(context.framebuffer_width, context.framebuffer_height);
-    context.render_pass = mg_vulkan_create_render_pass();
-    mg_vulkan_create_swapchain_framebuffers();
+    mg_vulkan_create_swapchain(init_info->swapchain_config_info);
+    
     mg_vulkan_create_descriptor_pool();
 }
 
@@ -340,8 +186,6 @@ void mg_vulkan_renderer_shutdown(void)
     vkDestroyDescriptorPool(context.device.handle, context.descriptor_pool, NULL);
 
     mg_vulkan_cleanup_swapchain();
-
-    mg_vulkan_destroy_render_pass(context.render_pass);
 
     vkDestroySemaphore(context.device.handle, context.sync_objects.image_available_semaphore, NULL);
     vkDestroySemaphore(context.device.handle, context.sync_objects.image_rendered_semaphore, NULL);
@@ -354,24 +198,11 @@ void mg_vulkan_renderer_shutdown(void)
     vkDestroyInstance(context.instance, NULL);
 }
 
-void mg_vulkan_renderer_resize(int32_t width, int32_t height)
-{
-    context.framebuffer_width = width;
-    context.framebuffer_height = height;
-    context.framebuffer_resized = true;
-}
-
 void mg_vulkan_renderer_begin_frame(void)
 {
     vkWaitForFences(context.device.handle, 1, &context.sync_objects.fence, VK_TRUE, UINT64_MAX);
-    
-    VkResult result = vkAcquireNextImageKHR(context.device.handle, context.swapchain.handle, UINT64_MAX, context.sync_objects.image_available_semaphore, VK_NULL_HANDLE, &context.image_index);
 
-    if (result == VK_ERROR_OUT_OF_DATE_KHR) 
-    {
-        mg_vulkan_recreate_swapchain();
-        return;
-    }
+    vkAcquireNextImageKHR(context.device.handle, context.swapchain.handle, UINT64_MAX, context.sync_objects.image_available_semaphore, VK_NULL_HANDLE, &context.image_index);
 
     vkResetFences(context.device.handle, 1, &context.sync_objects.fence);
 
@@ -381,19 +212,6 @@ void mg_vulkan_renderer_begin_frame(void)
     vkResetCommandBuffer(context.command_buffer, 0);
     
     mg_vulkan_begin_command_buffer(context.command_buffer);
-
-    /*VkRenderPassBeginInfo render_pass_info = {VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
-    render_pass_info.renderPass = context.render_pass;
-    render_pass_info.framebuffer = mg_vulkan_renderer_get_current_framebuffer();
-    
-    render_pass_info.renderArea.offset = (VkOffset2D){0, 0};
-    render_pass_info.renderArea.extent = context.swapchain.extent;
-
-    VkClearValue clearColor = {{{0.005f, 0.005f, 0.005f, 1.0f}}};
-    render_pass_info.clearValueCount = 1;
-    render_pass_info.pClearValues = &clearColor;
-
-    vkCmdBeginRenderPass(context.command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);*/
 }
 
 void mg_vulkan_renderer_end_frame(void)
@@ -432,13 +250,13 @@ void mg_vulkan_renderer_present(void)
     present_info.pSwapchains = swapchains;
     present_info.pImageIndices = &context.image_index;
 
-    VkResult result = vkQueuePresentKHR(context.device.graphics_queue, &present_info);
-    
-    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || context.framebuffer_resized)
+    vkQueuePresentKHR(context.device.graphics_queue, &present_info);
+
+    /*if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || context.framebuffer_resized)
     {
         mg_vulkan_recreate_swapchain();
         context.framebuffer_resized = false;
-    }
+    }*/
 }
 
 void mg_vulkan_renderer_wait(void)
@@ -446,17 +264,7 @@ void mg_vulkan_renderer_wait(void)
     vkDeviceWaitIdle(context.device.handle);
 }
 
-VkFramebuffer mg_vulkan_renderer_get_current_framebuffer(void)
-{
-    return context.swapchain.framebuffers[context.image_index];
-}
-
-mg_vec2_t mg_vulkan_renderer_get_swapchain_extent(void)
-{
-    return (mg_vec2_t){context.swapchain.extent.width, context.swapchain.extent.height};
-}
-
-void mg_vulkan_renderer_viewport(int32_t width, int32_t height)
+void mg_vulkan_renderer_viewport(uint32_t width, uint32_t height)
 {
     mg_vulkan_command_buffer_set_viewport(context.command_buffer, width, height);
 }

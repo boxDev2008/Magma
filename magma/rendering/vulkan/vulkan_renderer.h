@@ -16,21 +16,17 @@
 
 extern mg_vulkan_context_t context;
 
-void mg_vulkan_renderer_initialize  (mg_platform_t *platform);
-void mg_vulkan_renderer_shutdown    (void);
-void mg_vulkan_renderer_resize      (int32_t width, int32_t height);
+void mg_vulkan_renderer_initialize      (mg_renderer_init_info_t *init_info);
+void mg_vulkan_renderer_shutdown        (void);
 
-void mg_vulkan_renderer_begin_frame (void);
-void mg_vulkan_renderer_end_frame   (void);
+void mg_vulkan_renderer_begin_frame     (void);
+void mg_vulkan_renderer_end_frame       (void);
 
-void mg_vulkan_renderer_present     (void);
+void mg_vulkan_renderer_present         (void);
 
-void mg_vulkan_renderer_wait        (void);
+void mg_vulkan_renderer_wait            (void);
 
-VkFramebuffer   mg_vulkan_renderer_get_current_framebuffer  (void);
-mg_vec2_t       mg_vulkan_renderer_get_swapchain_extent     (void);
-
-void mg_vulkan_renderer_viewport        (int32_t width, int32_t height);
+void mg_vulkan_renderer_viewport        (uint32_t width, uint32_t height);
 
 void mg_vulkan_renderer_draw            (uint32_t vertex_count, uint32_t first_vertex);
 void mg_vulkan_renderer_draw_indexed    (uint32_t index_count, uint32_t first_index);

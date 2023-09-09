@@ -12,4 +12,4 @@ void            mg_vulkan_begin_command_buffer          (VkCommandBuffer buffer)
 void            mg_vulkan_end_command_buffer            (VkCommandBuffer buffer);
 void            mg_vulkan_free_command_buffer           (VkCommandBuffer buffer);
 
-void            mg_vulkan_command_buffer_set_viewport   (VkCommandBuffer buffer, int32_t width, int32_t height);
+void            mg_vulkan_command_buffer_set_viewport   (VkCommandBuffer buffer, uint32_t width, uint32_t height);

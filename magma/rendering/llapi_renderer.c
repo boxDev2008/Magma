@@ -1,6 +1,7 @@
 #include "llapi_renderer.h"
 
 #include "vulkan/vulkan_renderer.h"
+#include "vulkan/vulkan_swapchain.h"
 #include "vulkan/vulkan_render_pass.h"
 #include "vulkan/vulkan_program.h"
 #include "vulkan/vulkan_buffer.h"
@@ -12,10 +13,8 @@ struct mg_renderer_plugin
 {
     mg_platform_t *platform;
 
-    void (*initialize)      (mg_platform_t *platform);
+    void (*initialize)      (mg_renderer_init_info_t *init_info);
     void (*shutdown)        (void);
-
-    void (*resize)          (int32_t width, int32_t height);
 
     void (*begin_frame)     (void);
     void (*end_frame)       (void);
@@ -23,10 +22,13 @@ struct mg_renderer_plugin
     void (*present_frame)   (void);
     void (*wait)            (void);
 
-    void *(*get_current_framebuffer)    (void);
-    mg_vec2_t (*get_swapchain_extent)   (void);
+    void (*configure_swapchain) (mg_swapchain_config_info_t *config_info);
 
-    void (*viewport)           (int32_t width, int32_t height);
+    void *(*get_swapchain_framebuffer)          (void);
+    mg_vec2i_t (*get_swapchain_extent)          (void);
+    mg_pixel_format_t (*get_swapchain_format)   (void);
+
+    void (*viewport)        (uint32_t width, uint32_t height);
 
     void *(*create_render_pass) (void);
     void (*destroy_render_pass) (void *render_pass);
@@ -36,15 +38,15 @@ struct mg_renderer_plugin
     void *(*create_descriptor_set_layout)   (mg_descriptor_set_layout_create_info_t *create_info);
     void (*destroy_descriptor_set_layout)   (void *descriptor_set_layout);
 
-    void *(*create_descriptor_set)          (mg_descriptor_set_create_info_t *create_info);
-    void (*update_descriptor_set)           (void *descriptor_set, mg_descriptor_write_t *descriptor_write);
-    void (*destroy_descriptor_set)          (void *descriptor_set);
+    void *(*create_descriptor_set)      (mg_descriptor_set_create_info_t *create_info);
+    void (*update_descriptor_set)       (void *descriptor_set, mg_descriptor_write_t *descriptor_write);
+    void (*destroy_descriptor_set)      (void *descriptor_set);
 
-    void (*bind_descriptor_set)             (void *descriptor_set, void *program, uint32_t set_index);
+    void (*bind_descriptor_set)         (void *descriptor_set, void *program, uint32_t set_index);
 
-    void *(*create_program) (mg_program_create_info_t *create_info);
-    void (*destroy_program) (void *program);
-    void (*bind_program)    (void *program);
+    void *(*create_program)             (mg_program_create_info_t *create_info);
+    void (*destroy_program)             (void *program);
+    void (*bind_program)                (void *program);
 
     void *(*create_buffer)              (mg_buffer_create_info_t *create_info);
     void (*update_buffer)               (void *buffer, mg_buffer_update_info_t *update_data);
@@ -57,26 +59,26 @@ struct mg_renderer_plugin
     void *(*create_texture_view)        (void *texture_image);
     void (*destroy_texture_view)        (void *texture_view);
 
-    void *(*create_sampler)       (mg_sampler_create_info_t *create_info);
-    void (*destroy_sampler)       (void *sampler);
+    void *(*create_sampler)             (mg_sampler_create_info_t *create_info);
+    void (*destroy_sampler)             (void *sampler);
 
-    void *(*create_framebuffer) (mg_framebuffer_create_info_t *create_info);
-    void (*destroy_framebuffer) (void *framebuffer);
+    void *(*create_framebuffer)         (mg_framebuffer_create_info_t *create_info);
+    void (*destroy_framebuffer)         (void *framebuffer);
 
     void (*bind_vertex_buffer)          (void *buffer);
     void (*bind_index_buffer)           (void *buffer, mg_index_type_t index_type);
 
-    void (*draw)            (uint32_t vertex_count, uint32_t first_vertex);
-    void (*draw_indexed)    (uint32_t index_count, uint32_t first_index);
+    void (*draw)                        (uint32_t vertex_count, uint32_t first_vertex);
+    void (*draw_indexed)                (uint32_t index_count, uint32_t first_index);
 
-    void (*push_constants)  (void *program, uint32_t size, void *data);
+    void (*push_constants)              (void *program, uint32_t size, void *data);
 };
 
 mg_renderer_plugin_t plugin;
 
-void mg_llapi_renderer_initialize(mg_platform_t *platform, mg_renderer_type_t type)
+void mg_llapi_renderer_initialize(mg_renderer_init_info_t *init_info)
 {
-    switch (type)
+    switch (init_info->type)
     {
         case MG_RENDERER_TYPE_OPENGL:
             //plugin.initialize   =   mg_opengl_renderer_initialize;
@@ -85,16 +87,14 @@ void mg_llapi_renderer_initialize(mg_platform_t *platform, mg_renderer_type_t ty
         case MG_RENDERER_TYPE_VULKAN:
             plugin.initialize       =   mg_vulkan_renderer_initialize;
             plugin.shutdown         =   mg_vulkan_renderer_shutdown;
-            plugin.resize           =   mg_vulkan_renderer_resize;
             plugin.begin_frame      =   mg_vulkan_renderer_begin_frame;
             plugin.end_frame        =   mg_vulkan_renderer_end_frame;
             plugin.present_frame    =   mg_vulkan_renderer_present;
             plugin.wait             =   mg_vulkan_renderer_wait;
+            plugin.viewport         =   mg_vulkan_renderer_viewport;
 
-            plugin.get_current_framebuffer  =   mg_vulkan_renderer_get_current_framebuffer;
-            plugin.get_swapchain_extent     =   mg_vulkan_renderer_get_swapchain_extent;
-
-            plugin.viewport     =   mg_vulkan_renderer_viewport;
+            plugin.configure_swapchain          =   mg_vulkan_configure_swapchain;
+            plugin.get_swapchain_framebuffer    =   mg_vulkan_get_swapchain_framebuffer;
 
             plugin.create_render_pass   =   mg_vulkan_create_render_pass;
             plugin.destroy_render_pass  =   mg_vulkan_destroy_render_pass;
@@ -141,17 +141,12 @@ void mg_llapi_renderer_initialize(mg_platform_t *platform, mg_renderer_type_t ty
         break;
     }
 
-    plugin.initialize(platform);
+    plugin.initialize(init_info);
 }
 
 void mg_llapi_renderer_shutdown(void)
 {
     plugin.shutdown();
-}
-
-void mg_llapi_renderer_resize(int32_t width, int32_t height)
-{
-    plugin.resize(width, height);
 }
 
 void mg_llapi_renderer_begin_frame(void)
@@ -174,19 +169,19 @@ void mg_llapi_renderer_wait(void)
     plugin.wait();
 }
 
-mg_framebuffer_t mg_llapi_renderer_get_current_framebuffer(void)
-{
-    return (mg_framebuffer_t) { plugin.get_current_framebuffer() };
-}
-
-mg_vec2_t mg_llapi_renderer_get_swapchain_extent(void)
-{
-    return plugin.get_swapchain_extent();
-}
-
-void mg_llapi_renderer_renderer_viewport(int32_t width, int32_t height)
+void mg_llapi_renderer_viewport(uint32_t width, uint32_t height)
 {
     plugin.viewport(width, height);
+}
+
+void mg_llapi_renderer_configure_swapchain(mg_swapchain_config_info_t *config_info)
+{
+    plugin.configure_swapchain(config_info);
+}
+
+mg_framebuffer_t mg_llapi_renderer_get_swapchain_framebuffer(void)
+{
+    return (mg_framebuffer_t) { plugin.get_swapchain_framebuffer() };
 }
 
 mg_render_pass_t mg_llapi_renderer_create_render_pass(void)
@@ -313,9 +308,9 @@ mg_texture_view_t mg_llapi_renderer_create_texture_view(mg_texture_image_t textu
     return view;
 }
 
-void mg_llapi_renderer_destroy_texture_view(mg_texture_view_t view)
+void mg_llapi_renderer_destroy_texture_view(mg_texture_view_t texture_view)
 {
-    plugin.destroy_texture_view(view.internal_data);
+    plugin.destroy_texture_view(texture_view.internal_data);
 }
 
 mg_sampler_t mg_llapi_renderer_create_sampler(mg_sampler_create_info_t *create_info)

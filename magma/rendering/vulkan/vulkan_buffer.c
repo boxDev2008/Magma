@@ -57,7 +57,7 @@ mg_vulkan_buffer_t *mg_vulkan_create_buffer(mg_buffer_create_info_t *create_info
     buffer->mapped_at_creation = create_info->mapped_at_creation;
     buffer->frequency = create_info->frequency;
 
-    if (create_info->frequency == MG_BUFFER_UPDATE_FREQUENCY_STATIC) // Puts buffer on the GPU
+    if (create_info->frequency == MG_BUFFER_UPDATE_FREQUENCY_STATIC)
     {
         mg_vulkan_allocate_buffer(create_info->size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
@@ -71,7 +71,7 @@ mg_vulkan_buffer_t *mg_vulkan_create_buffer(mg_buffer_create_info_t *create_info
         if (create_info->mapped_at_creation)
             vkMapMemory(context.device.handle, buffer->staging_memory, 0, create_info->size, 0, &buffer->data);
     }
-    else // Puts buffer on the CPU
+    else
     {
         mg_vulkan_allocate_buffer(create_info->size, (VkBufferUsageFlags)create_info->usage,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,

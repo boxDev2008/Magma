@@ -27,5 +27,11 @@ typedef struct mg_texture mg_texture_t;
 struct mg_texture
 {
     int32_t width, height;
+    mg_texture_image_t image;
+    mg_texture_view_t view;
     mg_descriptor_set_t descriptor_set;
 };
+
+MG_API void mg_hlapi_renderer_initialize    (void);
+MG_API void mg_hlapi_renderer_shutdown      (void);
+MG_API void mg_hlapi_renderer_resize        (uint32_t width, uint32_t height);

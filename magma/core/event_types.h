@@ -25,7 +25,7 @@ mg_mouse_moved_event_data_t;
 
 typedef struct mg_mouse_wheel_event_data
 {
-    int32_t z_delta;
+    int8_t z_delta;
 }
 mg_mouse_wheel_event_data_t;
 
