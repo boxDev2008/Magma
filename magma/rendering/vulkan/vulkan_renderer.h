@@ -3,8 +3,6 @@
 #include "base.h"
 #include "vulkan_types.inl"
 
-#include "platform/platform.h"
-
 #if MG_PLATFORM_WINDOWS
     #define VK_USE_PLATFORM_WIN32_KHR
     #define MG_VULKA_SURFACE_EXTENSION_NAME VK_KHR_WIN32_SURFACE_EXTENSION_NAME
@@ -14,7 +12,7 @@
     #define KHR_SURFACE_EXTENSION_NAME VK_KHR_XCB_SURFACE_EXTENSION_NAME
 #endif
 
-extern mg_vulkan_context_t context;
+extern mg_vulkan_context_t vulkan_context;
 
 void mg_vulkan_renderer_initialize      (mg_renderer_init_info_t *init_info);
 void mg_vulkan_renderer_shutdown        (void);

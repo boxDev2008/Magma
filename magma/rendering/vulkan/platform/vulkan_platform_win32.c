@@ -22,7 +22,7 @@ void mg_vulkan_create_surface(mg_platform_t *platform)
     createInfo.hwnd = handle->hwnd;
     createInfo.hinstance = handle->h_instance;
 
-    VkResult result = vkCreateWin32SurfaceKHR(context.instance, &createInfo, NULL, &context.surface);
+    VkResult result = vkCreateWin32SurfaceKHR(vulkan_context.instance, &createInfo, NULL, &vulkan_context.surface);
     assert(result == VK_SUCCESS);
 }
 

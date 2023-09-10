@@ -95,6 +95,11 @@
         "iostream": "cpp",
         "vulkan_swapchain.h": "c",
         "*.idl": "c",
-        "d3d11_2.h": "c"
+        "d3d11_2.h": "c",
+        "stb_truetype.h": "c",
+        "d3d11_renderer.h": "c",
+        "d3d11_types.inl": "c",
+        "d3d11.h": "c",
+        "opengl_types.inl": "c"
     }
 }

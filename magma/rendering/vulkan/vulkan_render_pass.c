@@ -51,7 +51,7 @@ VkRenderPass mg_vulkan_create_render_pass(void)
 
     VkRenderPass render_pass;
 
-    VkResult result = vkCreateRenderPass(context.device.handle, &render_passInfo, NULL, &render_pass);
+    VkResult result = vkCreateRenderPass(vulkan_context.device.handle, &render_passInfo, NULL, &render_pass);
     assert(result == VK_SUCCESS);
 
     return render_pass;
@@ -59,7 +59,7 @@ VkRenderPass mg_vulkan_create_render_pass(void)
 
 void mg_vulkan_destroy_render_pass(VkRenderPass render_pass)
 {
-    vkDestroyRenderPass(context.device.handle, render_pass, NULL);
+    vkDestroyRenderPass(vulkan_context.device.handle, render_pass, NULL);
 }
 
 void mg_vulkan_begin_render_pass(VkRenderPass render_pass, mg_render_pass_begin_info_t *begin_info)
@@ -75,10 +75,10 @@ void mg_vulkan_begin_render_pass(VkRenderPass render_pass, mg_render_pass_begin_
     render_pass_info.clearValueCount = 1;
     render_pass_info.pClearValues = &clearColor;
 
-    vkCmdBeginRenderPass(context.command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBeginRenderPass(vulkan_context.command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
 }
 
 void mg_vulkan_end_render_pass(void)
 {
-    vkCmdEndRenderPass(context.command_buffer);
+    vkCmdEndRenderPass(vulkan_context.command_buffer);
 }

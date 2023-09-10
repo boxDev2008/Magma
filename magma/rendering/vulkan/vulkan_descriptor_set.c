@@ -24,7 +24,7 @@ VkDescriptorSetLayout mg_vulkan_create_descriptor_set_layout(mg_descriptor_set_l
     layout_info.bindingCount = create_info->descriptor_count;
     layout_info.pBindings = layout_bindings;
 
-    VkResult result = vkCreateDescriptorSetLayout(context.device.handle, &layout_info, NULL, &descriptor_set_layout);
+    VkResult result = vkCreateDescriptorSetLayout(vulkan_context.device.handle, &layout_info, NULL, &descriptor_set_layout);
     assert(result == VK_SUCCESS);
 
     free(layout_bindings);
@@ -34,7 +34,7 @@ VkDescriptorSetLayout mg_vulkan_create_descriptor_set_layout(mg_descriptor_set_l
 
 void mg_vulkan_destroy_descriptor_set_layout(VkDescriptorSetLayout descriptor_set_layout)
 {
-    vkDestroyDescriptorSetLayout(context.device.handle, descriptor_set_layout, NULL);
+    vkDestroyDescriptorSetLayout(vulkan_context.device.handle, descriptor_set_layout, NULL);
 }
 
 VkDescriptorSet mg_vulkan_create_descriptor_set(mg_descriptor_set_create_info_t *create_info)
@@ -42,11 +42,11 @@ VkDescriptorSet mg_vulkan_create_descriptor_set(mg_descriptor_set_create_info_t 
     VkDescriptorSet descriptor_set;
 
     VkDescriptorSetAllocateInfo alloc_info = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
-    alloc_info.descriptorPool = context.descriptor_pool;
+    alloc_info.descriptorPool = vulkan_context.descriptor_pool;
     alloc_info.descriptorSetCount = 1;
     alloc_info.pSetLayouts = (VkDescriptorSetLayout*)create_info->layouts;
 
-    VkResult result = vkAllocateDescriptorSets(context.device.handle, &alloc_info, &descriptor_set);
+    VkResult result = vkAllocateDescriptorSets(vulkan_context.device.handle, &alloc_info, &descriptor_set);
     assert(result == VK_SUCCESS);
 
     return descriptor_set;
@@ -84,15 +84,15 @@ void mg_vulkan_update_descriptor_set(VkDescriptorSet descriptor_set, mg_descript
         write.pImageInfo = &image_info;
     }
 
-    vkUpdateDescriptorSets(context.device.handle, 1, &write, 0, NULL);
+    vkUpdateDescriptorSets(vulkan_context.device.handle, 1, &write, 0, NULL);
 }
 
 void mg_vulkan_destroy_descriptor_set(VkDescriptorSet descriptor_set)
 {
-    vkFreeDescriptorSets(context.device.handle, context.descriptor_pool, 1, &descriptor_set);
+    vkFreeDescriptorSets(vulkan_context.device.handle, vulkan_context.descriptor_pool, 1, &descriptor_set);
 }
 
 void mg_vulkan_bind_descriptor_set(VkDescriptorSet descriptor_set, mg_vulkan_program_t *program, uint32_t set_index)
 {
-    vkCmdBindDescriptorSets(context.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, program->pipeline_layout, set_index, 1, &descriptor_set, 0, NULL);
+    vkCmdBindDescriptorSets(vulkan_context.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, program->pipeline_layout, set_index, 1, &descriptor_set, 0, NULL);
 }

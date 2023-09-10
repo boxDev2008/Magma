@@ -23,8 +23,9 @@ static LARGE_INTEGER start_time;
 
 LRESULT CALLBACK win32_process_message(HWND hwnd, uint32_t msg, WPARAM w_param, LPARAM l_param);
 
-bool mg_platform_initialize(mg_platform_t *platform, mg_window_create_info_t *create_info)
+mg_platform_t *mg_platform_initialize(mg_platform_init_info_t *create_info)
 {
+    mg_platform_t *platform = (mg_platform_t*)malloc(sizeof(mg_platform_t));
     platform->handle = (mg_win32_handle_info_t*)malloc(sizeof(mg_win32_handle_info_t));
     mg_win32_handle_info_t *state = (mg_win32_handle_info_t*)platform->handle;
 
@@ -49,7 +50,7 @@ bool mg_platform_initialize(mg_platform_t *platform, mg_window_create_info_t *cr
     if (!RegisterClassA(&wc))
     {
         MessageBox(0, "Window refistration failed!", "Error", MB_ICONEXCLAMATION | MB_OK);
-        return false;
+        return;
     }
 
     uint32_t window_x = create_info->position_x;
@@ -81,7 +82,7 @@ bool mg_platform_initialize(mg_platform_t *platform, mg_window_create_info_t *cr
     if (handle == 0)
     {
         MessageBoxA(NULL, "Window creation failed!", "Error!", MB_ICONEXCLAMATION | MB_OK);
-        return false;
+        return;
     }
     else
         state->hwnd = handle;
@@ -95,7 +96,7 @@ bool mg_platform_initialize(mg_platform_t *platform, mg_window_create_info_t *cr
     clock_frequency = 1.0 / (double)frequency.QuadPart;
     QueryPerformanceCounter(&start_time);
 
-    return true;
+    return platform;
 }
 
 void mg_platform_shutdown(mg_platform_t *platform)
@@ -109,6 +110,7 @@ void mg_platform_shutdown(mg_platform_t *platform)
     }
 
     free(handle);
+    free(platform);
 }
 
 void mg_platform_poll_messages(mg_platform_t *platform)

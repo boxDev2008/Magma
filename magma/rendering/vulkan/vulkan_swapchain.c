@@ -36,7 +36,7 @@ VkExtent2D mg_vulkan_choose_swap_extent(const VkSurfaceCapabilitiesKHR *capabili
 void mg_vulkan_create_swapchain(mg_swapchain_config_info_t *config_info)
 {
     VkSurfaceCapabilitiesKHR capabilities;
-    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(context.physical_device.handle, context.surface, &capabilities);
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vulkan_context.physical_device.handle, vulkan_context.surface, &capabilities);
 
     /*uint32_t format_count;
     vkGetPhysicalDeviceSurfaceFormatsKHR(context.physical_device.handle, context.surface, &format_count, NULL);
@@ -48,14 +48,14 @@ void mg_vulkan_create_swapchain(mg_swapchain_config_info_t *config_info)
 
     VkExtent2D extent = mg_vulkan_choose_swap_extent(&capabilities, config_info->extent.x, config_info->extent.y);
 
-    context.swapchain.image_count = capabilities.minImageCount + 1;
+    vulkan_context.swapchain.image_count = capabilities.minImageCount + 1;
 
-    if (capabilities.maxImageCount > 0 && context.swapchain.image_count > capabilities.maxImageCount)
-        context.swapchain.image_count = capabilities.maxImageCount;
+    if (capabilities.maxImageCount > 0 && vulkan_context.swapchain.image_count > capabilities.maxImageCount)
+        vulkan_context.swapchain.image_count = capabilities.maxImageCount;
 
     VkSwapchainCreateInfoKHR create_info = {VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR};
-    create_info.surface = context.surface;
-    create_info.minImageCount = context.swapchain.image_count;
+    create_info.surface = vulkan_context.surface;
+    create_info.minImageCount = vulkan_context.swapchain.image_count;
 
     create_info.imageFormat = config_info->format;
     create_info.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
@@ -78,21 +78,21 @@ void mg_vulkan_create_swapchain(mg_swapchain_config_info_t *config_info)
     
     create_info.oldSwapchain = VK_NULL_HANDLE;
 
-    VkResult result = vkCreateSwapchainKHR(context.device.handle, &create_info, NULL, &context.swapchain.handle);
+    VkResult result = vkCreateSwapchainKHR(vulkan_context.device.handle, &create_info, NULL, &vulkan_context.swapchain.handle);
     assert(result == VK_SUCCESS);
 
-    vkGetSwapchainImagesKHR(context.device.handle, context.swapchain.handle, &context.swapchain.image_count, NULL);
-    context.swapchain.images = (VkImage*)malloc(context.swapchain.image_count * sizeof(VkImage));
-    vkGetSwapchainImagesKHR(context.device.handle, context.swapchain.handle, &context.swapchain.image_count, context.swapchain.images);
+    vkGetSwapchainImagesKHR(vulkan_context.device.handle, vulkan_context.swapchain.handle, &vulkan_context.swapchain.image_count, NULL);
+    vulkan_context.swapchain.images = (VkImage*)malloc(vulkan_context.swapchain.image_count * sizeof(VkImage));
+    vkGetSwapchainImagesKHR(vulkan_context.device.handle, vulkan_context.swapchain.handle, &vulkan_context.swapchain.image_count, vulkan_context.swapchain.images);
 
-    context.swapchain.image_views = (VkImageView*)malloc(context.swapchain.image_count * sizeof(VkImageView));
+    vulkan_context.swapchain.image_views = (VkImageView*)malloc(vulkan_context.swapchain.image_count * sizeof(VkImageView));
 
-    for (uint32_t i = 0; i < context.swapchain.image_count; i++)
+    for (uint32_t i = 0; i < vulkan_context.swapchain.image_count; i++)
     {
         VkImageViewCreateInfo image_view_create_info = { 0 };
         image_view_create_info.flags = 0;
         image_view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        image_view_create_info.image = context.swapchain.images[i];
+        image_view_create_info.image = vulkan_context.swapchain.images[i];
         image_view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
         image_view_create_info.format = config_info->format;
         image_view_create_info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
@@ -105,44 +105,44 @@ void mg_vulkan_create_swapchain(mg_swapchain_config_info_t *config_info)
         image_view_create_info.subresourceRange.baseArrayLayer = 0;
         image_view_create_info.subresourceRange.layerCount = 1;
 
-        result = vkCreateImageView(context.device.handle, &image_view_create_info, NULL, &context.swapchain.image_views[i]);
+        result = vkCreateImageView(vulkan_context.device.handle, &image_view_create_info, NULL, &vulkan_context.swapchain.image_views[i]);
         assert(result == VK_SUCCESS);
     }
 
-    context.swapchain.framebuffers = (VkFramebuffer*)malloc(context.swapchain.image_count * sizeof(VkFramebuffer));
-    for (uint32_t i = 0; i < context.swapchain.image_count; i++)
+    vulkan_context.swapchain.framebuffers = (VkFramebuffer*)malloc(vulkan_context.swapchain.image_count * sizeof(VkFramebuffer));
+    for (uint32_t i = 0; i < vulkan_context.swapchain.image_count; i++)
     {
         VkFramebufferCreateInfo framebuffer_create_info = {VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
         framebuffer_create_info.attachmentCount = 1;
-        framebuffer_create_info.pAttachments = &context.swapchain.image_views[i];
+        framebuffer_create_info.pAttachments = &vulkan_context.swapchain.image_views[i];
         framebuffer_create_info.width = extent.width;
         framebuffer_create_info.height = extent.height;
         framebuffer_create_info.layers = 1;
 
-        VkResult result = vkCreateFramebuffer(context.device.handle, &framebuffer_create_info, NULL, &context.swapchain.framebuffers[i]);
+        VkResult result = vkCreateFramebuffer(vulkan_context.device.handle, &framebuffer_create_info, NULL, &vulkan_context.swapchain.framebuffers[i]);
         assert(result == VK_SUCCESS);
     }
 }
 
 void mg_vulkan_cleanup_swapchain(void)
 {    
-    for (uint32_t i = 0; i < context.swapchain.image_count; i++)
+    for (uint32_t i = 0; i < vulkan_context.swapchain.image_count; i++)
     {
-        vkDestroyFramebuffer(context.device.handle, context.swapchain.framebuffers[i], NULL);
-        vkDestroyImageView(context.device.handle, context.swapchain.image_views[i], NULL);
+        vkDestroyFramebuffer(vulkan_context.device.handle, vulkan_context.swapchain.framebuffers[i], NULL);
+        vkDestroyImageView(vulkan_context.device.handle, vulkan_context.swapchain.image_views[i], NULL);
     }
 
-    free(context.swapchain.framebuffers);
-    free(context.swapchain.image_views);
+    free(vulkan_context.swapchain.framebuffers);
+    free(vulkan_context.swapchain.image_views);
 
-    vkDestroySwapchainKHR(context.device.handle, context.swapchain.handle, NULL);
+    vkDestroySwapchainKHR(vulkan_context.device.handle, vulkan_context.swapchain.handle, NULL);
 
-    free(context.swapchain.images);
+    free(vulkan_context.swapchain.images);
 }
 
 void mg_vulkan_configure_swapchain(mg_swapchain_config_info_t *config_info)
 {
-    vkDeviceWaitIdle(context.device.handle);
+    vkDeviceWaitIdle(vulkan_context.device.handle);
     
     mg_vulkan_cleanup_swapchain();
     mg_vulkan_create_swapchain(config_info);
@@ -150,5 +150,5 @@ void mg_vulkan_configure_swapchain(mg_swapchain_config_info_t *config_info)
 
 VkFramebuffer mg_vulkan_get_swapchain_framebuffer(void)
 {
-    return context.swapchain.framebuffers[context.image_index];
+    return vulkan_context.swapchain.framebuffers[vulkan_context.image_index];
 }

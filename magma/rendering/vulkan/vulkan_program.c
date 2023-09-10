@@ -11,7 +11,7 @@ VkShaderModule mg_vulkan_create_shader(const uint32_t *code, size_t size)
     create_info.pCode = code;
 
     VkShaderModule shader_module;
-    VkResult result = vkCreateShaderModule(context.device.handle, &create_info, NULL, &shader_module);
+    VkResult result = vkCreateShaderModule(vulkan_context.device.handle, &create_info, NULL, &shader_module);
     assert(result == VK_SUCCESS);
 
     return shader_module;
@@ -120,7 +120,7 @@ mg_vulkan_program_t *mg_vulkan_create_program(mg_program_create_info_t *create_i
         pipeline_layout_info.pPushConstantRanges = &push_constant;
     }
 
-    VkResult result = vkCreatePipelineLayout(context.device.handle, &pipeline_layout_info, NULL, &program->pipeline_layout);
+    VkResult result = vkCreatePipelineLayout(vulkan_context.device.handle, &pipeline_layout_info, NULL, &program->pipeline_layout);
     assert(result == VK_SUCCESS);
 
     VkGraphicsPipelineCreateInfo pipeline_info = {VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
@@ -139,7 +139,7 @@ mg_vulkan_program_t *mg_vulkan_create_program(mg_program_create_info_t *create_i
     pipeline_info.renderPass = create_info->render_pass.internal_data;
     pipeline_info.subpass = 0;
 
-    result = vkCreateGraphicsPipelines(context.device.handle, VK_NULL_HANDLE, 1, &pipeline_info, NULL, &program->pipeline);
+    result = vkCreateGraphicsPipelines(vulkan_context.device.handle, VK_NULL_HANDLE, 1, &pipeline_info, NULL, &program->pipeline);
     assert(result == VK_SUCCESS);
 
     free(attribute_descriptions);
@@ -149,12 +149,12 @@ mg_vulkan_program_t *mg_vulkan_create_program(mg_program_create_info_t *create_i
 
 void mg_vulkan_destroy_program(mg_vulkan_program_t *program)
 {
-    vkDestroyPipeline(context.device.handle, program->pipeline, NULL);
-    vkDestroyPipelineLayout(context.device.handle, program->pipeline_layout, NULL);
+    vkDestroyPipeline(vulkan_context.device.handle, program->pipeline, NULL);
+    vkDestroyPipelineLayout(vulkan_context.device.handle, program->pipeline_layout, NULL);
     free(program);
 }
 
 void mg_vulkan_bind_program(mg_vulkan_program_t *program)
 {
-    vkCmdBindPipeline(context.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, program->pipeline);
+    vkCmdBindPipeline(vulkan_context.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, program->pipeline);
 }

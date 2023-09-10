@@ -74,7 +74,7 @@ void on_resize(mg_resized_event_data_t *data)
         mg_swapchain_config_info_t config_info = {
             .extent = (mg_vec2i_t) { data->width, data->height },
             .format = MG_PIXEL_FORMAT_B8G8R8A8_SRGB,
-            .present_mode = MG_PRESENT_MODE_FIFO_KHR
+            .present_mode = MG_PRESENT_MODE_IMMEDIATE_KHR
         };
 
         mg_llapi_renderer_configure_swapchain(&config_info);
@@ -105,8 +105,7 @@ PushConstantObject;
 
 int main(void)
 {
-    mg_platform_t platform;
-    mg_window_create_info_t win_description = {
+    mg_platform_init_info_t platform_init_info = {
         .title = "Magma",
         .width = 1280,
         .height = 720,
@@ -118,16 +117,16 @@ int main(void)
     mg_event_register(MG_EVENT_CODE_KEY_PRESSED, on_key);
     mg_event_register(MG_EVENT_CODE_MOUSE_WHEEL, on_mouse_wheel);
 
-    mg_platform_initialize(&platform, &win_description);
+    mg_platform_t *platform = mg_platform_initialize(&platform_init_info);
     mg_event_register(MG_EVENT_CODE_RESIZED, (PFN_on_event)on_resize);
     
     mg_renderer_init_info_t renderer_init_info = {
-        .platform = &platform,
+        .platform = platform,
         .type = MG_RENDERER_TYPE_VULKAN,
-        .swapchain_config_info = &(mg_swapchain_config_info_t){
-            .extent = (mg_vec2i_t) { 1280, 720 },
+        .swapchain_config_info = &(mg_swapchain_config_info_t) {
+            .extent = (mg_vec2i_t) { platform_init_info.width, platform_init_info.height },
             .format = MG_PIXEL_FORMAT_B8G8R8A8_SRGB,
-            .present_mode = MG_PRESENT_MODE_FIFO_KHR
+            .present_mode = MG_PRESENT_MODE_IMMEDIATE_KHR
         }
     };
 
@@ -429,7 +428,7 @@ int main(void)
                 mg_llapi_renderer_viewport(viewport.x, viewport.y);
 
             int32_t width, height;
-            mg_platform_get_window_size(&platform, &width, &height);
+            mg_platform_get_window_size(platform, &width, &height);
 
             if (height > 0)
             {
@@ -449,7 +448,6 @@ int main(void)
                 ubo.projection = mg_mat4_scale(ubo.projection, (mg_vec3_t){1.0f / current_view_size, 1.0f / current_view_size, 1.0f});
 
             }
-
 
             mg_buffer_update_info_t uniform_buffer_update_info;
             uniform_buffer_update_info.size = sizeof(UniformBufferObject);
@@ -478,7 +476,7 @@ int main(void)
             push.model = mg_mat4_identity();
             push.model = mg_mat4_scale(push.model, (mg_vec3_t){texWidth * 0.01f, texHeight * 0.01f, 1.0f});
             mg_llapi_renderer_push_constants(program, sizeof(PushConstantObject), &push);
-            mg_llapi_renderer_draw_indexed(6, 0);
+            mg_llapi_renderer_draw_indexed(12, 0);
 
             mg_llapi_renderer_end_render_pass();
 
@@ -503,7 +501,7 @@ int main(void)
             mg_llapi_renderer_end_frame();
             mg_llapi_renderer_present_frame();
         
-        mg_platform_poll_messages(&platform);
+        mg_platform_poll_messages(platform);
     }
 
     mg_llapi_renderer_destroy_program(program);
@@ -527,7 +525,7 @@ int main(void)
     mg_llapi_renderer_destroy_render_pass(back_render_pass);
 
     mg_llapi_renderer_shutdown();
-    mg_platform_shutdown(&platform);
+    mg_platform_shutdown(platform);
 
     return 0;
 }

@@ -22,20 +22,20 @@ void mg_vulkan_allocate_image(uint32_t width, uint32_t height, VkFormat format, 
     image_info.samples = VK_SAMPLE_COUNT_1_BIT;
     image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    VkResult result = vkCreateImage(context.device.handle, &image_info, NULL, image);
+    VkResult result = vkCreateImage(vulkan_context.device.handle, &image_info, NULL, image);
     assert(result == VK_SUCCESS);
     
     VkMemoryRequirements mem_requirements;
-    vkGetImageMemoryRequirements(context.device.handle, *image, &mem_requirements);
+    vkGetImageMemoryRequirements(vulkan_context.device.handle, *image, &mem_requirements);
 
     VkMemoryAllocateInfo alloc_info = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
     alloc_info.allocationSize = mem_requirements.size;
     alloc_info.memoryTypeIndex = mg_vulkan_find_memory_type(mem_requirements.memoryTypeBits, properties);
 
-    result = vkAllocateMemory(context.device.handle, &alloc_info, NULL, memory);
+    result = vkAllocateMemory(vulkan_context.device.handle, &alloc_info, NULL, memory);
     assert(result == VK_SUCCESS);
 
-    vkBindImageMemory(context.device.handle, *image, *memory, 0);
+    vkBindImageMemory(vulkan_context.device.handle, *image, *memory, 0);
 }
 
 void mg_vulkan_transition_image_layout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout)
@@ -142,22 +142,22 @@ void mg_vulkan_write_texture_image(mg_vulkan_texture_image_t *texture_image, mg_
     &staging_buffer, &staging_memory);
 
     void* data;
-    vkMapMemory(context.device.handle, staging_memory, 0, image_size, 0, &data);
+    vkMapMemory(vulkan_context.device.handle, staging_memory, 0, image_size, 0, &data);
         memcpy(data, write_info->data, image_size);
-    vkUnmapMemory(context.device.handle, staging_memory);
+    vkUnmapMemory(vulkan_context.device.handle, staging_memory);
 
     mg_vulkan_transition_image_layout(texture_image->image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
     mg_vulkan_copy_buffer_to_image(staging_buffer, texture_image->image, write_info->extent.x, write_info->extent.y);
     mg_vulkan_transition_image_layout(texture_image->image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-    vkDestroyBuffer(context.device.handle, staging_buffer, NULL);
-    vkFreeMemory(context.device.handle, staging_memory, NULL);
+    vkDestroyBuffer(vulkan_context.device.handle, staging_buffer, NULL);
+    vkFreeMemory(vulkan_context.device.handle, staging_memory, NULL);
 }
 
 void mg_vulkan_destroy_texture_image(mg_vulkan_texture_image_t *texture_image)
 {
-    vkDestroyImage(context.device.handle, texture_image->image, NULL);
-    vkFreeMemory(context.device.handle, texture_image->memory, NULL);
+    vkDestroyImage(vulkan_context.device.handle, texture_image->image, NULL);
+    vkFreeMemory(vulkan_context.device.handle, texture_image->memory, NULL);
 
     free(texture_image);
 }
@@ -176,7 +176,7 @@ VkImageView mg_vulkan_create_texture_view(mg_vulkan_texture_image_t *texture_ima
 
     VkImageView texture_view;
 
-    VkResult result = vkCreateImageView(context.device.handle, &view_info, NULL, &texture_view);
+    VkResult result = vkCreateImageView(vulkan_context.device.handle, &view_info, NULL, &texture_view);
     assert(result == VK_SUCCESS);
 
     return texture_view;
@@ -184,7 +184,7 @@ VkImageView mg_vulkan_create_texture_view(mg_vulkan_texture_image_t *texture_ima
 
 void mg_vulkan_destroy_texture_view(VkImageView texture_view)
 {
-    vkDestroyImageView(context.device.handle, texture_view, NULL);
+    vkDestroyImageView(vulkan_context.device.handle, texture_view, NULL);
 }
 
 VkSampler mg_vulkan_create_sampler(mg_sampler_create_info_t *create_info)
@@ -200,7 +200,7 @@ VkSampler mg_vulkan_create_sampler(mg_sampler_create_info_t *create_info)
     samplerInfo.addressModeW = create_info->address_mode_w;
 
     samplerInfo.anisotropyEnable = VK_TRUE;
-    samplerInfo.maxAnisotropy = context.physical_device.properties.limits.maxSamplerAnisotropy;
+    samplerInfo.maxAnisotropy = vulkan_context.physical_device.properties.limits.maxSamplerAnisotropy;
 
     samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
     samplerInfo.unnormalizedCoordinates = VK_FALSE;
@@ -213,7 +213,7 @@ VkSampler mg_vulkan_create_sampler(mg_sampler_create_info_t *create_info)
     samplerInfo.minLod = 0.0f;
     samplerInfo.maxLod = 0.0f;
 
-    VkResult result = vkCreateSampler(context.device.handle, &samplerInfo, NULL, &sampler);
+    VkResult result = vkCreateSampler(vulkan_context.device.handle, &samplerInfo, NULL, &sampler);
     assert(result == VK_SUCCESS);
 
     return sampler;
@@ -221,7 +221,7 @@ VkSampler mg_vulkan_create_sampler(mg_sampler_create_info_t *create_info)
 
 void mg_vulkan_destroy_sampler(VkSampler sampler)
 {
-    vkDestroySampler(context.device.handle, sampler, NULL);
+    vkDestroySampler(vulkan_context.device.handle, sampler, NULL);
 }
 
 VkFramebuffer mg_vulkan_create_framebuffer(mg_framebuffer_create_info_t *create_info)
@@ -237,7 +237,7 @@ VkFramebuffer mg_vulkan_create_framebuffer(mg_framebuffer_create_info_t *create_
 
     VkFramebuffer framebuffer;
 
-    VkResult result = vkCreateFramebuffer(context.device.handle, &framebuffer_create_info, NULL, &framebuffer);
+    VkResult result = vkCreateFramebuffer(vulkan_context.device.handle, &framebuffer_create_info, NULL, &framebuffer);
     assert(result == VK_SUCCESS);
 
     return framebuffer;
@@ -245,5 +245,5 @@ VkFramebuffer mg_vulkan_create_framebuffer(mg_framebuffer_create_info_t *create_
 
 void mg_vulkan_destroy_framebuffer(VkFramebuffer framebuffer)
 {
-    vkDestroyFramebuffer(context.device.handle, framebuffer, NULL);
+    vkDestroyFramebuffer(vulkan_context.device.handle, framebuffer, NULL);
 }
