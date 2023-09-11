@@ -1,46 +1,6 @@
-#pragma once
+#include "vec4.h"
 
-#include "base.h"
-
-typedef union mg_vec4
-{
-    struct
-    {
-        float x;
-        float y;
-        float z;
-        float w;
-    };
-    struct
-    {
-        float r;
-        float g;
-        float b;
-        float a;
-    };
-    float v[4];
-}
-mg_vec4_t;
-
-typedef union mg_vec4i
-{
-    struct
-    {
-        int x;
-        int y;
-        int z;
-        int w;
-    };
-    struct
-    {
-        int r;
-        int g;
-        int b;
-        int a;
-    };
-    int v[4];
-}
-mg_vec4i_t;
+#include <math.h>
 
 mg_vec4_t mg_vec4(float x, float y, float z, float w)
 {

@@ -504,8 +504,8 @@ struct mg_shader_source
 	size_t code_size;
 };
 
-typedef struct mg_program_create_info mg_program_create_info_t;
-struct mg_program_create_info
+typedef struct mg_pipeline_create_info mg_pipeline_create_info_t;
+struct mg_pipeline_create_info
 {
     mg_shader_source_t *vertex_shader;
     mg_shader_source_t *fragment_shader;
@@ -527,8 +527,8 @@ struct mg_program_create_info
     uint16_t push_constants_size;
 };
 
-typedef struct mg_program mg_program_t;
-struct mg_program
+typedef struct mg_pipeline mg_pipeline_t;
+struct mg_pipeline
 {
     mg_handle_t internal_data;
 };
@@ -587,11 +587,11 @@ MG_API void                         mg_llapi_renderer_destroy_descriptor_set_lay
 MG_API mg_descriptor_set_t          mg_llapi_renderer_create_descriptor_set         (mg_descriptor_set_create_info_t *create_info);
 MG_API void                         mg_llapi_renderer_update_descriptor_set         (mg_descriptor_set_t descriptor_set, mg_descriptor_write_t *descriptor_write);
 MG_API void                         mg_llapi_renderer_destroy_descriptor_set        (mg_descriptor_set_t descriptor_set);
-MG_API void                         mg_llapi_renderer_bind_descriptor_set           (mg_descriptor_set_t descriptor_set, mg_program_t program, uint32_t set_index);
+MG_API void                         mg_llapi_renderer_bind_descriptor_set           (mg_descriptor_set_t descriptor_set, mg_pipeline_t pipeline, uint32_t set_index);
 
-MG_API mg_program_t                 mg_llapi_renderer_create_program                (mg_program_create_info_t *create_info);
-MG_API void                         mg_llapi_renderer_destroy_program               (mg_program_t program);
-MG_API void                         mg_llapi_renderer_bind_program                  (mg_program_t program);
+MG_API mg_pipeline_t                mg_llapi_renderer_create_pipeline               (mg_pipeline_create_info_t *create_info);
+MG_API void                         mg_llapi_renderer_destroy_pipeline              (mg_pipeline_t pipeline);
+MG_API void                         mg_llapi_renderer_bind_pipeline                 (mg_pipeline_t pipeline);
 
 MG_API mg_buffer_t                  mg_llapi_renderer_create_buffer                 (mg_buffer_create_info_t *create_info);
 MG_API void                         mg_llapi_renderer_update_buffer                 (mg_buffer_t buffer, mg_buffer_update_info_t *update_info);
@@ -613,4 +613,4 @@ MG_API void                         mg_llapi_renderer_destroy_framebuffer       
 MG_API void                         mg_llapi_renderer_bind_vertex_buffer            (mg_buffer_t buffer);
 MG_API void                         mg_llapi_renderer_bind_index_buffer             (mg_buffer_t buffer, mg_index_type_t index_type);
 
-MG_API void                         mg_llapi_renderer_push_constants                (mg_program_t program, uint32_t size, void *data);
+MG_API void                         mg_llapi_renderer_push_constants                (mg_pipeline_t pipeline, uint32_t size, void *data);

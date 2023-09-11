@@ -35,7 +35,7 @@ mg_mat4_t mg_mat4_ortho(float bottom, float top, float left, float right, float 
 
     result.m11 = 2.0f / (right - left); 
     result.m22 = -2.0f / (top - bottom);
-    result.m33 = -2.0f / (far - near);  
+    result.m33 = -2.0f / (far - near);
     result.m14 = -(right + left) / (right - left); 
     result.m24 = -(top + bottom) / (top - bottom); 
     result.m34 = -(far + near) / (far - near); 

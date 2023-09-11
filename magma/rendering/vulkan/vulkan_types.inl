@@ -35,8 +35,8 @@ struct mg_vulkan_buffer
     bool mapped_at_creation;
 };
 
-typedef struct mg_vulkan_program mg_vulkan_program_t;
-struct mg_vulkan_program
+typedef struct mg_vulkan_pipeline mg_vulkan_pipeline_t;
+struct mg_vulkan_pipeline
 {
 	VkPipelineLayout pipeline_layout;
     VkPipeline pipeline;

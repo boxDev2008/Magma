@@ -1,4 +1,4 @@
-#include "vulkan_program.h"
+#include "vulkan_pipeline.h"
 #include "vulkan_renderer.h"
 
 #include <stdlib.h>
@@ -17,21 +17,21 @@ VkShaderModule mg_vulkan_create_shader(const uint32_t *code, size_t size)
     return shader_module;
 }
 
-mg_vulkan_program_t *mg_vulkan_create_program(mg_program_create_info_t *create_info)
+mg_vulkan_pipeline_t *mg_vulkan_create_pipeline(mg_pipeline_create_info_t *create_info)
 {
-    mg_vulkan_program_t *program = (mg_vulkan_program_t*)malloc(sizeof(mg_vulkan_program_t));
+    mg_vulkan_pipeline_t *pipeline = (mg_vulkan_pipeline_t*)malloc(sizeof(mg_vulkan_pipeline_t));
 
-    VkShaderModule vert_shader_module = mg_vulkan_create_shader(create_info->vertex_shader->code, create_info->vertex_shader->code_size);
-    VkShaderModule frag_shader_module = mg_vulkan_create_shader(create_info->fragment_shader->code, create_info->fragment_shader->code_size);
+    VkShaderModule vertex_shader_module = mg_vulkan_create_shader(create_info->vertex_shader->code, create_info->vertex_shader->code_size);
+    VkShaderModule fragment_shader_module = mg_vulkan_create_shader(create_info->fragment_shader->code, create_info->fragment_shader->code_size);
 
     VkPipelineShaderStageCreateInfo vert_shader_stage_info = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
     vert_shader_stage_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
-    vert_shader_stage_info.module = vert_shader_module;
+    vert_shader_stage_info.module = vertex_shader_module;
     vert_shader_stage_info.pName = "main";
 
     VkPipelineShaderStageCreateInfo frag_shader_stage_info = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
     frag_shader_stage_info.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    frag_shader_stage_info.module = frag_shader_module;
+    frag_shader_stage_info.module = fragment_shader_module;
     frag_shader_stage_info.pName = "main";
 
     VkPipelineShaderStageCreateInfo shader_stages[] = {vert_shader_stage_info, frag_shader_stage_info};
@@ -120,7 +120,7 @@ mg_vulkan_program_t *mg_vulkan_create_program(mg_program_create_info_t *create_i
         pipeline_layout_info.pPushConstantRanges = &push_constant;
     }
 
-    VkResult result = vkCreatePipelineLayout(vulkan_context.device.handle, &pipeline_layout_info, NULL, &program->pipeline_layout);
+    VkResult result = vkCreatePipelineLayout(vulkan_context.device.handle, &pipeline_layout_info, NULL, &pipeline->pipeline_layout);
     assert(result == VK_SUCCESS);
 
     VkGraphicsPipelineCreateInfo pipeline_info = {VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
@@ -135,26 +135,29 @@ mg_vulkan_program_t *mg_vulkan_create_program(mg_program_create_info_t *create_i
     pipeline_info.pColorBlendState = &color_blending;
     pipeline_info.pDynamicState = &dynamic_state;
 
-    pipeline_info.layout = program->pipeline_layout;
+    pipeline_info.layout = pipeline->pipeline_layout;
     pipeline_info.renderPass = create_info->render_pass.internal_data;
     pipeline_info.subpass = 0;
 
-    result = vkCreateGraphicsPipelines(vulkan_context.device.handle, VK_NULL_HANDLE, 1, &pipeline_info, NULL, &program->pipeline);
+    result = vkCreateGraphicsPipelines(vulkan_context.device.handle, VK_NULL_HANDLE, 1, &pipeline_info, NULL, &pipeline->pipeline);
     assert(result == VK_SUCCESS);
 
     free(attribute_descriptions);
 
-    return program;
+    vkDestroyShaderModule(vulkan_context.device.handle, vertex_shader_module, NULL);
+    vkDestroyShaderModule(vulkan_context.device.handle, fragment_shader_module, NULL);
+
+    return pipeline;
 }
 
-void mg_vulkan_destroy_program(mg_vulkan_program_t *program)
+void mg_vulkan_destroy_pipeline(mg_vulkan_pipeline_t *pipeline)
 {
-    vkDestroyPipeline(vulkan_context.device.handle, program->pipeline, NULL);
-    vkDestroyPipelineLayout(vulkan_context.device.handle, program->pipeline_layout, NULL);
-    free(program);
+    vkDestroyPipeline(vulkan_context.device.handle, pipeline->pipeline, NULL);
+    vkDestroyPipelineLayout(vulkan_context.device.handle, pipeline->pipeline_layout, NULL);
+    free(pipeline);
 }
 
-void mg_vulkan_bind_program(mg_vulkan_program_t *program)
+void mg_vulkan_bind_pipeline(mg_vulkan_pipeline_t *pipeline)
 {
-    vkCmdBindPipeline(vulkan_context.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, program->pipeline);
+    vkCmdBindPipeline(vulkan_context.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipeline);
 }

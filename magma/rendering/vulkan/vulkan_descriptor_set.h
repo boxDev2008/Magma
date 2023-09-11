@@ -13,4 +13,4 @@ VkDescriptorSet         mg_vulkan_create_descriptor_set         (mg_descriptor_s
 void                    mg_vulkan_update_descriptor_set         (VkDescriptorSet descriptor_set, mg_descriptor_write_t *descriptor_write);
 void                    mg_vulkan_destroy_descriptor_set        (VkDescriptorSet descriptor_set);
 
-void                    mg_vulkan_bind_descriptor_set           (VkDescriptorSet descriptor_set, mg_vulkan_program_t *program, uint32_t set_index);
+void                    mg_vulkan_bind_descriptor_set           (VkDescriptorSet descriptor_set, mg_vulkan_pipeline_t *program, uint32_t set_index);

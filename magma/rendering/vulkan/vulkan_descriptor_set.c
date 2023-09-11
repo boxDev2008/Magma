@@ -92,7 +92,7 @@ void mg_vulkan_destroy_descriptor_set(VkDescriptorSet descriptor_set)
     vkFreeDescriptorSets(vulkan_context.device.handle, vulkan_context.descriptor_pool, 1, &descriptor_set);
 }
 
-void mg_vulkan_bind_descriptor_set(VkDescriptorSet descriptor_set, mg_vulkan_program_t *program, uint32_t set_index)
+void mg_vulkan_bind_descriptor_set(VkDescriptorSet descriptor_set, mg_vulkan_pipeline_t *program, uint32_t set_index)
 {
     vkCmdBindDescriptorSets(vulkan_context.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, program->pipeline_layout, set_index, 1, &descriptor_set, 0, NULL);
 }

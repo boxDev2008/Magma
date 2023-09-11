@@ -3,10 +3,12 @@
 #include "vulkan/vulkan_renderer.h"
 #include "vulkan/vulkan_swapchain.h"
 #include "vulkan/vulkan_render_pass.h"
-#include "vulkan/vulkan_program.h"
+#include "vulkan/vulkan_pipeline.h"
 #include "vulkan/vulkan_buffer.h"
 #include "vulkan/vulkan_image.h"
 #include "vulkan/vulkan_descriptor_set.h"
+
+#include "opengl/opengl_renderer.h"
 
 typedef struct mg_renderer_plugin mg_renderer_plugin_t;
 struct mg_renderer_plugin
@@ -42,11 +44,11 @@ struct mg_renderer_plugin
     void (*update_descriptor_set)       (void *descriptor_set, mg_descriptor_write_t *descriptor_write);
     void (*destroy_descriptor_set)      (void *descriptor_set);
 
-    void (*bind_descriptor_set)         (void *descriptor_set, void *program, uint32_t set_index);
+    void (*bind_descriptor_set)         (void *descriptor_set, void *pipeline, uint32_t set_index);
 
-    void *(*create_program)             (mg_program_create_info_t *create_info);
-    void (*destroy_program)             (void *program);
-    void (*bind_program)                (void *program);
+    void *(*create_pipeline)            (mg_pipeline_create_info_t *create_info);
+    void (*destroy_pipeline)            (void *pipeline);
+    void (*bind_pipeline)               (void *pipeline);
 
     void *(*create_buffer)              (mg_buffer_create_info_t *create_info);
     void (*update_buffer)               (void *buffer, mg_buffer_update_info_t *update_data);
@@ -71,7 +73,7 @@ struct mg_renderer_plugin
     void (*draw)                        (uint32_t vertex_count, uint32_t first_vertex);
     void (*draw_indexed)                (uint32_t index_count, uint32_t first_index);
 
-    void (*push_constants)              (void *program, uint32_t size, void *data);
+    void (*push_constants)              (void *pipeline, uint32_t size, void *data);
 };
 
 mg_renderer_plugin_t plugin;
@@ -81,8 +83,9 @@ void mg_llapi_renderer_initialize(mg_renderer_init_info_t *init_info)
     switch (init_info->type)
     {
         case MG_RENDERER_TYPE_OPENGL:
-            //plugin.initialize   =   mg_opengl_renderer_initialize;
-            //plugin.shutdown     =   mg_opengl_renderer_shutdown;
+            plugin.initialize       =   mg_opengl_renderer_initialize;
+            plugin.shutdown         =   mg_opengl_renderer_shutdown;
+            plugin.present_frame    =   mg_opengl_renderer_present;
         break;
         case MG_RENDERER_TYPE_VULKAN:
             plugin.initialize       =   mg_vulkan_renderer_initialize;
@@ -110,9 +113,9 @@ void mg_llapi_renderer_initialize(mg_renderer_init_info_t *init_info)
 
             plugin.bind_descriptor_set  =   mg_vulkan_bind_descriptor_set;
 
-            plugin.create_program   =   mg_vulkan_create_program;
-            plugin.destroy_program  =   mg_vulkan_destroy_program;
-            plugin.bind_program     =   mg_vulkan_bind_program;
+            plugin.create_pipeline   =   mg_vulkan_create_pipeline;
+            plugin.destroy_pipeline  =   mg_vulkan_destroy_pipeline;
+            plugin.bind_pipeline     =   mg_vulkan_bind_pipeline;
 
             plugin.create_buffer            =   mg_vulkan_create_buffer;
             plugin.update_buffer            =   mg_vulkan_update_buffer;
@@ -245,26 +248,26 @@ void mg_llapi_renderer_destroy_descriptor_set(mg_descriptor_set_t descriptor_set
     plugin.destroy_descriptor_set(descriptor_set.internal_data);
 }
 
-void mg_llapi_renderer_bind_descriptor_set(mg_descriptor_set_t descriptor_set, mg_program_t program, uint32_t set_index)
+void mg_llapi_renderer_bind_descriptor_set(mg_descriptor_set_t descriptor_set, mg_pipeline_t pipeline, uint32_t set_index)
 {
-    plugin.bind_descriptor_set(descriptor_set.internal_data, program.internal_data, set_index);
+    plugin.bind_descriptor_set(descriptor_set.internal_data, pipeline.internal_data, set_index);
 }
 
-mg_program_t mg_llapi_renderer_create_program(mg_program_create_info_t *create_info)
+mg_pipeline_t mg_llapi_renderer_create_pipeline(mg_pipeline_create_info_t *create_info)
 {
-    mg_program_t program;
-    program.internal_data = plugin.create_program(create_info);
-    return program;
+    mg_pipeline_t pipeline;
+    pipeline.internal_data = plugin.create_pipeline(create_info);
+    return pipeline;
 }
 
-void mg_llapi_renderer_destroy_program(mg_program_t program)
+void mg_llapi_renderer_destroy_pipeline(mg_pipeline_t pipeline)
 {
-    plugin.destroy_program(program.internal_data);
+    plugin.destroy_pipeline(pipeline.internal_data);
 }
 
-void mg_llapi_renderer_bind_program(mg_program_t program)
+void mg_llapi_renderer_bind_pipeline(mg_pipeline_t pipeline)
 {
-    plugin.bind_program(program.internal_data);
+    plugin.bind_pipeline(pipeline.internal_data);
 }
 
 mg_buffer_t mg_llapi_renderer_create_buffer(mg_buffer_create_info_t *create_info)
@@ -347,7 +350,7 @@ void mg_llapi_renderer_bind_index_buffer(mg_buffer_t buffer, mg_index_type_t ind
     plugin.bind_index_buffer(buffer.internal_data, index_type);
 }
 
-void mg_llapi_renderer_push_constants(mg_program_t program, uint32_t size, void *data)
+void mg_llapi_renderer_push_constants(mg_pipeline_t pipeline, uint32_t size, void *data)
 {
-    plugin.push_constants(program.internal_data, size, data);
+    plugin.push_constants(pipeline.internal_data, size, data);
 }

@@ -279,7 +279,7 @@ void mg_vulkan_renderer_draw_indexed(uint32_t index_count, uint32_t first_index)
     vkCmdDrawIndexed(vulkan_context.command_buffer, index_count, 1, first_index, 0, 0);
 }
 
-void mg_vulkan_renderer_push_constants(mg_vulkan_program_t *program, uint32_t size, void *data)
+void mg_vulkan_renderer_push_constants(mg_vulkan_pipeline_t *program, uint32_t size, void *data)
 {
     vkCmdPushConstants(vulkan_context.command_buffer, program->pipeline_layout, VK_SHADER_STAGE_ALL, 0, size, data);
 }
