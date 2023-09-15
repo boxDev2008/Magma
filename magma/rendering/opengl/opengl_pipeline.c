@@ -26,13 +26,13 @@ mg_opengl_pipeline_t *mg_opengl_create_pipeline(mg_pipeline_create_info_t *creat
     glDeleteShader(vertex_shader);
     glDeleteShader(fragment_shader);
 
-    glGenVertexArrays(1, &pipeline->vao_id);
-    glBindVertexArray(pipeline->vao_id);
+    /*pipeline->vertex_layout.stride = create_info->vertex_layout.stride;
+    pipeline->vertex_layout.attribute_count = create_info->vertex_layout.attribute_count;
+    pipeline->vertex_layout.attributes =
+        malloc(create_info->vertex_layout.attribute_count * sizeof(mg_vertex_attribute_info_t));
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);  
-
-    glBindVertexArray(0);
+    for (uint32_t i = 0; i < create_info->vertex_layout.attribute_count; i++)
+        pipeline->vertex_layout.attributes[i] = create_info->vertex_layout.attributes[i];*/
 
     return pipeline;
 }
@@ -40,15 +40,17 @@ mg_opengl_pipeline_t *mg_opengl_create_pipeline(mg_pipeline_create_info_t *creat
 void mg_opengl_destroy_pipeline(mg_opengl_pipeline_t *pipeline)
 {
     glDeleteProgram(pipeline->program_id);
-    glDeleteVertexArrays(1, &pipeline->vao_id);
+    //free(pipeline->vertex_layout.attributes);
     free(pipeline);
 }
 
 void mg_opengl_bind_pipeline(mg_opengl_pipeline_t *pipeline)
 {
     glUseProgram(pipeline->program_id);
-    glBindVertexArray(pipeline->vao_id);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
+    /*for (uint32_t i = 0; i < pipeline->vertex_layout.attribute_count;i++)
+    {
+        glVertexAttribPointer(i, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(i);
+    }*/
 }

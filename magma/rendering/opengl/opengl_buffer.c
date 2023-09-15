@@ -42,7 +42,7 @@ mg_opengl_buffer_t *mg_opengl_create_buffer(mg_buffer_create_info_t *create_info
     glGenBuffers(1, &buffer->id);
     glBindBuffer(buffer->usage, buffer->id);
     glBufferData(buffer->usage, create_info->size, NULL, buffer->frequency);
-    glBindBuffer(buffer->usage, 0);
+    //glBindBuffer(buffer->usage, 0);
 
     return buffer;
 }
@@ -51,7 +51,7 @@ void mg_opengl_update_buffer(mg_opengl_buffer_t *buffer, mg_buffer_update_info_t
 {
     glBindBuffer(buffer->usage, buffer->id);
     glBufferData(buffer->usage, update_info->size, update_info->data, buffer->frequency);
-    glBindBuffer(buffer->usage, 0);
+    //glBindBuffer(buffer->usage, 0);
 }
 
 void mg_opengl_destroy_buffer(mg_opengl_buffer_t *buffer)

@@ -3,7 +3,7 @@
 
 #include "magma/platform/platform.h"
 
-#include "magma/rendering/llapi_renderer.h"
+#include "magma/rendering/rhi_renderer.h"
 
 #include "magma/math/mat4.h"
 #include "magma/math/math.h"
@@ -42,23 +42,29 @@ void on_resize(mg_resized_event_data_t *data)
     if (data->width == 0 || data->height == 0)
         return;
 
-        mg_llapi_renderer_destroy_framebuffer(frame_framebuffer);
-        mg_llapi_renderer_destroy_texture_image(frame_texture_image);
-        mg_llapi_renderer_destroy_texture_view(frame_texture_view);
+        mg_rhi_renderer_destroy_framebuffer(frame_framebuffer);
+        mg_rhi_renderer_destroy_texture_image(frame_texture_image);
+        mg_rhi_renderer_destroy_texture_view(frame_texture_view);
 
         mg_texture_image_create_info_t texture_image_create_info = { 0 };
         texture_image_create_info.extent.x = data->width;
         texture_image_create_info.extent.y = data->height;
 
-        frame_texture_image = mg_llapi_renderer_create_texture_image(&texture_image_create_info);
-        frame_texture_view = mg_llapi_renderer_create_texture_view(frame_texture_image);
+        frame_texture_image = mg_rhi_renderer_create_texture_image(&texture_image_create_info);
+
+        mg_texture_view_create_info_t texture_view_create_info = {
+            .texture_image = frame_texture_image,
+            .format = MG_PIXEL_FORMAT_R8G8B8A8_SRGB,
+            .view_type = MG_TEXTURE_VIEW_TYPE_2D
+        };
+        frame_texture_view = mg_rhi_renderer_create_texture_view(&texture_view_create_info);
 
         mg_framebuffer_create_info_t frame_framebuffer_create_info;
         frame_framebuffer_create_info.texture_view = frame_texture_view;
         frame_framebuffer_create_info.extent = texture_image_create_info.extent;
         frame_framebuffer_create_info.render_pass = back_render_pass;
 
-        frame_framebuffer = mg_llapi_renderer_create_framebuffer(&frame_framebuffer_create_info);
+        frame_framebuffer = mg_rhi_renderer_create_framebuffer(&frame_framebuffer_create_info);
 
         mg_descriptor_image_info_t image_info;
         image_info.view = frame_texture_view;
@@ -69,7 +75,7 @@ void on_resize(mg_resized_event_data_t *data)
         descriptor_write.descriptor_type = MG_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         descriptor_write.image_info = &image_info;
 
-        mg_llapi_renderer_update_descriptor_set(frame_sampler_set, &descriptor_write);
+        mg_rhi_renderer_update_descriptor_set(frame_sampler_set, &descriptor_write);
 
         mg_swapchain_config_info_t config_info = {
             .extent = (mg_vec2i_t) { data->width, data->height },
@@ -77,7 +83,7 @@ void on_resize(mg_resized_event_data_t *data)
             .present_mode = MG_PRESENT_MODE_IMMEDIATE_KHR
         };
 
-        mg_llapi_renderer_configure_swapchain(&config_info);
+        mg_rhi_renderer_configure_swapchain(&config_info);
 }
 
 void on_key(mg_key_event_data_t *data)
@@ -130,10 +136,10 @@ int main(void)
         }
     };
 
-    mg_llapi_renderer_initialize(&renderer_init_info);
+    mg_rhi_renderer_initialize(&renderer_init_info);
 
-    back_render_pass = mg_llapi_renderer_create_render_pass();
-    mg_render_pass_t render_pass = mg_llapi_renderer_create_render_pass();
+    back_render_pass = mg_rhi_renderer_create_render_pass();
+    mg_render_pass_t render_pass = mg_rhi_renderer_create_render_pass();
 
     const float vertices[] = {
         -0.5f, -0.5f, 0.0f, 0.0f,
@@ -165,7 +171,7 @@ int main(void)
     frame_vertex_buffer_create_info.frequency = MG_BUFFER_UPDATE_FREQUENCY_STATIC;
     frame_vertex_buffer_create_info.mapped_at_creation = false;
     mg_buffer_t frame_vertex_buffer =
-        mg_llapi_renderer_create_buffer(&frame_vertex_buffer_create_info);
+        mg_rhi_renderer_create_buffer(&frame_vertex_buffer_create_info);
 
     mg_buffer_create_info_t vertex_buffer_create_info;
     vertex_buffer_create_info.usage = MG_BUFFER_USAGE_VERTEX;
@@ -173,7 +179,7 @@ int main(void)
     vertex_buffer_create_info.frequency = MG_BUFFER_UPDATE_FREQUENCY_STATIC;
     vertex_buffer_create_info.mapped_at_creation = false;
     mg_buffer_t vertex_buffer =
-        mg_llapi_renderer_create_buffer(&vertex_buffer_create_info);
+        mg_rhi_renderer_create_buffer(&vertex_buffer_create_info);
 
     mg_buffer_create_info_t index_buffer_create_info;
     index_buffer_create_info.usage = MG_BUFFER_USAGE_INDEX;
@@ -181,7 +187,7 @@ int main(void)
     index_buffer_create_info.frequency = MG_BUFFER_UPDATE_FREQUENCY_STATIC;
     index_buffer_create_info.mapped_at_creation = false;
     mg_buffer_t index_buffer =
-        mg_llapi_renderer_create_buffer(&index_buffer_create_info);
+        mg_rhi_renderer_create_buffer(&index_buffer_create_info);
 
     mg_buffer_create_info_t uniform_buffer_create_info;
     uniform_buffer_create_info.usage = MG_BUFFER_USAGE_UNIFORM;
@@ -189,22 +195,22 @@ int main(void)
     uniform_buffer_create_info.frequency = MG_BUFFER_UPDATE_FREQUENCY_DYNAMIC;
     uniform_buffer_create_info.mapped_at_creation = true;
     mg_buffer_t uniform_buffer =
-        mg_llapi_renderer_create_buffer(&uniform_buffer_create_info);
+        mg_rhi_renderer_create_buffer(&uniform_buffer_create_info);
     
     mg_buffer_update_info_t frame_vertex_buffer_update_info;
     frame_vertex_buffer_update_info.size = sizeof(frame_vertices);
     frame_vertex_buffer_update_info.data = frame_vertices;
-    mg_llapi_renderer_update_buffer(frame_vertex_buffer, &frame_vertex_buffer_update_info);
+    mg_rhi_renderer_update_buffer(frame_vertex_buffer, &frame_vertex_buffer_update_info);
 
     mg_buffer_update_info_t vertex_buffer_update_info;
     vertex_buffer_update_info.size = sizeof(vertices);
     vertex_buffer_update_info.data = vertices;
-    mg_llapi_renderer_update_buffer(vertex_buffer, &vertex_buffer_update_info);
+    mg_rhi_renderer_update_buffer(vertex_buffer, &vertex_buffer_update_info);
 
     mg_buffer_update_info_t index_buffer_update_info;
     index_buffer_update_info.size = sizeof(indices);
     index_buffer_update_info.data = indices;
-    mg_llapi_renderer_update_buffer(index_buffer, &index_buffer_update_info);
+    mg_rhi_renderer_update_buffer(index_buffer, &index_buffer_update_info);
 
     UniformBufferObject ubo = { 0 };
 
@@ -246,12 +252,12 @@ int main(void)
     mg_descriptor_set_layout_create_info_t ubo_layout_create_info;
     ubo_layout_create_info.descriptor_count = 1;
     ubo_layout_create_info.descriptors = &ubo_descriptor;
-    ubo_layout = mg_llapi_renderer_create_descriptor_set_layout(&ubo_layout_create_info);
+    ubo_layout = mg_rhi_renderer_create_descriptor_set_layout(&ubo_layout_create_info);
 
     mg_descriptor_set_t ubo_set;
     mg_descriptor_set_create_info_t ubo_set_create_info;
     ubo_set_create_info.layouts = &ubo_layout;
-    ubo_set = mg_llapi_renderer_create_descriptor_set(&ubo_set_create_info);
+    ubo_set = mg_rhi_renderer_create_descriptor_set(&ubo_set_create_info);
 
     mg_descriptor_t sampler_descriptor;
     sampler_descriptor.binding = 0;
@@ -262,7 +268,7 @@ int main(void)
     mg_descriptor_set_layout_create_info_t sampler_layout_create_info;
     sampler_layout_create_info.descriptor_count = 1;
     sampler_layout_create_info.descriptors = &sampler_descriptor;
-    sampler_layout = mg_llapi_renderer_create_descriptor_set_layout(&sampler_layout_create_info);
+    sampler_layout = mg_rhi_renderer_create_descriptor_set_layout(&sampler_layout_create_info);
 
     mg_pipeline_create_info_t pipeline_create_info = { 0 };
 
@@ -298,7 +304,7 @@ int main(void)
 
     pipeline_create_info.render_pass = render_pass;
 
-    mg_pipeline_t pipeline = mg_llapi_renderer_create_pipeline(&pipeline_create_info);
+    mg_pipeline_t pipeline = mg_rhi_renderer_create_pipeline(&pipeline_create_info);
 
     pipeline_create_info.vertex_shader = &post_process_vertex_shader;
     pipeline_create_info.fragment_shader = &post_process_fragment_shader;
@@ -315,7 +321,7 @@ int main(void)
 
     pipeline_create_info.render_pass = back_render_pass;
 
-    mg_pipeline_t back_pipeline = mg_llapi_renderer_create_pipeline(&pipeline_create_info);
+    mg_pipeline_t back_pipeline = mg_rhi_renderer_create_pipeline(&pipeline_create_info);
 
     mg_texture_image_create_info_t texture_image_create_info = { 0 };
     int texWidth, texHeight, texChannels;
@@ -324,28 +330,36 @@ int main(void)
     texture_image_create_info.extent.y = texHeight;
 
     mg_texture_image_t texture_image =
-        mg_llapi_renderer_create_texture_image(&texture_image_create_info);
+        mg_rhi_renderer_create_texture_image(&texture_image_create_info);
 
     mg_texture_image_write_info_t texture_image_write_info;
     texture_image_write_info.extent = texture_image_create_info.extent;
     texture_image_write_info.data = pixels;
     
-    mg_llapi_renderer_write_texture_image(texture_image, &texture_image_write_info);
+    mg_rhi_renderer_write_texture_image(texture_image, &texture_image_write_info);
 
     stbi_image_free(pixels);
 
+    mg_texture_view_create_info_t texture_view_create_info = {
+        .texture_image = texture_image,
+        .format = MG_PIXEL_FORMAT_R8G8B8A8_SRGB,
+        .view_type = MG_TEXTURE_VIEW_TYPE_2D
+    };
+
     mg_texture_view_t texture_view =
-        mg_llapi_renderer_create_texture_view(texture_image);
+        mg_rhi_renderer_create_texture_view(&texture_view_create_info);
     
     viewport = (mg_vec2i_t) { 1280, 720 };
 
     texture_image_create_info.extent = viewport;
     
     frame_texture_image =
-        mg_llapi_renderer_create_texture_image(&texture_image_create_info);
+        mg_rhi_renderer_create_texture_image(&texture_image_create_info);
+
+    texture_view_create_info.texture_image = frame_texture_image;
 
     frame_texture_view =
-        mg_llapi_renderer_create_texture_view(frame_texture_image);
+        mg_rhi_renderer_create_texture_view(&texture_view_create_info);
     
     mg_framebuffer_create_info_t frame_framebuffer_create_info;
     frame_framebuffer_create_info.texture_view = frame_texture_view;
@@ -353,7 +367,7 @@ int main(void)
     frame_framebuffer_create_info.render_pass = back_render_pass;
     
     frame_framebuffer =
-        mg_llapi_renderer_create_framebuffer(&frame_framebuffer_create_info);
+        mg_rhi_renderer_create_framebuffer(&frame_framebuffer_create_info);
 
     mg_sampler_create_info_t sampler_create_info = { 0 };
     sampler_create_info.mag_filter = MG_SAMPLER_FILTER_NEAREST;
@@ -363,14 +377,14 @@ int main(void)
     sampler_create_info.address_mode_w = MG_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 
     sampler =
-        mg_llapi_renderer_create_sampler(&sampler_create_info);
+        mg_rhi_renderer_create_sampler(&sampler_create_info);
 
     mg_descriptor_set_t sampler_set;
     mg_descriptor_set_create_info_t sampler_set_create_info;
     sampler_set_create_info.layouts = &sampler_layout;
-    sampler_set = mg_llapi_renderer_create_descriptor_set(&sampler_set_create_info);
+    sampler_set = mg_rhi_renderer_create_descriptor_set(&sampler_set_create_info);
 
-    frame_sampler_set = mg_llapi_renderer_create_descriptor_set(&sampler_set_create_info);
+    frame_sampler_set = mg_rhi_renderer_create_descriptor_set(&sampler_set_create_info);
 
     {
         mg_descriptor_image_info_t image_info;
@@ -382,7 +396,7 @@ int main(void)
         descriptor_write.descriptor_type = MG_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         descriptor_write.image_info = &image_info;
 
-        mg_llapi_renderer_update_descriptor_set(sampler_set, &descriptor_write);
+        mg_rhi_renderer_update_descriptor_set(sampler_set, &descriptor_write);
     }
 
     {
@@ -395,7 +409,7 @@ int main(void)
         descriptor_write.descriptor_type = MG_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         descriptor_write.image_info = &image_info;
 
-        mg_llapi_renderer_update_descriptor_set(frame_sampler_set, &descriptor_write);
+        mg_rhi_renderer_update_descriptor_set(frame_sampler_set, &descriptor_write);
     }
 
     float x = 0;
@@ -413,19 +427,19 @@ int main(void)
         const double delta_time = current_time - last_time;
         last_time = current_time;
 
-            mg_llapi_renderer_begin_frame();
+            mg_rhi_renderer_begin_frame();
 
-            mg_framebuffer_t framebuffer = mg_llapi_renderer_get_swapchain_framebuffer();
+            mg_framebuffer_t framebuffer = mg_rhi_renderer_get_swapchain_framebuffer();
 
             mg_render_pass_begin_info_t render_pass_begin_info;
             render_pass_begin_info.framebuffer = frame_framebuffer;
             render_pass_begin_info.render_area = (mg_vec4_t){0.0f, 0.0f, viewport.x, viewport.y};
             render_pass_begin_info.clear_value = (mg_vec4_t){0.01f, 0.01f, 0.01f, 1.0f};
-            mg_llapi_renderer_begin_render_pass(back_render_pass, &render_pass_begin_info);
+            mg_rhi_renderer_begin_render_pass(back_render_pass, &render_pass_begin_info);
             if (mg_input_is_key_down(MG_KEY_Z))
-                mg_llapi_renderer_viewport(100, 100);
+                mg_rhi_renderer_viewport(100, 100);
             else
-                mg_llapi_renderer_viewport(viewport.x, viewport.y);
+                mg_rhi_renderer_viewport(viewport.x, viewport.y);
 
             int32_t width, height;
             mg_platform_get_window_size(platform, &width, &height);
@@ -452,7 +466,7 @@ int main(void)
             mg_buffer_update_info_t uniform_buffer_update_info;
             uniform_buffer_update_info.size = sizeof(UniformBufferObject);
             uniform_buffer_update_info.data = &ubo;
-            mg_llapi_renderer_update_buffer(uniform_buffer, &uniform_buffer_update_info);
+            mg_rhi_renderer_update_buffer(uniform_buffer, &uniform_buffer_update_info);
 
             mg_descriptor_buffer_info_t buffer_info;
             buffer_info.buffer = uniform_buffer;
@@ -464,67 +478,67 @@ int main(void)
             descriptor_write.descriptor_type = MG_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
             descriptor_write.buffer_info = &buffer_info;
 
-            mg_llapi_renderer_update_descriptor_set(ubo_set, &descriptor_write);
+            mg_rhi_renderer_update_descriptor_set(ubo_set, &descriptor_write);
 
-            mg_llapi_renderer_bind_pipeline(pipeline);
-            mg_llapi_renderer_bind_vertex_buffer(vertex_buffer);
-            mg_llapi_renderer_bind_index_buffer(index_buffer, MG_INDEX_TYPE_UINT32);
-            mg_llapi_renderer_bind_descriptor_set(ubo_set, pipeline, 0);
-            mg_llapi_renderer_bind_descriptor_set(sampler_set, pipeline, 1);
+            mg_rhi_renderer_bind_pipeline(pipeline);
+            mg_rhi_renderer_bind_vertex_buffer(vertex_buffer);
+            mg_rhi_renderer_bind_index_buffer(index_buffer, MG_INDEX_TYPE_UINT32);
+            mg_rhi_renderer_bind_descriptor_set(ubo_set, pipeline, 0);
+            mg_rhi_renderer_bind_descriptor_set(sampler_set, pipeline, 1);
 
             PushConstantObject push;
             push.model = mg_mat4_identity();
             push.model = mg_mat4_scale(push.model, (mg_vec3_t){texWidth * 0.01f, texHeight * 0.01f, 1.0f});
-            mg_llapi_renderer_push_constants(pipeline, sizeof(PushConstantObject), &push);
-            mg_llapi_renderer_draw_indexed(12, 0);
+            mg_rhi_renderer_push_constants(pipeline, sizeof(PushConstantObject), &push);
+            mg_rhi_renderer_draw_indexed(12, 0);
 
-            mg_llapi_renderer_end_render_pass();
+            mg_rhi_renderer_end_render_pass();
 
             render_pass_begin_info.framebuffer = framebuffer;
             render_pass_begin_info.render_area = (mg_vec4_t){0.0f, 0.0f, viewport.x, viewport.y};
             render_pass_begin_info.clear_value = (mg_vec4_t){0.0f, 0.0f, 0.0f, 1.0f};
-            mg_llapi_renderer_begin_render_pass(render_pass, &render_pass_begin_info);
-            mg_llapi_renderer_viewport(viewport.x, viewport.y);
+            mg_rhi_renderer_begin_render_pass(render_pass, &render_pass_begin_info);
+            mg_rhi_renderer_viewport(viewport.x, viewport.y);
             //ubo.projection = mg_mat4_identity();
 
-            mg_llapi_renderer_update_descriptor_set(ubo_set, &descriptor_write);
+            mg_rhi_renderer_update_descriptor_set(ubo_set, &descriptor_write);
 
-            mg_llapi_renderer_bind_pipeline(back_pipeline);
-            mg_llapi_renderer_bind_vertex_buffer(frame_vertex_buffer);
-            mg_llapi_renderer_bind_index_buffer(index_buffer, MG_INDEX_TYPE_UINT32);
-            mg_llapi_renderer_bind_descriptor_set(ubo_set, back_pipeline, 0);
-            mg_llapi_renderer_bind_descriptor_set(frame_sampler_set, back_pipeline, 1);
-            mg_llapi_renderer_draw_indexed(6, 0);
+            mg_rhi_renderer_bind_pipeline(back_pipeline);
+            mg_rhi_renderer_bind_vertex_buffer(frame_vertex_buffer);
+            mg_rhi_renderer_bind_index_buffer(index_buffer, MG_INDEX_TYPE_UINT32);
+            mg_rhi_renderer_bind_descriptor_set(ubo_set, back_pipeline, 0);
+            mg_rhi_renderer_bind_descriptor_set(frame_sampler_set, back_pipeline, 1);
+            mg_rhi_renderer_draw_indexed(6, 0);
 
-            mg_llapi_renderer_end_render_pass();
+            mg_rhi_renderer_end_render_pass();
 
-            mg_llapi_renderer_end_frame();
-            mg_llapi_renderer_present_frame();
+            mg_rhi_renderer_end_frame();
+            mg_rhi_renderer_present_frame();
         
         mg_platform_poll_messages(platform);
     }
 
-    mg_llapi_renderer_destroy_pipeline(pipeline);
-    mg_llapi_renderer_destroy_pipeline(back_pipeline);
-    mg_llapi_renderer_destroy_descriptor_set(frame_sampler_set);
-    mg_llapi_renderer_destroy_descriptor_set(sampler_set);
-    mg_llapi_renderer_destroy_sampler(sampler);
-    mg_llapi_renderer_destroy_texture_view(frame_texture_view);
-    mg_llapi_renderer_destroy_texture_image(frame_texture_image);
-    mg_llapi_renderer_destroy_texture_view(texture_view);
-    mg_llapi_renderer_destroy_texture_image(texture_image);
-    mg_llapi_renderer_destroy_descriptor_set(ubo_set);
-    mg_llapi_renderer_destroy_descriptor_set_layout(sampler_layout);
-    mg_llapi_renderer_destroy_descriptor_set_layout(ubo_layout);
-    mg_llapi_renderer_destroy_buffer(uniform_buffer);
-    mg_llapi_renderer_destroy_buffer(index_buffer);
-    mg_llapi_renderer_destroy_buffer(vertex_buffer);
-    mg_llapi_renderer_destroy_buffer(frame_vertex_buffer);
-    mg_llapi_renderer_destroy_framebuffer(frame_framebuffer);
-    mg_llapi_renderer_destroy_render_pass(render_pass);
-    mg_llapi_renderer_destroy_render_pass(back_render_pass);
+    mg_rhi_renderer_destroy_pipeline(pipeline);
+    mg_rhi_renderer_destroy_pipeline(back_pipeline);
+    mg_rhi_renderer_destroy_descriptor_set(frame_sampler_set);
+    mg_rhi_renderer_destroy_descriptor_set(sampler_set);
+    mg_rhi_renderer_destroy_sampler(sampler);
+    mg_rhi_renderer_destroy_texture_view(frame_texture_view);
+    mg_rhi_renderer_destroy_texture_image(frame_texture_image);
+    mg_rhi_renderer_destroy_texture_view(texture_view);
+    mg_rhi_renderer_destroy_texture_image(texture_image);
+    mg_rhi_renderer_destroy_descriptor_set(ubo_set);
+    mg_rhi_renderer_destroy_descriptor_set_layout(sampler_layout);
+    mg_rhi_renderer_destroy_descriptor_set_layout(ubo_layout);
+    mg_rhi_renderer_destroy_buffer(uniform_buffer);
+    mg_rhi_renderer_destroy_buffer(index_buffer);
+    mg_rhi_renderer_destroy_buffer(vertex_buffer);
+    mg_rhi_renderer_destroy_buffer(frame_vertex_buffer);
+    mg_rhi_renderer_destroy_framebuffer(frame_framebuffer);
+    mg_rhi_renderer_destroy_render_pass(render_pass);
+    mg_rhi_renderer_destroy_render_pass(back_render_pass);
 
-    mg_llapi_renderer_shutdown();
+    mg_rhi_renderer_shutdown();
     mg_platform_shutdown(platform);
 
     return 0;

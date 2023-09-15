@@ -1,7 +1,7 @@
 #pragma once
 
 #include "base.h"
-#include "../llapi_renderer.h"
+#include "../rhi_renderer.h"
 
 #include <volk.h>
 

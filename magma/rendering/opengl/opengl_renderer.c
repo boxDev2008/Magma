@@ -34,6 +34,9 @@ unsigned int shaderpipeline;
 void mg_opengl_renderer_initialize(mg_renderer_init_info_t *init_info)
 {
     mg_opengl_platform_initialize(init_info->platform);
+
+    glGenVertexArrays(1, &opengl_context.vao);
+
     mg_shader_source_t vertex_shader = {
         .code = vertexShaderSource,
         .code_size = sizeof(vertexShaderSource)
@@ -93,6 +96,8 @@ void mg_opengl_renderer_present(void)
 {
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
+
+    glBindVertexArray(opengl_context.vao);
 
     mg_opengl_bind_pipeline(pipeline);
     mg_opengl_bind_vertex_buffer(vertex_buffer);

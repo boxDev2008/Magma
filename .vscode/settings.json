@@ -39,7 +39,7 @@
         "vulkan.h": "c",
         "assert.h": "c",
         "vulkan_platform.h": "c",
-        "llapi_renderer.h": "c",
+        "rhi_renderer.h": "c",
         "sstream": "cpp",
         "atomic": "cpp",
         "*.tcc": "cpp",

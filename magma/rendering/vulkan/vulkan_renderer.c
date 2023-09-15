@@ -23,7 +23,7 @@ void mg_vulkan_create_instance(void)
 
     const char *instance_extensions[] = {
         VK_KHR_SURFACE_EXTENSION_NAME,
-        MG_VULKA_SURFACE_EXTENSION_NAME
+        MG_VULKAN_SURFACE_EXTENSION_NAME
     };
 
     VkInstanceCreateInfo create_info = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
@@ -36,6 +36,8 @@ void mg_vulkan_create_instance(void)
 
     VkResult result = vkCreateInstance(&create_info, NULL, &vulkan_context.instance);
     assert(result == VK_SUCCESS);
+
+    volkLoadInstance(vulkan_context.instance);
 }
 
 void mg_vulkan_get_physical_device(void)
@@ -54,8 +56,8 @@ void mg_vulkan_get_physical_device(void)
         vkGetPhysicalDeviceProperties(devices[i], &deviceProperties);
         vkGetPhysicalDeviceFeatures(devices[i], &deviceFeatures);
 
-        if (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU &&
-            deviceFeatures.geometryShader)
+        if (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU ||
+            deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
         {
             vulkan_context.physical_device.handle = devices[i];
             vulkan_context.physical_device.properties = deviceProperties;
@@ -109,6 +111,8 @@ void mg_vulkan_create_device(void)
     VkResult result = vkCreateDevice(vulkan_context.physical_device.handle, &create_info, NULL, &vulkan_context.device.handle);
     assert(result == VK_SUCCESS);
 
+    volkLoadDevice(vulkan_context.device.handle);
+
     vkGetDeviceQueue(vulkan_context.device.handle, vulkan_context.physical_device.graphics_family, 0, &vulkan_context.device.graphics_queue);
 }
 
@@ -160,14 +164,10 @@ void mg_vulkan_renderer_initialize(mg_renderer_init_info_t *init_info)
     volkInitialize();
     mg_vulkan_create_instance();
 
-    volkLoadInstance(vulkan_context.instance);
-
     mg_vulkan_create_surface(init_info->platform);
 
     mg_vulkan_get_physical_device();
     mg_vulkan_create_device();
-
-    volkLoadDevice(vulkan_context.device.handle);
 
     mg_vulkan_create_command_pool();
     vulkan_context.command_buffer = mg_vulkan_create_command_buffer();
@@ -251,12 +251,6 @@ void mg_vulkan_renderer_present(void)
     present_info.pImageIndices = &vulkan_context.image_index;
 
     vkQueuePresentKHR(vulkan_context.device.graphics_queue, &present_info);
-
-    /*if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || context.framebuffer_resized)
-    {
-        mg_vulkan_recreate_swapchain();
-        context.framebuffer_resized = false;
-    }*/
 }
 
 void mg_vulkan_renderer_wait(void)

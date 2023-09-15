@@ -2,7 +2,7 @@
 
 #include "vulkan_types.inl"
 
-#include "../llapi_renderer.h"
+#include "../rhi_renderer.h"
 
 #include <assert.h>
 

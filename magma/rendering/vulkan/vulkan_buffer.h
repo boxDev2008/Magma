@@ -3,7 +3,7 @@
 #include "vulkan_types.inl"
 #include "vulkan_renderer.h"
 
-#include "../llapi_renderer.h"
+#include "../rhi_renderer.h"
 
 uint32_t            mg_vulkan_find_memory_type          (uint32_t type_filter, VkMemoryPropertyFlags properties);
 void                mg_vulkan_allocate_buffer           (size_t size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer *buffer, VkDeviceMemory *memory);

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "base.h"
-#include "../llapi_renderer.h"
+#include "../rhi_renderer.h"
 
 #include <glad/glad.h>
 
@@ -17,12 +17,14 @@ struct mg_opengl_buffer
 typedef struct mg_opengl_pipeline mg_opengl_pipeline_t;
 struct mg_opengl_pipeline
 {
-    GLuint vao_id;
     GLuint program_id;
+
+    mg_vertex_layout_info_t vertex_layout;
 };
 
 typedef struct mg_opengl_context mg_opengl_context_t;
 struct mg_opengl_context
 {
+    GLuint vao;
     GLenum index_type;
 };

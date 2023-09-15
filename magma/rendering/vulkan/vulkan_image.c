@@ -162,12 +162,13 @@ void mg_vulkan_destroy_texture_image(mg_vulkan_texture_image_t *texture_image)
     free(texture_image);
 }
 
-VkImageView mg_vulkan_create_texture_view(mg_vulkan_texture_image_t *texture_image)
+VkImageView mg_vulkan_create_texture_view(mg_texture_view_create_info_t *create_info)
 {
     VkImageViewCreateInfo view_info = {VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
+    mg_vulkan_texture_image_t* texture_image = (mg_vulkan_texture_image_t*)create_info->texture_image.internal_data;
     view_info.image = texture_image->image;
-    view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    view_info.format = VK_FORMAT_R8G8B8A8_SRGB;
+    view_info.viewType = create_info->view_type;
+    view_info.format = create_info->format;
     view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     view_info.subresourceRange.baseMipLevel = 0;
     view_info.subresourceRange.levelCount = 1;
