@@ -160,46 +160,34 @@ enum mg_pixel_format
     MG_PIXEL_FORMAT_R64G64B64A64_SFLOAT = 121
 };
 
-typedef enum mg_texture_view_type mg_texture_view_type_t;
-enum mg_texture_view_type
+typedef enum mg_image_type mg_image_type_t;
+enum mg_image_type
 {
-    MG_TEXTURE_VIEW_TYPE_1D = 0,
-    MG_TEXTURE_VIEW_TYPE_2D = 1,
-    MG_TEXTURE_VIEW_TYPE_3D = 2,
-    MG_TEXTURE_VIEW_TYPE_CUBE = 3
+    MG_IMAGE_TYPE_1D = 0,
+    MG_IMAGE_TYPE_2D = 1,
+    MG_IMAGE_TYPE_3D = 2,
+    MG_IMAGE_TYPE_CUBE = 3
 };
 
-typedef struct mg_texture_image_create_info mg_texture_image_create_info_t;
-struct mg_texture_image_create_info
+typedef struct mg_image_create_info mg_image_create_info_t;
+struct mg_image_create_info
 {
+    mg_pixel_format_t format;
+    mg_image_type_t type;
     mg_vec2i_t extent;
 };
 
-typedef struct mg_texture_image mg_texture_image_t;
-struct mg_texture_image
+typedef struct mg_image mg_image_t;
+struct mg_image
 {
     mg_handle_t internal_data;
 };
 
-typedef struct mg_texture_image_write_info mg_texture_image_write_info_t;
-struct mg_texture_image_write_info
+typedef struct mg_image_write_info mg_image_write_info_t;
+struct mg_image_write_info
 {
     mg_vec2i_t extent;
     void *data;
-};
-
-typedef struct mg_texture_view_create_info mg_texture_view_create_info_t;
-struct mg_texture_view_create_info
-{
-    mg_texture_image_t texture_image;
-    mg_pixel_format_t format;
-    mg_texture_view_type_t view_type;
-};
-
-typedef struct mg_texture_view mg_texture_view_t;
-struct mg_texture_view
-{
-    mg_handle_t internal_data;
 };
 
 typedef enum mg_sampler_filter mg_sampler_filter_t;
@@ -236,6 +224,13 @@ struct mg_sampler
     mg_handle_t internal_data;
 };
 
+typedef struct mg_render_pass_create_info mg_render_pass_create_info_t;
+struct mg_render_pass_create_info
+{
+    mg_pixel_format_t format;
+    // TODO (box): Add more
+};
+
 typedef struct mg_render_pass mg_render_pass_t;
 struct mg_render_pass
 {
@@ -245,7 +240,7 @@ struct mg_render_pass
 typedef struct mg_framebuffer_create_info mg_framebuffer_create_info_t;
 struct mg_framebuffer_create_info
 {
-    mg_texture_view_t texture_view;
+    mg_image_t image;
     mg_render_pass_t render_pass;
     mg_vec2i_t extent;
 };
@@ -457,7 +452,7 @@ typedef struct mg_descriptor_image_info mg_descriptor_image_info_t;
 struct mg_descriptor_image_info
 {
     mg_sampler_t sampler;
-    mg_texture_view_t view;
+    mg_image_t image;
 };
 
 typedef struct mg_descriptor_write mg_descriptor_write_t;
@@ -590,11 +585,11 @@ MG_API void                         mg_rhi_renderer_draw                        
 MG_API void                         mg_rhi_renderer_draw_indexed                    (uint32_t index_count, uint32_t first_index);
 
 MG_API void                         mg_rhi_renderer_configure_swapchain             (mg_swapchain_config_info_t *config_info);
-MG_API mg_framebuffer_t             mg_rhi_renderer_get_swapchain_framebuffer       (void);
 
-MG_API mg_render_pass_t             mg_rhi_renderer_create_render_pass              (void);
+MG_API mg_render_pass_t             mg_rhi_renderer_create_render_pass              (mg_render_pass_create_info_t *create_info);
 MG_API void                         mg_rhi_renderer_destroy_render_pass             (mg_render_pass_t render_pass);
 MG_API void                         mg_rhi_renderer_begin_render_pass               (mg_render_pass_t render_pass, mg_render_pass_begin_info_t *begin_info);
+MG_API void                         mg_rhi_renderer_begin_default_render_pass       (mg_render_pass_begin_info_t *begin_info);
 MG_API void                         mg_rhi_renderer_end_render_pass                 (void);
 
 MG_API mg_descriptor_set_layout_t   mg_rhi_renderer_create_descriptor_set_layout    (mg_descriptor_set_layout_create_info_t *create_info);
@@ -613,12 +608,9 @@ MG_API mg_buffer_t                  mg_rhi_renderer_create_buffer               
 MG_API void                         mg_rhi_renderer_update_buffer                   (mg_buffer_t buffer, mg_buffer_update_info_t *update_info);
 MG_API void                         mg_rhi_renderer_destroy_buffer                  (mg_buffer_t buffer);
 
-MG_API mg_texture_image_t           mg_rhi_renderer_create_texture_image            (mg_texture_image_create_info_t *create_info);
-MG_API void                         mg_rhi_renderer_write_texture_image             (mg_texture_image_t texture_image, mg_texture_image_write_info_t *write_info);
-MG_API void                         mg_rhi_renderer_destroy_texture_image           (mg_texture_image_t texture_image);
-
-MG_API mg_texture_view_t            mg_rhi_renderer_create_texture_view             (mg_texture_view_create_info_t *create_info);
-MG_API void                         mg_rhi_renderer_destroy_texture_view            (mg_texture_view_t texture_view);
+MG_API mg_image_t                   mg_rhi_renderer_create_image                    (mg_image_create_info_t *create_info);
+MG_API void                         mg_rhi_renderer_destroy_image                   (mg_image_t image);
+MG_API void                         mg_rhi_renderer_write_image                     (mg_image_t image, mg_image_write_info_t *write_info);
 
 MG_API mg_sampler_t                 mg_rhi_renderer_create_sampler                  (mg_sampler_create_info_t *create_info);
 MG_API void                         mg_rhi_renderer_destroy_sampler                 (mg_sampler_t sampler);

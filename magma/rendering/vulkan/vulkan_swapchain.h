@@ -13,4 +13,3 @@ void                mg_vulkan_create_swapchain              (mg_swapchain_config
 void                mg_vulkan_cleanup_swapchain             (void);
 
 void                mg_vulkan_configure_swapchain           (mg_swapchain_config_info_t *config_info);
-VkFramebuffer       mg_vulkan_get_swapchain_framebuffer     (void);

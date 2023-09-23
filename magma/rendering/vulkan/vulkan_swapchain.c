@@ -114,6 +114,7 @@ void mg_vulkan_create_swapchain(mg_swapchain_config_info_t *config_info)
     {
         VkFramebufferCreateInfo framebuffer_create_info = {VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
         framebuffer_create_info.attachmentCount = 1;
+        framebuffer_create_info.renderPass = vulkan_context.default_render_pass;
         framebuffer_create_info.pAttachments = &vulkan_context.swapchain.image_views[i];
         framebuffer_create_info.width = extent.width;
         framebuffer_create_info.height = extent.height;
@@ -126,6 +127,8 @@ void mg_vulkan_create_swapchain(mg_swapchain_config_info_t *config_info)
 
 void mg_vulkan_cleanup_swapchain(void)
 {    
+    vkDestroySwapchainKHR(vulkan_context.device.handle, vulkan_context.swapchain.handle, NULL);
+
     for (uint32_t i = 0; i < vulkan_context.swapchain.image_count; i++)
     {
         vkDestroyFramebuffer(vulkan_context.device.handle, vulkan_context.swapchain.framebuffers[i], NULL);
@@ -134,8 +137,6 @@ void mg_vulkan_cleanup_swapchain(void)
 
     free(vulkan_context.swapchain.framebuffers);
     free(vulkan_context.swapchain.image_views);
-
-    vkDestroySwapchainKHR(vulkan_context.device.handle, vulkan_context.swapchain.handle, NULL);
 
     free(vulkan_context.swapchain.images);
 }
@@ -146,9 +147,4 @@ void mg_vulkan_configure_swapchain(mg_swapchain_config_info_t *config_info)
     
     mg_vulkan_cleanup_swapchain();
     mg_vulkan_create_swapchain(config_info);
-}
-
-VkFramebuffer mg_vulkan_get_swapchain_framebuffer(void)
-{
-    return vulkan_context.swapchain.framebuffers[vulkan_context.image_index];
 }

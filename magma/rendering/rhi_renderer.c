@@ -26,14 +26,13 @@ struct mg_rhi_renderer_plugin
 
     void (*configure_swapchain) (mg_swapchain_config_info_t *config_info);
 
-    void *(*get_swapchain_framebuffer)          (void);
-
     void (*viewport)        (uint32_t width, uint32_t height);
 
-    void *(*create_render_pass) (void);
-    void (*destroy_render_pass) (void *render_pass);
-    void (*begin_render_pass)   (void *render_pass, mg_render_pass_begin_info_t *begin_info);
-    void (*end_render_pass)     (void);
+    void *(*create_render_pass)         (mg_render_pass_create_info_t *create_info);
+    void (*destroy_render_pass)         (void *render_pass);
+    void (*begin_render_pass)           (void *render_pass, mg_render_pass_begin_info_t *begin_info);
+    void (*begin_default_render_pass)   (mg_render_pass_begin_info_t *begin_info);
+    void (*end_render_pass)             (void);
 
     void *(*create_descriptor_set_layout)   (mg_descriptor_set_layout_create_info_t *create_info);
     void (*destroy_descriptor_set_layout)   (void *descriptor_set_layout);
@@ -52,12 +51,9 @@ struct mg_rhi_renderer_plugin
     void (*update_buffer)               (void *buffer, mg_buffer_update_info_t *update_data);
     void (*destroy_buffer)              (void *buffer);
 
-    void *(*create_texture_image)       (mg_texture_image_create_info_t *create_info);
-    void *(*write_texture_image)        (void *texture_image, mg_texture_image_write_info_t *write_info);
-    void (*destroy_texture_image)       (void *texture_image);
-
-    void *(*create_texture_view)        (mg_texture_view_create_info_t *create_info);
-    void (*destroy_texture_view)        (void *texture_view);
+    void *(*create_image)               (mg_image_create_info_t *create_info);
+    void *(*write_image)                (void *image, mg_image_write_info_t *write_info);
+    void (*destroy_image)               (void *image);
 
     void *(*create_sampler)             (mg_sampler_create_info_t *create_info);
     void (*destroy_sampler)             (void *sampler);
@@ -95,12 +91,12 @@ void mg_rhi_renderer_initialize(mg_renderer_init_info_t *init_info)
             plugin.viewport         =   mg_vulkan_renderer_viewport;
 
             plugin.configure_swapchain          =   mg_vulkan_configure_swapchain;
-            plugin.get_swapchain_framebuffer    =   mg_vulkan_get_swapchain_framebuffer;
 
-            plugin.create_render_pass   =   mg_vulkan_create_render_pass;
-            plugin.destroy_render_pass  =   mg_vulkan_destroy_render_pass;
-            plugin.begin_render_pass    =   mg_vulkan_begin_render_pass;
-            plugin.end_render_pass      =   mg_vulkan_end_render_pass;
+            plugin.create_render_pass           =   mg_vulkan_create_render_pass;
+            plugin.destroy_render_pass          =   mg_vulkan_destroy_render_pass;
+            plugin.begin_render_pass            =   mg_vulkan_begin_render_pass;
+            plugin.begin_default_render_pass    =   mg_vulkan_begin_default_render_pass;
+            plugin.end_render_pass              =   mg_vulkan_end_render_pass;
 
             plugin.create_descriptor_set_layout     =   mg_vulkan_create_descriptor_set_layout;
             plugin.destroy_descriptor_set_layout    =   mg_vulkan_destroy_descriptor_set_layout;
@@ -119,12 +115,9 @@ void mg_rhi_renderer_initialize(mg_renderer_init_info_t *init_info)
             plugin.update_buffer            =   mg_vulkan_update_buffer;
             plugin.destroy_buffer           =   mg_vulkan_destroy_buffer;
 
-            plugin.create_texture_image     =   mg_vulkan_create_texture_image;
-            plugin.write_texture_image      =   mg_vulkan_write_texture_image;
-            plugin.destroy_texture_image    =   mg_vulkan_destroy_texture_image;
-
-            plugin.create_texture_view      =   mg_vulkan_create_texture_view;
-            plugin.destroy_texture_view     =   mg_vulkan_destroy_texture_view;
+            plugin.create_image     =   mg_vulkan_create_image;
+            plugin.destroy_image    =   mg_vulkan_destroy_image;
+            plugin.write_image      =   mg_vulkan_write_image;
 
             plugin.create_sampler     =   mg_vulkan_create_sampler;
             plugin.destroy_sampler    =   mg_vulkan_destroy_sampler;
@@ -180,15 +173,10 @@ void mg_rhi_renderer_configure_swapchain(mg_swapchain_config_info_t *config_info
     plugin.configure_swapchain(config_info);
 }
 
-mg_framebuffer_t mg_rhi_renderer_get_swapchain_framebuffer(void)
-{
-    return (mg_framebuffer_t) { plugin.get_swapchain_framebuffer() };
-}
-
-mg_render_pass_t mg_rhi_renderer_create_render_pass(void)
+mg_render_pass_t mg_rhi_renderer_create_render_pass(mg_render_pass_create_info_t *create_info)
 {
     mg_render_pass_t render_pass;
-    render_pass.internal_data = plugin.create_render_pass();
+    render_pass.internal_data = plugin.create_render_pass(create_info);
     return render_pass;
 }
 
@@ -200,6 +188,11 @@ void mg_rhi_renderer_destroy_render_pass(mg_render_pass_t render_pass)
 void mg_rhi_renderer_begin_render_pass(mg_render_pass_t render_pass, mg_render_pass_begin_info_t *begin_info)
 {
     plugin.begin_render_pass(render_pass.internal_data, begin_info);
+}
+
+void mg_rhi_renderer_begin_default_render_pass(mg_render_pass_begin_info_t *begin_info)
+{
+    plugin.begin_default_render_pass(begin_info);
 }
 
 void mg_rhi_renderer_end_render_pass(void)
@@ -285,33 +278,21 @@ void mg_rhi_renderer_update_buffer(mg_buffer_t buffer, mg_buffer_update_info_t *
     plugin.update_buffer(buffer.internal_data, update_info);
 }
 
-mg_texture_image_t mg_rhi_renderer_create_texture_image(mg_texture_image_create_info_t *create_info)
+mg_image_t mg_rhi_renderer_create_image(mg_image_create_info_t *create_info)
 {
-    mg_texture_image_t texture_image;
-    texture_image.internal_data = plugin.create_texture_image(create_info);
-    return texture_image;
+    mg_image_t image;
+    image.internal_data = plugin.create_image(create_info);
+    return image;
 }
 
-void mg_rhi_renderer_write_texture_image(mg_texture_image_t texture_image, mg_texture_image_write_info_t *write_info)
+void mg_rhi_renderer_destroy_image(mg_image_t image)
 {
-    plugin.write_texture_image(texture_image.internal_data, write_info);
+    plugin.destroy_image(image.internal_data);
 }
 
-void mg_rhi_renderer_destroy_texture_image(mg_texture_image_t texture_image)
+void mg_rhi_renderer_write_image(mg_image_t image, mg_image_write_info_t *write_info)
 {
-    plugin.destroy_texture_image(texture_image.internal_data);
-}
-
-mg_texture_view_t mg_rhi_renderer_create_texture_view(mg_texture_view_create_info_t *create_info)
-{
-    mg_texture_view_t view;
-    view.internal_data = plugin.create_texture_view(create_info);
-    return view;
-}
-
-void mg_rhi_renderer_destroy_texture_view(mg_texture_view_t texture_view)
-{
-    plugin.destroy_texture_view(texture_view.internal_data);
+    plugin.write_image(image.internal_data, write_info);
 }
 
 mg_sampler_t mg_rhi_renderer_create_sampler(mg_sampler_create_info_t *create_info)

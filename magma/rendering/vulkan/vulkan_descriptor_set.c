@@ -77,8 +77,9 @@ void mg_vulkan_update_descriptor_set(VkDescriptorSet descriptor_set, mg_descript
 
     if (descriptor_write->image_info)
     {
+        mg_vulkan_image_t *image = (mg_vulkan_buffer_t*)descriptor_write->image_info->image.internal_data;
         image_info.sampler = descriptor_write->image_info->sampler.internal_data;
-        image_info.imageView = descriptor_write->image_info->view.internal_data;
+        image_info.imageView = image->view;
         image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
         write.pImageInfo = &image_info;

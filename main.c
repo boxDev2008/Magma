@@ -21,8 +21,7 @@ static bool is_running = true;
 
 bool is_rendering = true;
 
-mg_texture_image_t frame_texture_image;
-mg_texture_view_t frame_texture_view;
+mg_image_t frame_texture_image;
 mg_framebuffer_t frame_framebuffer;
 mg_sampler_t sampler;
 mg_descriptor_set_t frame_sampler_set;
@@ -43,31 +42,25 @@ void on_resize(mg_resized_event_data_t *data)
         return;
 
         mg_rhi_renderer_destroy_framebuffer(frame_framebuffer);
-        mg_rhi_renderer_destroy_texture_image(frame_texture_image);
-        mg_rhi_renderer_destroy_texture_view(frame_texture_view);
+        mg_rhi_renderer_destroy_image(frame_texture_image);
 
-        mg_texture_image_create_info_t texture_image_create_info = { 0 };
+        mg_image_create_info_t texture_image_create_info = { 0 };
         texture_image_create_info.extent.x = data->width;
         texture_image_create_info.extent.y = data->height;
+        texture_image_create_info.format = MG_PIXEL_FORMAT_R8G8B8A8_SRGB;
+        texture_image_create_info.type = MG_IMAGE_TYPE_2D;
 
-        frame_texture_image = mg_rhi_renderer_create_texture_image(&texture_image_create_info);
-
-        mg_texture_view_create_info_t texture_view_create_info = {
-            .texture_image = frame_texture_image,
-            .format = MG_PIXEL_FORMAT_R8G8B8A8_SRGB,
-            .view_type = MG_TEXTURE_VIEW_TYPE_2D
-        };
-        frame_texture_view = mg_rhi_renderer_create_texture_view(&texture_view_create_info);
+        frame_texture_image = mg_rhi_renderer_create_image(&texture_image_create_info);
 
         mg_framebuffer_create_info_t frame_framebuffer_create_info;
-        frame_framebuffer_create_info.texture_view = frame_texture_view;
+        frame_framebuffer_create_info.image = frame_texture_image;
         frame_framebuffer_create_info.extent = texture_image_create_info.extent;
         frame_framebuffer_create_info.render_pass = back_render_pass;
 
         frame_framebuffer = mg_rhi_renderer_create_framebuffer(&frame_framebuffer_create_info);
 
         mg_descriptor_image_info_t image_info;
-        image_info.view = frame_texture_view;
+        image_info.image = frame_texture_image;
         image_info.sampler = sampler;
 
         mg_descriptor_write_t descriptor_write = { 0 };
@@ -138,19 +131,18 @@ int main(void)
 
     mg_rhi_renderer_initialize(&renderer_init_info);
 
-    back_render_pass = mg_rhi_renderer_create_render_pass();
-    mg_render_pass_t render_pass = mg_rhi_renderer_create_render_pass();
+    mg_render_pass_create_info_t render_pass_create_info = {
+        .format = MG_PIXEL_FORMAT_B8G8R8A8_SRGB
+    };
+
+    back_render_pass = mg_rhi_renderer_create_render_pass(&render_pass_create_info);
+    mg_render_pass_t render_pass = mg_rhi_renderer_create_render_pass(&render_pass_create_info);
 
     const float vertices[] = {
         -0.5f, -0.5f, 0.0f, 0.0f,
         0.5f, -0.5f, 1.0f, 0.0f,
         0.5f, 0.5f, 1.0f, 1.0f,
         -0.5f, 0.5f, 0.0f, 1.0f,
-        
-        0.5f, -0.5f, 0.0f, 0.0f,
-        1.5f, -0.5f, 1.0f, 0.0f,
-        1.5f, 0.5f, 1.0f, 1.0f,
-        0.5f, 0.5f, 0.0f, 1.0f
     };
 
     const float frame_vertices[] = {
@@ -161,8 +153,7 @@ int main(void)
     };
 
     const uint32_t indices[] = {
-        0, 1, 3, 1, 2, 3,
-        4, 5, 7, 5, 6, 7
+        0, 1, 3, 1, 2, 3
     };
 
     mg_buffer_create_info_t frame_vertex_buffer_create_info;
@@ -323,46 +314,34 @@ int main(void)
 
     mg_pipeline_t back_pipeline = mg_rhi_renderer_create_pipeline(&pipeline_create_info);
 
-    mg_texture_image_create_info_t texture_image_create_info = { 0 };
+    mg_image_create_info_t texture_image_create_info = { 0 };
     int texWidth, texHeight, texChannels;
     uint8_t *pixels = stbi_load("texture.png", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
     texture_image_create_info.extent.x = texWidth;
     texture_image_create_info.extent.y = texHeight;
+    texture_image_create_info.format = MG_PIXEL_FORMAT_R8G8B8A8_SRGB;
+    texture_image_create_info.type = MG_IMAGE_TYPE_2D;
 
-    mg_texture_image_t texture_image =
-        mg_rhi_renderer_create_texture_image(&texture_image_create_info);
+    mg_image_t texture_image =
+        mg_rhi_renderer_create_image(&texture_image_create_info);
 
-    mg_texture_image_write_info_t texture_image_write_info;
+    mg_image_write_info_t texture_image_write_info;
     texture_image_write_info.extent = texture_image_create_info.extent;
     texture_image_write_info.data = pixels;
     
-    mg_rhi_renderer_write_texture_image(texture_image, &texture_image_write_info);
+    mg_rhi_renderer_write_image(texture_image, &texture_image_write_info);
 
     stbi_image_free(pixels);
-
-    mg_texture_view_create_info_t texture_view_create_info = {
-        .texture_image = texture_image,
-        .format = MG_PIXEL_FORMAT_R8G8B8A8_SRGB,
-        .view_type = MG_TEXTURE_VIEW_TYPE_2D
-    };
-
-    mg_texture_view_t texture_view =
-        mg_rhi_renderer_create_texture_view(&texture_view_create_info);
     
     viewport = (mg_vec2i_t) { 1280, 720 };
 
     texture_image_create_info.extent = viewport;
     
     frame_texture_image =
-        mg_rhi_renderer_create_texture_image(&texture_image_create_info);
-
-    texture_view_create_info.texture_image = frame_texture_image;
-
-    frame_texture_view =
-        mg_rhi_renderer_create_texture_view(&texture_view_create_info);
+        mg_rhi_renderer_create_image(&texture_image_create_info);
     
     mg_framebuffer_create_info_t frame_framebuffer_create_info;
-    frame_framebuffer_create_info.texture_view = frame_texture_view;
+    frame_framebuffer_create_info.image = frame_texture_image;
     frame_framebuffer_create_info.extent = texture_image_create_info.extent;
     frame_framebuffer_create_info.render_pass = back_render_pass;
     
@@ -388,7 +367,7 @@ int main(void)
 
     {
         mg_descriptor_image_info_t image_info;
-        image_info.view = texture_view;
+        image_info.image = texture_image;
         image_info.sampler = sampler;
 
         mg_descriptor_write_t descriptor_write = { 0 };
@@ -401,7 +380,7 @@ int main(void)
 
     {
         mg_descriptor_image_info_t image_info;
-        image_info.view = frame_texture_view;
+        image_info.image = frame_texture_image;
         image_info.sampler = sampler;
 
         mg_descriptor_write_t descriptor_write = { 0 };
@@ -428,8 +407,6 @@ int main(void)
         last_time = current_time;
 
             mg_rhi_renderer_begin_frame();
-
-            mg_framebuffer_t framebuffer = mg_rhi_renderer_get_swapchain_framebuffer();
 
             mg_render_pass_begin_info_t render_pass_begin_info;
             render_pass_begin_info.framebuffer = frame_framebuffer;
@@ -490,14 +467,13 @@ int main(void)
             push.model = mg_mat4_identity();
             push.model = mg_mat4_scale(push.model, (mg_vec3_t){texWidth * 0.01f, texHeight * 0.01f, 1.0f});
             mg_rhi_renderer_push_constants(pipeline, sizeof(PushConstantObject), &push);
-            mg_rhi_renderer_draw_indexed(12, 0);
+            mg_rhi_renderer_draw_indexed(6, 0);
 
             mg_rhi_renderer_end_render_pass();
 
-            render_pass_begin_info.framebuffer = framebuffer;
             render_pass_begin_info.render_area = (mg_vec4_t){0.0f, 0.0f, viewport.x, viewport.y};
             render_pass_begin_info.clear_value = (mg_vec4_t){0.0f, 0.0f, 0.0f, 1.0f};
-            mg_rhi_renderer_begin_render_pass(render_pass, &render_pass_begin_info);
+            mg_rhi_renderer_begin_default_render_pass(&render_pass_begin_info);
             mg_rhi_renderer_viewport(viewport.x, viewport.y);
             //ubo.projection = mg_mat4_identity();
 
@@ -523,10 +499,8 @@ int main(void)
     mg_rhi_renderer_destroy_descriptor_set(frame_sampler_set);
     mg_rhi_renderer_destroy_descriptor_set(sampler_set);
     mg_rhi_renderer_destroy_sampler(sampler);
-    mg_rhi_renderer_destroy_texture_view(frame_texture_view);
-    mg_rhi_renderer_destroy_texture_image(frame_texture_image);
-    mg_rhi_renderer_destroy_texture_view(texture_view);
-    mg_rhi_renderer_destroy_texture_image(texture_image);
+    mg_rhi_renderer_destroy_image(frame_texture_image);
+    mg_rhi_renderer_destroy_image(texture_image);
     mg_rhi_renderer_destroy_descriptor_set(ubo_set);
     mg_rhi_renderer_destroy_descriptor_set_layout(sampler_layout);
     mg_rhi_renderer_destroy_descriptor_set_layout(ubo_layout);

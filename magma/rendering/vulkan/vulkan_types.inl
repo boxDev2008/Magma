@@ -13,10 +13,11 @@ struct mg_vulkan_sampler
     VkSampler sampler;
 };
 
-typedef struct mg_vulkan_texture_image mg_vulkan_texture_image_t;
-struct mg_vulkan_texture_image
+typedef struct mg_vulkan_image mg_vulkan_image_t;
+struct mg_vulkan_image
 {
     VkImage image;
+    VkImageView view;
     VkDeviceMemory memory;
 };
 
@@ -83,6 +84,8 @@ struct mg_vulkan_context
         VkSemaphore image_rendered_semaphore;
     }
     sync_objects;
+
+    VkRenderPass default_render_pass;
 
     VkCommandPool command_pool;
     VkCommandBuffer command_buffer;

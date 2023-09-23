@@ -3,12 +3,10 @@
 
 #include <assert.h>
 
-VkRenderPass mg_vulkan_create_render_pass(void)
+VkRenderPass mg_vulkan_create_render_pass(mg_render_pass_create_info_t *create_info)
 {
-    // TODO (box): Make it customizable
-
     VkAttachmentDescription color_attachment = { 0 };
-    color_attachment.format = VK_FORMAT_B8G8R8A8_SRGB;
+    color_attachment.format = create_info->format;
     color_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
 
     color_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
@@ -76,6 +74,12 @@ void mg_vulkan_begin_render_pass(VkRenderPass render_pass, mg_render_pass_begin_
     render_pass_info.pClearValues = &clearColor;
 
     vkCmdBeginRenderPass(vulkan_context.command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
+}
+
+void mg_vulkan_begin_default_render_pass(mg_render_pass_begin_info_t *begin_info)
+{
+    begin_info->framebuffer.internal_data = vulkan_context.swapchain.framebuffers[vulkan_context.image_index];
+    mg_vulkan_begin_render_pass(vulkan_context.default_render_pass, begin_info);
 }
 
 void mg_vulkan_end_render_pass(void)

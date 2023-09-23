@@ -121,16 +121,38 @@ void mg_vulkan_copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t wid
     mg_vulkan_end_single_time_commands(command_buffer);
 }
 
-mg_vulkan_texture_image_t *mg_vulkan_create_texture_image(mg_texture_image_create_info_t *create_info)
+mg_vulkan_image_t *mg_vulkan_create_image(mg_image_create_info_t *create_info)
 {
-    mg_vulkan_texture_image_t *texture_image = (mg_vulkan_texture_image_t*)malloc(sizeof(mg_vulkan_texture_image_t));
+    mg_vulkan_image_t *image = (mg_vulkan_image_t*)malloc(sizeof(mg_vulkan_image_t));
 
-    mg_vulkan_allocate_image(create_info->extent.x, create_info->extent.y, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &texture_image->image, &texture_image->memory);
+    mg_vulkan_allocate_image(create_info->extent.x, create_info->extent.y, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &image->image, &image->memory);
 
-    return texture_image;
+    VkImageViewCreateInfo view_info = {VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
+    view_info.image = image->image;
+    view_info.viewType = create_info->type;
+    view_info.format = create_info->format;
+    view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    view_info.subresourceRange.baseMipLevel = 0;
+    view_info.subresourceRange.levelCount = 1;
+    view_info.subresourceRange.baseArrayLayer = 0;
+    view_info.subresourceRange.layerCount = 1;
+
+    VkResult result = vkCreateImageView(vulkan_context.device.handle, &view_info, NULL, &image->view);
+    assert(result == VK_SUCCESS);
+
+    return image;
 }
 
-void mg_vulkan_write_texture_image(mg_vulkan_texture_image_t *texture_image, mg_texture_image_write_info_t *write_info)
+void mg_vulkan_destroy_image(mg_vulkan_image_t *image)
+{
+    vkDestroyImageView(vulkan_context.device.handle, image->view, NULL);
+    vkDestroyImage(vulkan_context.device.handle, image->image, NULL);
+    vkFreeMemory(vulkan_context.device.handle, image->memory, NULL);
+
+    free(image);
+}
+
+void mg_vulkan_write_image(mg_vulkan_image_t *image, mg_image_write_info_t *write_info)
 {
     VkDeviceSize image_size = write_info->extent.x * write_info->extent.y * 4;
 
@@ -146,46 +168,12 @@ void mg_vulkan_write_texture_image(mg_vulkan_texture_image_t *texture_image, mg_
         memcpy(data, write_info->data, image_size);
     vkUnmapMemory(vulkan_context.device.handle, staging_memory);
 
-    mg_vulkan_transition_image_layout(texture_image->image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-    mg_vulkan_copy_buffer_to_image(staging_buffer, texture_image->image, write_info->extent.x, write_info->extent.y);
-    mg_vulkan_transition_image_layout(texture_image->image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    mg_vulkan_transition_image_layout(image->image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    mg_vulkan_copy_buffer_to_image(staging_buffer, image->image, write_info->extent.x, write_info->extent.y);
+    mg_vulkan_transition_image_layout(image->image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     vkDestroyBuffer(vulkan_context.device.handle, staging_buffer, NULL);
     vkFreeMemory(vulkan_context.device.handle, staging_memory, NULL);
-}
-
-void mg_vulkan_destroy_texture_image(mg_vulkan_texture_image_t *texture_image)
-{
-    vkDestroyImage(vulkan_context.device.handle, texture_image->image, NULL);
-    vkFreeMemory(vulkan_context.device.handle, texture_image->memory, NULL);
-
-    free(texture_image);
-}
-
-VkImageView mg_vulkan_create_texture_view(mg_texture_view_create_info_t *create_info)
-{
-    VkImageViewCreateInfo view_info = {VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
-    mg_vulkan_texture_image_t* texture_image = (mg_vulkan_texture_image_t*)create_info->texture_image.internal_data;
-    view_info.image = texture_image->image;
-    view_info.viewType = create_info->view_type;
-    view_info.format = create_info->format;
-    view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    view_info.subresourceRange.baseMipLevel = 0;
-    view_info.subresourceRange.levelCount = 1;
-    view_info.subresourceRange.baseArrayLayer = 0;
-    view_info.subresourceRange.layerCount = 1;
-
-    VkImageView texture_view;
-
-    VkResult result = vkCreateImageView(vulkan_context.device.handle, &view_info, NULL, &texture_view);
-    assert(result == VK_SUCCESS);
-
-    return texture_view;
-}
-
-void mg_vulkan_destroy_texture_view(VkImageView texture_view)
-{
-    vkDestroyImageView(vulkan_context.device.handle, texture_view, NULL);
 }
 
 VkSampler mg_vulkan_create_sampler(mg_sampler_create_info_t *create_info)
@@ -230,7 +218,8 @@ VkFramebuffer mg_vulkan_create_framebuffer(mg_framebuffer_create_info_t *create_
     VkFramebufferCreateInfo framebuffer_create_info = {VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
     framebuffer_create_info.attachmentCount = 1;
 
-    framebuffer_create_info.pAttachments = &create_info->texture_view.internal_data;
+    mg_vulkan_image_t *image = (mg_vulkan_image_t*)create_info->image.internal_data;
+    framebuffer_create_info.pAttachments = &image->view;
     framebuffer_create_info.renderPass = create_info->render_pass.internal_data;
     framebuffer_create_info.width = create_info->extent.x;
     framebuffer_create_info.height = create_info->extent.y;

@@ -151,6 +151,7 @@ void mg_vulkan_create_descriptor_pool(void)
     };
 
     VkDescriptorPoolCreateInfo pool_info = {VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
+    pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
     pool_info.poolSizeCount = 2;
     pool_info.pPoolSizes = pool_sizes;
     pool_info.maxSets = 1024;
@@ -173,6 +174,10 @@ void mg_vulkan_renderer_initialize(mg_renderer_init_info_t *init_info)
     vulkan_context.command_buffer = mg_vulkan_create_command_buffer();
 
     mg_vulkan_create_sync_objects();
+
+    vulkan_context.default_render_pass = mg_vulkan_create_render_pass(&(mg_render_pass_create_info_t) {
+        .format = MG_PIXEL_FORMAT_R8G8B8A8_SRGB
+    });
     
     mg_vulkan_create_swapchain(init_info->swapchain_config_info);
     
@@ -187,12 +192,15 @@ void mg_vulkan_renderer_shutdown(void)
 
     mg_vulkan_cleanup_swapchain();
 
+    mg_vulkan_destroy_render_pass(vulkan_context.default_render_pass);
+
     vkDestroySemaphore(vulkan_context.device.handle, vulkan_context.sync_objects.image_available_semaphore, NULL);
     vkDestroySemaphore(vulkan_context.device.handle, vulkan_context.sync_objects.image_rendered_semaphore, NULL);
     vkDestroyFence(vulkan_context.device.handle, vulkan_context.sync_objects.fence, NULL);
 
     mg_vulkan_free_command_buffer(vulkan_context.command_buffer);
     vkDestroyCommandPool(vulkan_context.device.handle, vulkan_context.command_pool, NULL);
+
     vkDestroyDevice(vulkan_context.device.handle, NULL);
     vkDestroySurfaceKHR(vulkan_context.instance, vulkan_context.surface, NULL);
     vkDestroyInstance(vulkan_context.instance, NULL);
@@ -201,9 +209,8 @@ void mg_vulkan_renderer_shutdown(void)
 void mg_vulkan_renderer_begin_frame(void)
 {
     vkWaitForFences(vulkan_context.device.handle, 1, &vulkan_context.sync_objects.fence, VK_TRUE, UINT64_MAX);
-
     vkAcquireNextImageKHR(vulkan_context.device.handle, vulkan_context.swapchain.handle, UINT64_MAX, vulkan_context.sync_objects.image_available_semaphore, VK_NULL_HANDLE, &vulkan_context.image_index);
-
+   
     vkResetFences(vulkan_context.device.handle, 1, &vulkan_context.sync_objects.fence);
 
     VkFenceCreateInfo fence_info = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
