@@ -156,52 +156,17 @@ int main(void)
         0, 1, 3, 1, 2, 3
     };
 
-    mg_buffer_create_info_t frame_vertex_buffer_create_info;
-    frame_vertex_buffer_create_info.usage = MG_BUFFER_USAGE_VERTEX;
-    frame_vertex_buffer_create_info.size = sizeof(frame_vertices);
-    frame_vertex_buffer_create_info.frequency = MG_BUFFER_UPDATE_FREQUENCY_STATIC;
-    frame_vertex_buffer_create_info.mapped_at_creation = false;
-    mg_buffer_t frame_vertex_buffer =
-        mg_rhi_renderer_create_buffer(&frame_vertex_buffer_create_info);
+    mg_vertex_buffer_t frame_vertex_buffer =
+        mg_rhi_renderer_create_vertex_buffer(sizeof(frame_vertices), frame_vertices);
 
-    mg_buffer_create_info_t vertex_buffer_create_info;
-    vertex_buffer_create_info.usage = MG_BUFFER_USAGE_VERTEX;
-    vertex_buffer_create_info.size = sizeof(vertices);
-    vertex_buffer_create_info.frequency = MG_BUFFER_UPDATE_FREQUENCY_STATIC;
-    vertex_buffer_create_info.mapped_at_creation = false;
-    mg_buffer_t vertex_buffer =
-        mg_rhi_renderer_create_buffer(&vertex_buffer_create_info);
+    mg_vertex_buffer_t vertex_buffer =
+        mg_rhi_renderer_create_vertex_buffer(sizeof(vertices), vertices);
 
-    mg_buffer_create_info_t index_buffer_create_info;
-    index_buffer_create_info.usage = MG_BUFFER_USAGE_INDEX;
-    index_buffer_create_info.size = sizeof(indices);
-    index_buffer_create_info.frequency = MG_BUFFER_UPDATE_FREQUENCY_STATIC;
-    index_buffer_create_info.mapped_at_creation = false;
-    mg_buffer_t index_buffer =
-        mg_rhi_renderer_create_buffer(&index_buffer_create_info);
+    mg_index_buffer_t index_buffer =
+        mg_rhi_renderer_create_index_buffer(sizeof(indices), indices);
 
-    mg_buffer_create_info_t uniform_buffer_create_info;
-    uniform_buffer_create_info.usage = MG_BUFFER_USAGE_UNIFORM;
-    uniform_buffer_create_info.size = sizeof(UniformBufferObject);
-    uniform_buffer_create_info.frequency = MG_BUFFER_UPDATE_FREQUENCY_DYNAMIC;
-    uniform_buffer_create_info.mapped_at_creation = true;
-    mg_buffer_t uniform_buffer =
-        mg_rhi_renderer_create_buffer(&uniform_buffer_create_info);
-    
-    mg_buffer_update_info_t frame_vertex_buffer_update_info;
-    frame_vertex_buffer_update_info.size = sizeof(frame_vertices);
-    frame_vertex_buffer_update_info.data = frame_vertices;
-    mg_rhi_renderer_update_buffer(frame_vertex_buffer, &frame_vertex_buffer_update_info);
-
-    mg_buffer_update_info_t vertex_buffer_update_info;
-    vertex_buffer_update_info.size = sizeof(vertices);
-    vertex_buffer_update_info.data = vertices;
-    mg_rhi_renderer_update_buffer(vertex_buffer, &vertex_buffer_update_info);
-
-    mg_buffer_update_info_t index_buffer_update_info;
-    index_buffer_update_info.size = sizeof(indices);
-    index_buffer_update_info.data = indices;
-    mg_rhi_renderer_update_buffer(index_buffer, &index_buffer_update_info);
+    mg_uniform_buffer_t uniform_buffer =
+        mg_rhi_renderer_create_uniform_buffer(sizeof(UniformBufferObject));
 
     UniformBufferObject ubo = { 0 };
 
@@ -440,10 +405,7 @@ int main(void)
 
             }
 
-            mg_buffer_update_info_t uniform_buffer_update_info;
-            uniform_buffer_update_info.size = sizeof(UniformBufferObject);
-            uniform_buffer_update_info.data = &ubo;
-            mg_rhi_renderer_update_buffer(uniform_buffer, &uniform_buffer_update_info);
+            mg_rhi_renderer_update_uniform_buffer(uniform_buffer, sizeof(UniformBufferObject), &ubo);
 
             mg_descriptor_buffer_info_t buffer_info;
             buffer_info.buffer = uniform_buffer;
@@ -504,10 +466,10 @@ int main(void)
     mg_rhi_renderer_destroy_descriptor_set(ubo_set);
     mg_rhi_renderer_destroy_descriptor_set_layout(sampler_layout);
     mg_rhi_renderer_destroy_descriptor_set_layout(ubo_layout);
-    mg_rhi_renderer_destroy_buffer(uniform_buffer);
-    mg_rhi_renderer_destroy_buffer(index_buffer);
-    mg_rhi_renderer_destroy_buffer(vertex_buffer);
-    mg_rhi_renderer_destroy_buffer(frame_vertex_buffer);
+    mg_rhi_renderer_destroy_uniform_buffer(uniform_buffer);
+    mg_rhi_renderer_destroy_index_buffer(index_buffer);
+    mg_rhi_renderer_destroy_vertex_buffer(vertex_buffer);
+    mg_rhi_renderer_destroy_vertex_buffer(frame_vertex_buffer);
     mg_rhi_renderer_destroy_framebuffer(frame_framebuffer);
     mg_rhi_renderer_destroy_render_pass(render_pass);
     mg_rhi_renderer_destroy_render_pass(back_render_pass);

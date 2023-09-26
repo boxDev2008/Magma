@@ -61,7 +61,7 @@ void mg_opengl_renderer_initialize(mg_renderer_init_info_t *init_info)
 
     mg_buffer_create_info_t vertex_buffer_create_info = {
         .usage = MG_BUFFER_USAGE_VERTEX,
-        .frequency = MG_BUFFER_UPDATE_FREQUENCY_STATIC,
+        .frequency = MG_BUFFER_USAGE_STATIC,
         .size = sizeof(vertices)
     };
 

@@ -67,7 +67,7 @@ void mg_vulkan_update_descriptor_set(VkDescriptorSet descriptor_set, mg_descript
 
     if (descriptor_write->buffer_info)
     {
-        mg_vulkan_buffer_t *buffer = (mg_vulkan_buffer_t*)descriptor_write->buffer_info->buffer.internal_data;
+        mg_vulkan_uniform_buffer_t *buffer = (mg_vulkan_uniform_buffer_t*)descriptor_write->buffer_info->buffer.internal_data;
         buffer_info.buffer = buffer->buffer;
         buffer_info.offset = descriptor_write->buffer_info->offset;
         buffer_info.range = descriptor_write->buffer_info->range;
@@ -77,7 +77,7 @@ void mg_vulkan_update_descriptor_set(VkDescriptorSet descriptor_set, mg_descript
 
     if (descriptor_write->image_info)
     {
-        mg_vulkan_image_t *image = (mg_vulkan_buffer_t*)descriptor_write->image_info->image.internal_data;
+        mg_vulkan_image_t *image = (mg_vulkan_image_t*)descriptor_write->image_info->image.internal_data;
         image_info.sampler = descriptor_write->image_info->sampler.internal_data;
         image_info.imageView = image->view;
         image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;

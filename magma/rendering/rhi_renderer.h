@@ -14,15 +14,6 @@ enum mg_renderer_type
     MG_RENDERER_TYPE_VULKAN
 };
 
-typedef enum mg_buffer_usage mg_buffer_usage_t;
-enum mg_buffer_usage
-{
-    MG_BUFFER_USAGE_UNIFORM = 0x00000010,
-    MG_BUFFER_USAGE_STORAGE = 0x00000020,
-    MG_BUFFER_USAGE_INDEX = 0x00000040,
-    MG_BUFFER_USAGE_VERTEX = 0x00000080
-};
-
 typedef enum mg_index_type mg_index_type_t;
 enum mg_index_type
 {
@@ -30,32 +21,10 @@ enum mg_index_type
     MG_INDEX_TYPE_UINT32 = 1
 };
 
-typedef enum mg_buffer_update_frequency mg_buffer_update_frequency_t;
-enum mg_buffer_update_frequency
-{
-    MG_BUFFER_UPDATE_FREQUENCY_STATIC,
-    MG_BUFFER_UPDATE_FREQUENCY_DYNAMIC
-};
-
-typedef struct mg_buffer_create_info mg_buffer_create_info_t;
-struct mg_buffer_create_info
-{
-    mg_buffer_usage_t usage;
-    mg_buffer_update_frequency_t frequency;
-    
-    size_t size;
-
-    bool mapped_at_creation;
-};
-
-typedef struct mg_buffer_update_info mg_buffer_update_info_t;
-struct mg_buffer_update_info
-{
-    size_t size;
-    void *data;
-};
-
-typedef struct mg_buffer mg_buffer_t;
+typedef struct mg_buffer
+    mg_vertex_buffer_t, mg_index_buffer_t,
+    mg_dynamic_vertex_buffer_t, mg_dynamic_index_buffer_t,
+    mg_uniform_buffer_t;
 struct mg_buffer
 {
     mg_handle_t internal_data;
@@ -443,7 +412,7 @@ struct mg_descriptor_set
 typedef struct mg_descriptor_buffer_info mg_descriptor_buffer_info_t;
 struct mg_descriptor_buffer_info
 {
-    mg_buffer_t buffer;
+    mg_uniform_buffer_t buffer;
     size_t offset;
     size_t range;
 };
@@ -604,9 +573,28 @@ MG_API mg_pipeline_t                mg_rhi_renderer_create_pipeline             
 MG_API void                         mg_rhi_renderer_destroy_pipeline                (mg_pipeline_t pipeline);
 MG_API void                         mg_rhi_renderer_bind_pipeline                   (mg_pipeline_t pipeline);
 
-MG_API mg_buffer_t                  mg_rhi_renderer_create_buffer                   (mg_buffer_create_info_t *create_info);
-MG_API void                         mg_rhi_renderer_update_buffer                   (mg_buffer_t buffer, mg_buffer_update_info_t *update_info);
-MG_API void                         mg_rhi_renderer_destroy_buffer                  (mg_buffer_t buffer);
+MG_API mg_vertex_buffer_t           mg_rhi_renderer_create_vertex_buffer            (size_t size, void *data);
+MG_API void                         mg_rhi_renderer_destroy_vertex_buffer           (mg_vertex_buffer_t buffer);
+
+MG_API mg_index_buffer_t            mg_rhi_renderer_create_index_buffer             (size_t size, void *data);
+MG_API void                         mg_rhi_renderer_destroy_index_buffer            (mg_index_buffer_t buffer);
+
+MG_API mg_dynamic_vertex_buffer_t   mg_rhi_renderer_create_dynamic_vertex_buffer    (size_t size);
+MG_API void                         mg_rhi_renderer_destroy_dynamic_vertex_buffer   (mg_dynamic_vertex_buffer_t buffer);
+MG_API void                         mg_rhi_renderer_update_dynamic_vertex_buffer    (mg_dynamic_vertex_buffer_t buffer, size_t size, void *data);
+
+MG_API mg_dynamic_index_buffer_t    mg_rhi_renderer_create_dynamic_index_buffer     (size_t size);
+MG_API void                         mg_rhi_renderer_destroy_dynamic_index_buffer    (mg_dynamic_index_buffer_t buffer);
+MG_API void                         mg_rhi_renderer_update_dynamic_index_buffer     (mg_dynamic_index_buffer_t buffer, size_t size, void *data);
+
+MG_API mg_uniform_buffer_t          mg_rhi_renderer_create_uniform_buffer           (size_t size);
+MG_API void                         mg_rhi_renderer_destroy_uniform_buffer          (mg_uniform_buffer_t buffer);
+MG_API void                         mg_rhi_renderer_update_uniform_buffer           (mg_uniform_buffer_t buffer, size_t size, void *data);
+
+MG_API void                         mg_rhi_renderer_bind_vertex_buffer              (mg_vertex_buffer_t buffer);
+MG_API void                         mg_rhi_renderer_bind_dynamic_vertex_buffer      (mg_dynamic_vertex_buffer_t buffer);
+MG_API void                         mg_rhi_renderer_bind_index_buffer               (mg_index_buffer_t buffer, mg_index_type_t index_type);
+MG_API void                         mg_rhi_renderer_bind_dynamic_index_buffer       (mg_index_buffer_t buffer, mg_index_type_t index_type);
 
 MG_API mg_image_t                   mg_rhi_renderer_create_image                    (mg_image_create_info_t *create_info);
 MG_API void                         mg_rhi_renderer_destroy_image                   (mg_image_t image);
@@ -618,7 +606,9 @@ MG_API void                         mg_rhi_renderer_destroy_sampler             
 MG_API mg_framebuffer_t             mg_rhi_renderer_create_framebuffer              (mg_framebuffer_create_info_t *create_info);
 MG_API void                         mg_rhi_renderer_destroy_framebuffer             (mg_framebuffer_t framebuffer);
 
-MG_API void                         mg_rhi_renderer_bind_vertex_buffer              (mg_buffer_t buffer);
-MG_API void                         mg_rhi_renderer_bind_index_buffer               (mg_buffer_t buffer, mg_index_type_t index_type);
+MG_API void                         mg_rhi_renderer_bind_vertex_buffer              (mg_vertex_buffer_t buffer);
+MG_API void                         mg_rhi_renderer_bind_dynaimc_vertex_buffer      (mg_dynamic_vertex_buffer_t buffer);
+MG_API void                         mg_rhi_renderer_bind_index_buffer               (mg_index_buffer_t buffer, mg_index_type_t index_type);
+MG_API void                         mg_rhi_renderer_bind_dynamic_index_buffer       (mg_dynamic_index_buffer_t buffer, mg_index_type_t index_type);
 
 MG_API void                         mg_rhi_renderer_push_constants                  (mg_pipeline_t pipeline, uint32_t size, void *data);

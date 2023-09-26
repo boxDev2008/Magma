@@ -47,10 +47,6 @@ struct mg_rhi_renderer_plugin
     void (*destroy_pipeline)            (void *pipeline);
     void (*bind_pipeline)               (void *pipeline);
 
-    void *(*create_buffer)              (mg_buffer_create_info_t *create_info);
-    void (*update_buffer)               (void *buffer, mg_buffer_update_info_t *update_data);
-    void (*destroy_buffer)              (void *buffer);
-
     void *(*create_image)               (mg_image_create_info_t *create_info);
     void *(*write_image)                (void *image, mg_image_write_info_t *write_info);
     void (*destroy_image)               (void *image);
@@ -61,8 +57,28 @@ struct mg_rhi_renderer_plugin
     void *(*create_framebuffer)         (mg_framebuffer_create_info_t *create_info);
     void (*destroy_framebuffer)         (void *framebuffer);
 
-    void (*bind_vertex_buffer)          (void *buffer);
-    void (*bind_index_buffer)           (void *buffer, mg_index_type_t index_type);
+    void *(*create_vertex_buffer)           (size_t size, void *data);
+    void (*destroy_vertex_buffer)           (void *buffer);
+
+    void *(*create_index_buffer)            (size_t size, void *data);
+    void (*destroy_index_buffer)            (void *buffer);
+
+    void *(*create_dynamic_vertex_buffer)   (size_t size);
+    void (*destroy_dynamic_vertex_buffer)   (void *buffer);
+    void (*update_dynamic_vertex_buffer)    (void *buffer, size_t size, void *data);
+
+    void *(*create_dynamic_index_buffer)    (size_t size);
+    void (*destroy_dynamic_index_buffer)    (void *buffer);
+    void (*update_dynamic_index_buffer)     (void *buffer, size_t size, void *data);
+
+    void *(*create_uniform_buffer)          (size_t size);
+    void (*destroy_uniform_buffer)          (void *buffer);
+    void (*update_uniform_buffer)           (void *buffer, size_t size, void *data);
+
+    void (*bind_vertex_buffer)              (void *buffer);
+    void (*bind_dynamic_vertex_buffer)      (void *buffer);
+    void (*bind_index_buffer)               (void *buffer, mg_index_type_t index_type);
+    void (*bind_dynamic_index_buffer)       (void *buffer, mg_index_type_t index_type);
 
     void (*draw)                        (uint32_t vertex_count, uint32_t first_vertex);
     void (*draw_indexed)                (uint32_t index_count, uint32_t first_index);
@@ -111,9 +127,29 @@ void mg_rhi_renderer_initialize(mg_renderer_init_info_t *init_info)
             plugin.destroy_pipeline  =   mg_vulkan_destroy_pipeline;
             plugin.bind_pipeline     =   mg_vulkan_bind_pipeline;
 
-            plugin.create_buffer            =   mg_vulkan_create_buffer;
-            plugin.update_buffer            =   mg_vulkan_update_buffer;
-            plugin.destroy_buffer           =   mg_vulkan_destroy_buffer;
+            plugin.create_vertex_buffer             =   mg_vulkan_create_vertex_buffer;
+            plugin.destroy_vertex_buffer            =   mg_vulkan_destroy_vertex_buffer;
+
+            plugin.create_index_buffer              =   mg_vulkan_create_index_buffer;
+            plugin.destroy_index_buffer             =   mg_vulkan_destroy_index_buffer;
+
+            plugin.create_dynamic_vertex_buffer     =   mg_vulkan_create_dynamic_vertex_buffer;
+            plugin.destroy_dynamic_vertex_buffer    =   mg_vulkan_destroy_dynamic_vertex_buffer;
+            plugin.update_dynamic_vertex_buffer     =   mg_vulkan_update_dynamic_vertex_buffer;
+    
+            plugin.create_dynamic_index_buffer      =   mg_vulkan_create_dynamic_index_buffer;
+            plugin.destroy_dynamic_index_buffer     =   mg_vulkan_destroy_dynamic_index_buffer;
+            plugin.update_dynamic_index_buffer      =   mg_vulkan_update_dynamic_index_buffer;
+
+            plugin.create_uniform_buffer            =   mg_vulkan_create_uniform_buffer;
+            plugin.destroy_uniform_buffer           =   mg_vulkan_destroy_uniform_buffer;
+            plugin.update_uniform_buffer            =   mg_vulkan_update_uniform_buffer;
+
+            plugin.bind_vertex_buffer           =   mg_vulkan_bind_vertex_buffer;
+            plugin.bind_dynamic_vertex_buffer   =   mg_vulkan_bind_dynamic_vertex_buffer;
+
+            plugin.bind_index_buffer            =   mg_vulkan_bind_index_buffer;
+            plugin.bind_dynamic_index_buffer    =   mg_vulkan_bind_dynamic_index_buffer;
 
             plugin.create_image     =   mg_vulkan_create_image;
             plugin.destroy_image    =   mg_vulkan_destroy_image;
@@ -124,9 +160,6 @@ void mg_rhi_renderer_initialize(mg_renderer_init_info_t *init_info)
 
             plugin.create_framebuffer   =   mg_vulkan_create_framebuffer;
             plugin.destroy_framebuffer  =   mg_vulkan_destroy_framebuffer;
-
-            plugin.bind_vertex_buffer   =   mg_vulkan_bind_vertex_buffer;
-            plugin.bind_index_buffer    =   mg_vulkan_bind_index_buffer;
 
             plugin.draw         =   mg_vulkan_renderer_draw;
             plugin.draw_indexed =   mg_vulkan_renderer_draw_indexed;
@@ -261,21 +294,99 @@ void mg_rhi_renderer_bind_pipeline(mg_pipeline_t pipeline)
     plugin.bind_pipeline(pipeline.internal_data);
 }
 
-mg_buffer_t mg_rhi_renderer_create_buffer(mg_buffer_create_info_t *create_info)
+mg_vertex_buffer_t mg_rhi_renderer_create_vertex_buffer(size_t size, void *data)
 {
-    mg_buffer_t buffer;
-    buffer.internal_data = plugin.create_buffer(create_info);
+    mg_vertex_buffer_t buffer;
+    buffer.internal_data = plugin.create_vertex_buffer(size, data);
     return buffer;
 }
 
-void mg_rhi_renderer_destroy_buffer(mg_buffer_t buffer)
+void mg_rhi_renderer_destroy_vertex_buffer(mg_vertex_buffer_t buffer)
 {
-    plugin.destroy_buffer(buffer.internal_data);
+    plugin.destroy_vertex_buffer(buffer.internal_data);
 }
 
-void mg_rhi_renderer_update_buffer(mg_buffer_t buffer, mg_buffer_update_info_t *update_info)
+mg_index_buffer_t mg_rhi_renderer_create_index_buffer(size_t size, void *data)
 {
-    plugin.update_buffer(buffer.internal_data, update_info);
+    mg_index_buffer_t buffer;
+    buffer.internal_data = plugin.create_index_buffer(size, data);
+    return buffer;
+}
+
+void mg_rhi_renderer_destroy_index_buffer(mg_index_buffer_t buffer)
+{
+    plugin.destroy_index_buffer(buffer.internal_data);
+}
+
+mg_dynamic_vertex_buffer_t mg_rhi_renderer_create_dynamic_vertex_buffer(size_t size)
+{
+    mg_dynamic_vertex_buffer_t buffer;
+    buffer.internal_data = plugin.create_dynamic_vertex_buffer(size);
+    return buffer;
+}
+
+void mg_rhi_renderer_destroy_dynamic_vertex_buffer(mg_dynamic_vertex_buffer_t buffer)
+{
+    plugin.destroy_dynamic_vertex_buffer(buffer.internal_data);
+}
+
+void mg_rhi_renderer_update_dynamic_vertex_buffer(mg_dynamic_vertex_buffer_t buffer, size_t size, void *data)
+{
+    plugin.update_dynamic_vertex_buffer(buffer.internal_data, size, data);
+}
+
+mg_dynamic_index_buffer_t mg_rhi_renderer_create_dynamic_index_buffer(size_t size)
+{
+    mg_dynamic_index_buffer_t buffer;
+    buffer.internal_data = plugin.create_dynamic_index_buffer(size);
+    return buffer;
+}
+
+void mg_rhi_renderer_destroy_dynamic_index_buffer(mg_dynamic_index_buffer_t buffer)
+{
+    plugin.destroy_dynamic_index_buffer(buffer.internal_data);
+}
+
+void mg_rhi_renderer_update_dynamic_index_buffer(mg_dynamic_index_buffer_t buffer, size_t size, void *data)
+{
+    plugin.update_dynamic_index_buffer(buffer.internal_data, size, data);
+}
+
+mg_uniform_buffer_t mg_rhi_renderer_create_uniform_buffer(size_t size)
+{
+    mg_uniform_buffer_t buffer;
+    buffer.internal_data = plugin.create_uniform_buffer(size);
+    return buffer;
+}
+
+void mg_rhi_renderer_destroy_uniform_buffer(mg_uniform_buffer_t buffer)
+{
+    plugin.destroy_uniform_buffer(buffer.internal_data);
+}
+
+void mg_rhi_renderer_update_uniform_buffer(mg_uniform_buffer_t buffer, size_t size, void *data)
+{
+    plugin.update_uniform_buffer(buffer.internal_data, size, data);
+}
+
+void mg_rhi_renderer_bind_vertex_buffer(mg_vertex_buffer_t buffer)
+{
+    plugin.bind_vertex_buffer(buffer.internal_data);
+}
+
+void mg_rhi_renderer_bind_dynamic_vertex_buffer(mg_dynamic_vertex_buffer_t buffer)
+{
+    plugin.bind_dynamic_vertex_buffer(buffer.internal_data);
+}
+
+void mg_rhi_renderer_bind_index_buffer(mg_index_buffer_t buffer, mg_index_type_t index_type)
+{
+    plugin.bind_index_buffer(buffer.internal_data, index_type);
+}
+
+void mg_rhi_renderer_bind_dynamic_index_buffer(mg_index_buffer_t buffer, mg_index_type_t index_type)
+{
+    plugin.bind_dynamic_index_buffer(buffer.internal_data, index_type);
 }
 
 mg_image_t mg_rhi_renderer_create_image(mg_image_create_info_t *create_info)
@@ -317,16 +428,6 @@ void mg_rhi_renderer_destroy_framebuffer(mg_framebuffer_t framebuffer)
 void mg_rhi_renderer_destroy_sampler(mg_sampler_t sampler)
 {
     plugin.destroy_sampler(sampler.internal_data);
-}
-
-void mg_rhi_renderer_bind_vertex_buffer(mg_buffer_t buffer)
-{
-    plugin.bind_vertex_buffer(buffer.internal_data);
-}
-
-void mg_rhi_renderer_bind_index_buffer(mg_buffer_t buffer, mg_index_type_t index_type)
-{
-    plugin.bind_index_buffer(buffer.internal_data, index_type);
 }
 
 void mg_rhi_renderer_push_constants(mg_pipeline_t pipeline, uint32_t size, void *data)

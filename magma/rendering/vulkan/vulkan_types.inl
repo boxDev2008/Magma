@@ -21,7 +21,8 @@ struct mg_vulkan_image
     VkDeviceMemory memory;
 };
 
-typedef struct mg_vulkan_buffer mg_vulkan_buffer_t;
+typedef struct mg_vulkan_buffer mg_vulkan_buffer_t,
+    mg_vulkan_vertex_buffer_t, mg_vulkan_index_buffer_t;
 struct mg_vulkan_buffer
 {
     VkBuffer buffer;
@@ -29,11 +30,25 @@ struct mg_vulkan_buffer
 
     VkBuffer staging_buffer;
     VkDeviceMemory staging_memory;
+};
+
+typedef struct mg_vulkan_dynamic_buffer mg_vulkan_dynamic_buffer_t,
+    mg_vulkan_dynamic_vertex_buffer_t, mg_vulkan_dynamic_index_buffer_t;
+struct mg_vulkan_dynamic_buffer
+{
+    VkBuffer buffer;
+    VkDeviceMemory memory;
 
     void *data;
+};
 
-    mg_buffer_update_frequency_t frequency;
-    bool mapped_at_creation;
+typedef struct mg_vulkan_uniform_buffer mg_vulkan_uniform_buffer_t;
+struct mg_vulkan_uniform_buffer
+{
+    VkBuffer buffer;
+    VkDeviceMemory memory;
+
+    void *data;
 };
 
 typedef struct mg_vulkan_pipeline mg_vulkan_pipeline_t;

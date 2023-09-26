@@ -19,8 +19,8 @@ GLenum mg_opengl_get_buffer_update_frequency(mg_buffer_update_frequency_t freque
 {
     switch (frequency)
     {
-        case MG_BUFFER_UPDATE_FREQUENCY_STATIC: return GL_STATIC_DRAW; break;
-        case MG_BUFFER_UPDATE_FREQUENCY_DYNAMIC: return GL_DYNAMIC_DRAW; break;
+        case MG_BUFFER_USAGE_STATIC: return GL_STATIC_DRAW; break;
+        case MG_BUFFER_USAGE_DYNAMIC: return GL_DYNAMIC_DRAW; break;
     }
 }
 
