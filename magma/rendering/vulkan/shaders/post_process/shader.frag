@@ -9,7 +9,7 @@ void main() {
 
     vec2 uv = fragTexCoord.xy;
 
-    uv *=  1.0 - uv.yx;
+    /*uv *=  1.0 - uv.yx;
     float vig = uv.x*uv.y * 15.0;
     vig = pow(vig, 0.25);
 
@@ -17,5 +17,6 @@ void main() {
     const float gamma = 0.6;
     vec3 mapped = vec3(1.0) - exp(-hdrColor * 5.0);
     mapped = pow(mapped, vec3(1.0 / gamma));
-    outColor = vec4(mapped, 1.0) * vec4(vig);
+    outColor = vec4(mapped, 1.0) * vec4(vig);*/
+    outColor = texture(texSampler, fragTexCoord);
 }

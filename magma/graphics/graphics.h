@@ -28,7 +28,6 @@ struct mg_texture
 {
     int32_t width, height;
     mg_image_t image;
-    mg_texture_view_t view;
     mg_sampler_t sampler;
     mg_descriptor_set_t descriptor_set;
 };

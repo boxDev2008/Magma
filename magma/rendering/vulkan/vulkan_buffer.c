@@ -170,6 +170,14 @@ mg_vulkan_uniform_buffer_t *mg_vulkan_create_uniform_buffer(size_t size)
 
     vkMapMemory(vulkan_context.device.handle, buffer->memory, 0, size, 0, &buffer->data);
 
+    VkDescriptorSetAllocateInfo alloc_info = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+    alloc_info.descriptorPool = vulkan_context.descriptor_pool;
+    alloc_info.descriptorSetCount = 1;
+    alloc_info.pSetLayouts = &vulkan_context.layouts.uniform_buffer_layout;
+
+    VkResult result = vkAllocateDescriptorSets(vulkan_context.device.handle, &alloc_info, &buffer->descriptor_set);
+    assert(result == VK_SUCCESS);
+
     return buffer;
 }
 
@@ -177,6 +185,7 @@ void mg_vulkan_destroy_uniform_buffer(mg_vulkan_uniform_buffer_t *buffer)
 {
     vkDestroyBuffer(vulkan_context.device.handle, buffer->buffer, NULL);
     vkFreeMemory(vulkan_context.device.handle, buffer->memory, NULL);
+    vkFreeDescriptorSets(vulkan_context.device.handle, vulkan_context.descriptor_pool, 1, &buffer->descriptor_set);
 
     free(buffer);
 }
@@ -184,6 +193,24 @@ void mg_vulkan_destroy_uniform_buffer(mg_vulkan_uniform_buffer_t *buffer)
 void mg_vulkan_update_uniform_buffer(mg_vulkan_uniform_buffer_t *buffer, size_t size, void *data)
 {
     memcpy(buffer->data, data, size);
+
+    VkWriteDescriptorSet write = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+    write.dstSet = buffer->descriptor_set;
+    write.dstBinding = 0;
+    write.dstArrayElement = 0;
+
+    write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    write.descriptorCount = 1;
+
+    VkDescriptorBufferInfo buffer_info;
+
+    buffer_info.buffer = buffer->buffer;
+    buffer_info.offset = 0;
+    buffer_info.range = size;
+
+    write.pBufferInfo = &buffer_info;
+
+    vkUpdateDescriptorSets(vulkan_context.device.handle, 1, &write, 0, NULL);
 }
 
 void mg_vulkan_bind_vertex_buffer(mg_vulkan_vertex_buffer_t *buffer)
@@ -208,4 +235,9 @@ void mg_vulkan_bind_index_buffer(mg_vulkan_index_buffer_t *buffer, mg_index_type
 void mg_vulkan_bind_dynamic_index_buffer(mg_vulkan_dynamic_index_buffer_t *buffer, mg_index_type_t index_type)
 {
     vkCmdBindIndexBuffer(vulkan_context.command_buffer, buffer->buffer, 0, index_type);
+}
+
+void mg_vulkan_bind_unifom_buffer(mg_vulkan_uniform_buffer_t *buffer, mg_vulkan_pipeline_t *pipeline)
+{
+    vkCmdBindDescriptorSets(vulkan_context.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipeline_layout, 0, 1, &buffer->descriptor_set, 0, NULL);
 }

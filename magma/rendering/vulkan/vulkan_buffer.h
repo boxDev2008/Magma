@@ -32,3 +32,5 @@ void                                mg_vulkan_bind_dynamic_vertex_buffer        
 
 void                                mg_vulkan_bind_index_buffer                 (mg_vulkan_index_buffer_t *buffer, mg_index_type_t index_type);
 void                                mg_vulkan_bind_dynamic_index_buffer         (mg_vulkan_dynamic_index_buffer_t *buffer, mg_index_type_t index_type);
+
+void                                mg_vulkan_bind_unifom_buffer                (mg_vulkan_uniform_buffer_t *buffer, mg_vulkan_pipeline_t *pipeline);

@@ -19,6 +19,7 @@ struct mg_vulkan_image
     VkImage image;
     VkImageView view;
     VkDeviceMemory memory;
+    VkDescriptorSet descriptor_set;
 };
 
 typedef struct mg_vulkan_buffer mg_vulkan_buffer_t,
@@ -47,6 +48,8 @@ struct mg_vulkan_uniform_buffer
 {
     VkBuffer buffer;
     VkDeviceMemory memory;
+
+    VkDescriptorSet descriptor_set;
 
     void *data;
 };
@@ -105,6 +108,13 @@ struct mg_vulkan_context
     VkCommandPool command_pool;
     VkCommandBuffer command_buffer;
     VkDescriptorPool descriptor_pool;
+
+    struct
+    {
+        VkDescriptorSetLayout uniform_buffer_layout;
+        VkDescriptorSetLayout image_sampler_layout;
+    }
+    layouts;
 
     int32_t image_index;
 };

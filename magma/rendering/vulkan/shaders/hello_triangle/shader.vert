@@ -9,8 +9,7 @@ layout(binding = 0) uniform UniformBufferObject {
     mat4 projection;
 } ubo;
 
-layout(push_constant) uniform PushConstants
-{
+layout(push_constant) uniform PushConstants {
 	mat4 model;
 } push;
 

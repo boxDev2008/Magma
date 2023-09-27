@@ -146,8 +146,8 @@ void mg_vulkan_create_sync_objects(void)
 void mg_vulkan_create_descriptor_pool(void)
 {
     VkDescriptorPoolSize pool_sizes[] = {
-        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1024},
-        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4096},
+        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, MG_CONFIG_MAX_UNIFORM_BUFFERS},
+        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MG_CONFIG_MAX_TEXTURES},
     };
 
     VkDescriptorPoolCreateInfo pool_info = {VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
@@ -157,6 +157,47 @@ void mg_vulkan_create_descriptor_pool(void)
     pool_info.maxSets = 1024;
 
     VkResult result = vkCreateDescriptorPool(vulkan_context.device.handle, &pool_info, NULL, &vulkan_context.descriptor_pool);
+    assert(result == VK_SUCCESS);
+}
+
+void mg_vulkan_create_descriptor_set_layouts(void)
+{
+    VkDescriptorSetLayoutCreateInfo layout_info = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
+
+    VkDescriptorSetLayoutBinding uniform_buffer_layout_bindings[MG_CONFIG_MAX_BINDABLE_UNIFORM_BUFFERS];
+
+    uint32_t i;
+    for (i = 0; i < MG_CONFIG_MAX_BINDABLE_UNIFORM_BUFFERS; i++)
+    {
+        uniform_buffer_layout_bindings[i] = (VkDescriptorSetLayoutBinding) {
+            .binding = i,
+            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+            .descriptorCount = 1,
+            .stageFlags = VK_SHADER_STAGE_ALL
+        };
+    }
+
+    layout_info.bindingCount = MG_CONFIG_MAX_BINDABLE_UNIFORM_BUFFERS;
+    layout_info.pBindings = uniform_buffer_layout_bindings;
+
+    VkResult result = vkCreateDescriptorSetLayout(vulkan_context.device.handle, &layout_info, NULL, &vulkan_context.layouts.uniform_buffer_layout);
+    assert(result == VK_SUCCESS);
+
+    VkDescriptorSetLayoutBinding image_sampler_layout_bindings[MG_CONFIG_MAX_BINDABLE_TEXTURES];
+    for (i = 0; i < MG_CONFIG_MAX_BINDABLE_TEXTURES; i++)
+    {
+        image_sampler_layout_bindings[i] = (VkDescriptorSetLayoutBinding) {
+            .binding = i,
+            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            .descriptorCount = 1,
+            .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT
+        };
+    }
+
+    layout_info.bindingCount = MG_CONFIG_MAX_BINDABLE_TEXTURES;
+    layout_info.pBindings = image_sampler_layout_bindings;
+
+    result = vkCreateDescriptorSetLayout(vulkan_context.device.handle, &layout_info, NULL, &vulkan_context.layouts.image_sampler_layout);
     assert(result == VK_SUCCESS);
 }
 
@@ -181,6 +222,7 @@ void mg_vulkan_renderer_initialize(mg_renderer_init_info_t *init_info)
     
     mg_vulkan_create_swapchain(init_info->swapchain_config_info);
     
+    mg_vulkan_create_descriptor_set_layouts();
     mg_vulkan_create_descriptor_pool();
 }
 
@@ -189,6 +231,9 @@ void mg_vulkan_renderer_shutdown(void)
     vkDeviceWaitIdle(vulkan_context.device.handle);
 
     vkDestroyDescriptorPool(vulkan_context.device.handle, vulkan_context.descriptor_pool, NULL);
+
+    vkDestroyDescriptorSetLayout(vulkan_context.device.handle, vulkan_context.layouts.image_sampler_layout, NULL);
+    vkDestroyDescriptorSetLayout(vulkan_context.device.handle, vulkan_context.layouts.uniform_buffer_layout, NULL);
 
     mg_vulkan_cleanup_swapchain();
 

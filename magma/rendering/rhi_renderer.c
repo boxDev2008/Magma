@@ -6,7 +6,6 @@
 #include "vulkan/vulkan_pipeline.h"
 #include "vulkan/vulkan_buffer.h"
 #include "vulkan/vulkan_image.h"
-#include "vulkan/vulkan_descriptor_set.h"
 
 #include "opengl/opengl_renderer.h"
 
@@ -34,22 +33,15 @@ struct mg_rhi_renderer_plugin
     void (*begin_default_render_pass)   (mg_render_pass_begin_info_t *begin_info);
     void (*end_render_pass)             (void);
 
-    void *(*create_descriptor_set_layout)   (mg_descriptor_set_layout_create_info_t *create_info);
-    void (*destroy_descriptor_set_layout)   (void *descriptor_set_layout);
-
-    void *(*create_descriptor_set)      (mg_descriptor_set_create_info_t *create_info);
-    void (*update_descriptor_set)       (void *descriptor_set, mg_descriptor_write_t *descriptor_write);
-    void (*destroy_descriptor_set)      (void *descriptor_set);
-
-    void (*bind_descriptor_set)         (void *descriptor_set, void *pipeline, uint32_t set_index);
-
     void *(*create_pipeline)            (mg_pipeline_create_info_t *create_info);
     void (*destroy_pipeline)            (void *pipeline);
     void (*bind_pipeline)               (void *pipeline);
 
     void *(*create_image)               (mg_image_create_info_t *create_info);
-    void *(*write_image)                (void *image, mg_image_write_info_t *write_info);
     void (*destroy_image)               (void *image);
+    void (*write_image)                 (void *image, mg_image_write_info_t *write_info);
+    void (*update_image)                (void *image, void *sampler);
+    void (*bind_image)                  (void *image, void *pipeline);
 
     void *(*create_sampler)             (mg_sampler_create_info_t *create_info);
     void (*destroy_sampler)             (void *sampler);
@@ -79,6 +71,7 @@ struct mg_rhi_renderer_plugin
     void (*bind_dynamic_vertex_buffer)      (void *buffer);
     void (*bind_index_buffer)               (void *buffer, mg_index_type_t index_type);
     void (*bind_dynamic_index_buffer)       (void *buffer, mg_index_type_t index_type);
+    void (*bind_unifom_buffer)              (void *buffer, void *pipeline);
 
     void (*draw)                        (uint32_t vertex_count, uint32_t first_vertex);
     void (*draw_indexed)                (uint32_t index_count, uint32_t first_index);
@@ -114,15 +107,6 @@ void mg_rhi_renderer_initialize(mg_renderer_init_info_t *init_info)
             plugin.begin_default_render_pass    =   mg_vulkan_begin_default_render_pass;
             plugin.end_render_pass              =   mg_vulkan_end_render_pass;
 
-            plugin.create_descriptor_set_layout     =   mg_vulkan_create_descriptor_set_layout;
-            plugin.destroy_descriptor_set_layout    =   mg_vulkan_destroy_descriptor_set_layout;
-
-            plugin.create_descriptor_set    =   mg_vulkan_create_descriptor_set;
-            plugin.update_descriptor_set    =   mg_vulkan_update_descriptor_set;
-            plugin.destroy_descriptor_set   =   mg_vulkan_destroy_descriptor_set;
-
-            plugin.bind_descriptor_set  =   mg_vulkan_bind_descriptor_set;
-
             plugin.create_pipeline   =   mg_vulkan_create_pipeline;
             plugin.destroy_pipeline  =   mg_vulkan_destroy_pipeline;
             plugin.bind_pipeline     =   mg_vulkan_bind_pipeline;
@@ -147,13 +131,15 @@ void mg_rhi_renderer_initialize(mg_renderer_init_info_t *init_info)
 
             plugin.bind_vertex_buffer           =   mg_vulkan_bind_vertex_buffer;
             plugin.bind_dynamic_vertex_buffer   =   mg_vulkan_bind_dynamic_vertex_buffer;
-
             plugin.bind_index_buffer            =   mg_vulkan_bind_index_buffer;
             plugin.bind_dynamic_index_buffer    =   mg_vulkan_bind_dynamic_index_buffer;
+            plugin.bind_unifom_buffer           =   mg_vulkan_bind_unifom_buffer;
 
             plugin.create_image     =   mg_vulkan_create_image;
             plugin.destroy_image    =   mg_vulkan_destroy_image;
             plugin.write_image      =   mg_vulkan_write_image;
+            plugin.update_image     =   mg_vulkan_update_image;
+            plugin.bind_image       =   mg_vulkan_bind_image;
 
             plugin.create_sampler     =   mg_vulkan_create_sampler;
             plugin.destroy_sampler    =   mg_vulkan_destroy_sampler;
@@ -241,40 +227,6 @@ void mg_rhi_renderer_draw(uint32_t vertex_count, uint32_t first_vertex)
 void mg_rhi_renderer_draw_indexed(uint32_t index_count, uint32_t first_index)
 {
     plugin.draw_indexed(index_count, first_index);
-}
-
-mg_descriptor_set_layout_t mg_rhi_renderer_create_descriptor_set_layout(mg_descriptor_set_layout_create_info_t *create_info)
-{
-    mg_descriptor_set_layout_t descriptor_set_layout;
-    descriptor_set_layout.internal_data = plugin.create_descriptor_set_layout(create_info);
-    return descriptor_set_layout;
-}
-
-void mg_rhi_renderer_destroy_descriptor_set_layout(mg_descriptor_set_layout_t descriptor_set_layout)
-{
-    plugin.destroy_descriptor_set_layout(descriptor_set_layout.internal_data);
-}
-
-mg_descriptor_set_t mg_rhi_renderer_create_descriptor_set(mg_descriptor_set_create_info_t *create_info)
-{
-    mg_descriptor_set_t descriptor_set;
-    descriptor_set.internal_data = plugin.create_descriptor_set(create_info);
-    return descriptor_set;
-}
-
-void mg_rhi_renderer_update_descriptor_set(mg_descriptor_set_t descriptor_set, mg_descriptor_write_t *descriptor_write)
-{
-    plugin.update_descriptor_set(descriptor_set.internal_data, descriptor_write);
-}
-
-void mg_rhi_renderer_destroy_descriptor_set(mg_descriptor_set_t descriptor_set)
-{
-    plugin.destroy_descriptor_set(descriptor_set.internal_data);
-}
-
-void mg_rhi_renderer_bind_descriptor_set(mg_descriptor_set_t descriptor_set, mg_pipeline_t pipeline, uint32_t set_index)
-{
-    plugin.bind_descriptor_set(descriptor_set.internal_data, pipeline.internal_data, set_index);
 }
 
 mg_pipeline_t mg_rhi_renderer_create_pipeline(mg_pipeline_create_info_t *create_info)
@@ -389,6 +341,11 @@ void mg_rhi_renderer_bind_dynamic_index_buffer(mg_index_buffer_t buffer, mg_inde
     plugin.bind_dynamic_index_buffer(buffer.internal_data, index_type);
 }
 
+void mg_rhi_renderer_bind_uniform_buffer(mg_uniform_buffer_t buffer, mg_pipeline_t pipeline)
+{
+    plugin.bind_unifom_buffer(buffer.internal_data, pipeline.internal_data);
+}
+
 mg_image_t mg_rhi_renderer_create_image(mg_image_create_info_t *create_info)
 {
     mg_image_t image;
@@ -404,6 +361,16 @@ void mg_rhi_renderer_destroy_image(mg_image_t image)
 void mg_rhi_renderer_write_image(mg_image_t image, mg_image_write_info_t *write_info)
 {
     plugin.write_image(image.internal_data, write_info);
+}
+
+void mg_rhi_renderer_update_image(mg_image_t image, mg_sampler_t sampler)
+{
+    plugin.update_image(image.internal_data, sampler.internal_data);
+}
+
+void mg_rhi_renderer_bind_image(mg_image_t image, mg_pipeline_t pipeline)
+{
+    plugin.bind_image(image.internal_data, pipeline.internal_data);
 }
 
 mg_sampler_t mg_rhi_renderer_create_sampler(mg_sampler_create_info_t *create_info)

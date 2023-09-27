@@ -140,14 +140,23 @@ mg_vulkan_image_t *mg_vulkan_create_image(mg_image_create_info_t *create_info)
     VkResult result = vkCreateImageView(vulkan_context.device.handle, &view_info, NULL, &image->view);
     assert(result == VK_SUCCESS);
 
+    VkDescriptorSetAllocateInfo alloc_info = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+    alloc_info.descriptorPool = vulkan_context.descriptor_pool;
+    alloc_info.descriptorSetCount = 1;
+    alloc_info.pSetLayouts = &vulkan_context.layouts.image_sampler_layout;
+
+    result = vkAllocateDescriptorSets(vulkan_context.device.handle, &alloc_info, &image->descriptor_set);
+    assert(result == VK_SUCCESS);
+
     return image;
 }
 
 void mg_vulkan_destroy_image(mg_vulkan_image_t *image)
 {
-    vkDestroyImageView(vulkan_context.device.handle, image->view, NULL);
     vkDestroyImage(vulkan_context.device.handle, image->image, NULL);
     vkFreeMemory(vulkan_context.device.handle, image->memory, NULL);
+    vkDestroyImageView(vulkan_context.device.handle, image->view, NULL);
+    vkFreeDescriptorSets(vulkan_context.device.handle, vulkan_context.descriptor_pool, 1, &image->descriptor_set);
 
     free(image);
 }
@@ -174,6 +183,32 @@ void mg_vulkan_write_image(mg_vulkan_image_t *image, mg_image_write_info_t *writ
 
     vkDestroyBuffer(vulkan_context.device.handle, staging_buffer, NULL);
     vkFreeMemory(vulkan_context.device.handle, staging_memory, NULL);
+}
+
+void mg_vulkan_update_image(mg_vulkan_image_t *image, VkSampler sampler)
+{
+    VkWriteDescriptorSet write = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+    write.dstSet = image->descriptor_set;
+    write.dstBinding = 0; // TODO (box): Make this bindable by the user
+    write.dstArrayElement = 0;
+
+    write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    write.descriptorCount = 1;
+
+    VkDescriptorImageInfo image_info;
+
+    image_info.sampler = sampler;
+    image_info.imageView = image->view;
+    image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+    write.pImageInfo = &image_info;
+
+    vkUpdateDescriptorSets(vulkan_context.device.handle, 1, &write, 0, NULL);
+}
+
+void mg_vulkan_bind_image(mg_vulkan_image_t *image, mg_vulkan_pipeline_t *pipeline)
+{
+    vkCmdBindDescriptorSets(vulkan_context.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipeline_layout, 1, 1, &image->descriptor_set, 0, NULL);
 }
 
 VkSampler mg_vulkan_create_sampler(mg_sampler_create_info_t *create_info)

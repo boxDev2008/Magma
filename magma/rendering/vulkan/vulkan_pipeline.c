@@ -106,8 +106,13 @@ mg_vulkan_pipeline_t *mg_vulkan_create_pipeline(mg_pipeline_create_info_t *creat
 
     VkPipelineLayoutCreateInfo pipeline_layout_info = {VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
 
-    pipeline_layout_info.setLayoutCount = create_info->desctriptor_set_layout_count;
-    pipeline_layout_info.pSetLayouts = (VkDescriptorSetLayout*)create_info->desctriptor_set_layouts;
+    VkDescriptorSetLayout set_layouts[] = {
+        vulkan_context.layouts.uniform_buffer_layout,
+        vulkan_context.layouts.image_sampler_layout
+    };
+
+    pipeline_layout_info.pSetLayouts = set_layouts;
+    pipeline_layout_info.setLayoutCount = 2;
 
     if (create_info->has_push_constants)
     {
