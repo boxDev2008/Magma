@@ -125,12 +125,16 @@ mg_vulkan_image_t *mg_vulkan_create_image(mg_image_create_info_t *create_info)
 {
     mg_vulkan_image_t *image = (mg_vulkan_image_t*)malloc(sizeof(mg_vulkan_image_t));
 
-    mg_vulkan_allocate_image(create_info->extent.x, create_info->extent.y, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &image->image, &image->memory);
+    mg_vulkan_allocate_image(create_info->extent.x, create_info->extent.y, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &image->image, &image->memory);
 
     VkImageViewCreateInfo view_info = {VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
     view_info.image = image->image;
     view_info.viewType = create_info->type;
     view_info.format = create_info->format;
+    view_info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+    view_info.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+    view_info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+    view_info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
     view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     view_info.subresourceRange.baseMipLevel = 0;
     view_info.subresourceRange.levelCount = 1;
@@ -223,8 +227,8 @@ VkSampler mg_vulkan_create_sampler(mg_sampler_create_info_t *create_info)
     samplerInfo.addressModeV = create_info->address_mode_v;
     samplerInfo.addressModeW = create_info->address_mode_w;
 
-    samplerInfo.anisotropyEnable = VK_TRUE;
-    samplerInfo.maxAnisotropy = vulkan_context.physical_device.properties.limits.maxSamplerAnisotropy;
+    samplerInfo.anisotropyEnable = VK_FALSE; // TODO: Make it customizable
+    //samplerInfo.maxAnisotropy = vulkan_context.physical_device.properties.limits.maxSamplerAnisotropy;
 
     samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
     samplerInfo.unnormalizedCoordinates = VK_FALSE;
