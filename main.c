@@ -236,7 +236,7 @@ int main(void)
 
     mg_image_create_info_t texture_image_create_info = { 0 };
     int texWidth, texHeight, texChannels;
-    uint8_t *pixels = stbi_load("a.png", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+    uint8_t *pixels = stbi_load("test.png", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
     texture_image_create_info.extent.x = texWidth;
     texture_image_create_info.extent.y = texHeight;
     texture_image_create_info.format = MG_PIXEL_FORMAT_R8G8B8A8_SRGB;
