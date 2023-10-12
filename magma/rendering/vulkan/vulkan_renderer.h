@@ -19,7 +19,7 @@ void mg_vulkan_renderer_shutdown        (void);
 void mg_vulkan_renderer_begin_frame     (void);
 void mg_vulkan_renderer_end_frame       (void);
 
-void mg_vulkan_renderer_present         (void);
+void mg_vulkan_renderer_present_frame   (void);
 
 void mg_vulkan_renderer_wait            (void);
 

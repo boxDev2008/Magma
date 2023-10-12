@@ -102,6 +102,7 @@
         "d3d11.h": "c",
         "opengl_types.inl": "c",
         "wingdi.h": "c",
-        "format": "c"
+        "format": "c",
+        "2d.h": "c"
     }
 }

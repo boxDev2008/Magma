@@ -51,7 +51,6 @@ void mg_vulkan_copy_buffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSiz
     mg_vulkan_end_single_time_commands(command_buffer);
 }
 
-
 mg_vulkan_buffer_t *mg_vulkan_create_buffer(size_t size, void *data, VkBufferUsageFlags usage)
 {
     mg_vulkan_buffer_t *buffer = (mg_vulkan_buffer_t*)malloc(sizeof(mg_vulkan_buffer_t));

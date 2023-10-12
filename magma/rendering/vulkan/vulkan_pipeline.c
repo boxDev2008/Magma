@@ -141,7 +141,8 @@ mg_vulkan_pipeline_t *mg_vulkan_create_pipeline(mg_pipeline_create_info_t *creat
     pipeline_info.pDynamicState = &dynamic_state;
 
     pipeline_info.layout = pipeline->pipeline_layout;
-    pipeline_info.renderPass = create_info->render_pass.internal_data;
+    pipeline_info.renderPass = create_info->render_pass.internal_data ?
+        create_info->render_pass.internal_data : vulkan_context.render_pass;
     pipeline_info.subpass = 0;
 
     result = vkCreateGraphicsPipelines(vulkan_context.device.handle, VK_NULL_HANDLE, 1, &pipeline_info, NULL, &pipeline->pipeline);

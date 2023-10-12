@@ -154,12 +154,20 @@ enum mg_image_type
     MG_IMAGE_TYPE_CUBE = 3
 };
 
+typedef enum mg_image_usage mg_image_usage_t;
+enum mg_image_usage
+{
+    MG_IMAGE_USAGE_COLOR_ATTACHMENT = 16,
+    MG_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT = 32
+};
+
 typedef struct mg_image_create_info mg_image_create_info_t;
 struct mg_image_create_info
 {
     mg_pixel_format_t format;
     mg_image_type_t type;
-    mg_vec2i_t extent;
+    uint32_t usage;
+    uint32_t width, height;
 };
 
 typedef struct mg_image mg_image_t;
@@ -171,7 +179,8 @@ struct mg_image
 typedef struct mg_image_write_info mg_image_write_info_t;
 struct mg_image_write_info
 {
-    mg_vec2i_t extent;
+    mg_pixel_format_t format;
+    uint32_t width, height;
     void *data;
 };
 
@@ -209,11 +218,35 @@ struct mg_sampler
     mg_handle_t internal_data;
 };
 
+typedef enum mg_attachment_load_op mg_attachment_load_op_t;
+enum mg_attachment_load_op
+{
+    MG_ATTACHMENT_LOAD_OP_LOAD = 0,
+    MG_ATTACHMENT_LOAD_OP_CLEAR = 1,
+    MG_ATTACHMENT_LOAD_OP_DONT_CARE = 2,
+};
+
+typedef enum mg_attachment_load_op mg_attachment_store_op_t;
+enum mg_attachment_store_op_t
+{
+    MG_ATTACHMENT_STORE_OP_STORE = 0,
+    MG_ATTACHMENT_STORE_OP_DONT_CARE = 1,
+};
+
+typedef struct mg_attachment_info mg_attachment_info_t;
+struct mg_attachment_info
+{
+    mg_pixel_format_t format;
+    mg_attachment_load_op_t load_op;
+    mg_attachment_store_op_t store_op;
+};
+
 typedef struct mg_render_pass_create_info mg_render_pass_create_info_t;
 struct mg_render_pass_create_info
 {
-    mg_pixel_format_t format;
-    // TODO (box): Add more
+    mg_attachment_info_t color_attachment;
+    //mg_attachment_info_t depth_stencil_attachment;
+    //bool has_depth_stencil_attachment;
 };
 
 typedef struct mg_render_pass mg_render_pass_t;
@@ -225,9 +258,9 @@ struct mg_render_pass
 typedef struct mg_framebuffer_create_info mg_framebuffer_create_info_t;
 struct mg_framebuffer_create_info
 {
-    mg_image_t image;
     mg_render_pass_t render_pass;
-    mg_vec2i_t extent;
+    mg_image_t image;
+    uint32_t width, height;
 };
 
 typedef struct mg_framebuffer mg_framebuffer_t;
@@ -239,7 +272,6 @@ struct mg_framebuffer
 typedef struct mg_render_pass_begin_info mg_render_pass_begin_info_t;
 struct mg_render_pass_begin_info
 {
-    mg_framebuffer_t framebuffer;
     mg_vec4_t render_area;
     mg_vec4_t clear_value;
 };
@@ -471,9 +503,9 @@ enum mg_present_mode
 typedef struct mg_swapchain_config_info mg_swapchain_config_info_t;
 struct mg_swapchain_config_info
 {
-    mg_vec2i_t extent;
     mg_pixel_format_t format;
     mg_present_mode_t present_mode;
+    uint32_t width, height;
 };
 
 typedef struct mg_renderer_init_info mg_renderer_init_info_t;
@@ -502,7 +534,7 @@ MG_API void                         mg_rhi_renderer_configure_swapchain         
 
 MG_API mg_render_pass_t             mg_rhi_renderer_create_render_pass              (mg_render_pass_create_info_t *create_info);
 MG_API void                         mg_rhi_renderer_destroy_render_pass             (mg_render_pass_t render_pass);
-MG_API void                         mg_rhi_renderer_begin_render_pass               (mg_render_pass_t render_pass, mg_render_pass_begin_info_t *begin_info);
+MG_API void                         mg_rhi_renderer_begin_render_pass               (mg_render_pass_t render_pass, mg_framebuffer_t framebuffer, mg_render_pass_begin_info_t *begin_info);
 MG_API void                         mg_rhi_renderer_begin_default_render_pass       (mg_render_pass_begin_info_t *begin_info);
 MG_API void                         mg_rhi_renderer_end_render_pass                 (void);
 

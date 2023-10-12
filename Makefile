@@ -4,6 +4,8 @@ MAGMA_SRC_DIRS = magma/core/*.c \
 				 magma/rendering/*.c \
 				 magma/rendering/vulkan/*.c \
 				 magma/rendering/vulkan/platform/*.c \
+				 magma/graphics/*.c \
+				 magma/physics/2d/*.c \
 #				 magma/rendering/opengl/*.c \
 #				 magma/rendering/opengl/platform/*.c
 

@@ -216,9 +216,14 @@ void mg_vulkan_renderer_initialize(mg_renderer_init_info_t *init_info)
 
     mg_vulkan_create_sync_objects();
 
-    vulkan_context.default_render_pass = mg_vulkan_create_render_pass(&(mg_render_pass_create_info_t) {
-        .format = MG_PIXEL_FORMAT_R8G8B8A8_SRGB
-    });
+    vulkan_context.render_pass =
+        mg_vulkan_create_render_pass(&(mg_render_pass_create_info_t) {
+            .color_attachment = {
+                .format = MG_PIXEL_FORMAT_R8G8B8A8_SRGB,
+                .load_op = MG_ATTACHMENT_LOAD_OP_CLEAR,
+                .store_op = MG_ATTACHMENT_STORE_OP_STORE
+            }
+        });
     
     mg_vulkan_create_swapchain(init_info->swapchain_config_info);
     
@@ -237,7 +242,7 @@ void mg_vulkan_renderer_shutdown(void)
 
     mg_vulkan_cleanup_swapchain();
 
-    mg_vulkan_destroy_render_pass(vulkan_context.default_render_pass);
+    mg_vulkan_destroy_render_pass(vulkan_context.render_pass);
 
     vkDestroySemaphore(vulkan_context.device.handle, vulkan_context.sync_objects.image_available_semaphore, NULL);
     vkDestroySemaphore(vulkan_context.device.handle, vulkan_context.sync_objects.image_rendered_semaphore, NULL);
@@ -289,7 +294,7 @@ void mg_vulkan_renderer_end_frame(void)
     vkQueueSubmit(vulkan_context.device.graphics_queue, 1, &submit_info, vulkan_context.sync_objects.fence);
 }
 
-void mg_vulkan_renderer_present(void)
+void mg_vulkan_renderer_present_frame(void)
 {
     VkSemaphore signal_semaphores[] = {vulkan_context.sync_objects.image_rendered_semaphore};
 

@@ -46,7 +46,7 @@ void mg_vulkan_create_swapchain(mg_swapchain_config_info_t *config_info)
     VkSurfaceFormatKHR surface_format = mg_vulkan_choose_swap_surface_format(formats, format_count);
     free(formats);*/
 
-    VkExtent2D extent = mg_vulkan_choose_swap_extent(&capabilities, config_info->extent.x, config_info->extent.y);
+    VkExtent2D extent = mg_vulkan_choose_swap_extent(&capabilities, config_info->width, config_info->height);
 
     vulkan_context.swapchain.image_count = capabilities.minImageCount + 1;
 
@@ -114,7 +114,7 @@ void mg_vulkan_create_swapchain(mg_swapchain_config_info_t *config_info)
     {
         VkFramebufferCreateInfo framebuffer_create_info = {VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
         framebuffer_create_info.attachmentCount = 1;
-        framebuffer_create_info.renderPass = vulkan_context.default_render_pass;
+        framebuffer_create_info.renderPass = vulkan_context.render_pass;
         framebuffer_create_info.pAttachments = &vulkan_context.swapchain.image_views[i];
         framebuffer_create_info.width = extent.width;
         framebuffer_create_info.height = extent.height;

@@ -125,8 +125,8 @@ mg_vulkan_image_t *mg_vulkan_create_image(mg_image_create_info_t *create_info)
 {
     mg_vulkan_image_t *image = (mg_vulkan_image_t*)malloc(sizeof(mg_vulkan_image_t));
 
-    mg_vulkan_allocate_image(create_info->extent.x, create_info->extent.y, VK_FORMAT_R8G8B8A8_SRGB,
-        VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+    mg_vulkan_allocate_image(create_info->width, create_info->height, create_info->format,
+        VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | create_info->usage,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &image->image, &image->memory);
 
     VkImageViewCreateInfo view_info = {VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
@@ -165,7 +165,7 @@ void mg_vulkan_destroy_image(mg_vulkan_image_t *image)
 
 void mg_vulkan_write_image(mg_vulkan_image_t *image, mg_image_write_info_t *write_info)
 {
-    VkDeviceSize image_size = write_info->extent.x * write_info->extent.y * 4;
+    VkDeviceSize image_size = write_info->width * write_info->height * 4;
 
     VkBuffer staging_buffer;
     VkDeviceMemory staging_memory;
@@ -179,9 +179,9 @@ void mg_vulkan_write_image(mg_vulkan_image_t *image, mg_image_write_info_t *writ
         memcpy(data, write_info->data, image_size);
     vkUnmapMemory(vulkan_context.device.handle, staging_memory);
 
-    mg_vulkan_transition_image_layout(image->image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-    mg_vulkan_copy_buffer_to_image(staging_buffer, image->image, write_info->extent.x, write_info->extent.y);
-    mg_vulkan_transition_image_layout(image->image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    mg_vulkan_transition_image_layout(image->image, write_info->format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    mg_vulkan_copy_buffer_to_image(staging_buffer, image->image, write_info->width, write_info->height);
+    mg_vulkan_transition_image_layout(image->image, write_info->format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     vkDestroyBuffer(vulkan_context.device.handle, staging_buffer, NULL);
     vkFreeMemory(vulkan_context.device.handle, staging_memory, NULL);
@@ -225,7 +225,7 @@ VkSampler mg_vulkan_create_sampler(mg_sampler_create_info_t *create_info)
     samplerInfo.addressModeV = create_info->address_mode_v;
     samplerInfo.addressModeW = create_info->address_mode_w;
 
-    samplerInfo.anisotropyEnable = VK_FALSE; // TODO: Make it customizable
+    samplerInfo.anisotropyEnable = VK_FALSE; // TODO (box): Make it customizable
     //samplerInfo.maxAnisotropy = vulkan_context.physical_device.properties.limits.maxSamplerAnisotropy;
 
     samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
@@ -258,8 +258,8 @@ VkFramebuffer mg_vulkan_create_framebuffer(mg_framebuffer_create_info_t *create_
     mg_vulkan_image_t *image = (mg_vulkan_image_t*)create_info->image.internal_data;
     framebuffer_create_info.pAttachments = &image->view;
     framebuffer_create_info.renderPass = create_info->render_pass.internal_data;
-    framebuffer_create_info.width = create_info->extent.x;
-    framebuffer_create_info.height = create_info->extent.y;
+    framebuffer_create_info.width = create_info->width;
+    framebuffer_create_info.height = create_info->height;
     framebuffer_create_info.layers = 1;
 
     VkFramebuffer framebuffer;

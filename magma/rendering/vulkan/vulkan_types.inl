@@ -103,7 +103,7 @@ struct mg_vulkan_context
     }
     sync_objects;
 
-    VkRenderPass default_render_pass;
+    VkRenderPass render_pass;
 
     VkCommandPool command_pool;
     VkCommandBuffer command_buffer;

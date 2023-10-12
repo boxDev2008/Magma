@@ -29,7 +29,7 @@ struct mg_rhi_renderer_plugin
 
     void *(*create_render_pass)         (mg_render_pass_create_info_t *create_info);
     void (*destroy_render_pass)         (void *render_pass);
-    void (*begin_render_pass)           (void *render_pass, mg_render_pass_begin_info_t *begin_info);
+    void (*begin_render_pass)           (void *render_pass, void *framebuffer, mg_render_pass_begin_info_t *begin_info);
     void (*begin_default_render_pass)   (mg_render_pass_begin_info_t *begin_info);
     void (*end_render_pass)             (void);
 
@@ -95,7 +95,7 @@ void mg_rhi_renderer_initialize(mg_renderer_init_info_t *init_info)
             plugin.shutdown         =   mg_vulkan_renderer_shutdown;
             plugin.begin_frame      =   mg_vulkan_renderer_begin_frame;
             plugin.end_frame        =   mg_vulkan_renderer_end_frame;
-            plugin.present_frame    =   mg_vulkan_renderer_present;
+            plugin.present_frame    =   mg_vulkan_renderer_present_frame;
             plugin.wait             =   mg_vulkan_renderer_wait;
             plugin.viewport         =   mg_vulkan_renderer_viewport;
 
@@ -204,9 +204,9 @@ void mg_rhi_renderer_destroy_render_pass(mg_render_pass_t render_pass)
     plugin.destroy_render_pass(render_pass.internal_data);
 }
 
-void mg_rhi_renderer_begin_render_pass(mg_render_pass_t render_pass, mg_render_pass_begin_info_t *begin_info)
+void mg_rhi_renderer_begin_render_pass(mg_render_pass_t render_pass, mg_framebuffer_t framebuffer, mg_render_pass_begin_info_t *begin_info)
 {
-    plugin.begin_render_pass(render_pass.internal_data, begin_info);
+    plugin.begin_render_pass(render_pass.internal_data, framebuffer.internal_data, begin_info);
 }
 
 void mg_rhi_renderer_begin_default_render_pass(mg_render_pass_begin_info_t *begin_info)
