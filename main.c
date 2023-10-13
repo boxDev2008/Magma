@@ -89,7 +89,7 @@ int main(void)
 
     mg_graphics_2d_initialize(platform_init_info.width, platform_init_info.height);
 
-    mg_texture_t *texture = mg_graphics_2d_create_texture_from_file("test.png");
+    mg_texture_t *texture = mg_graphics_2d_create_texture_from_file("a.png");
     mg_sprite_t *sprite = mg_graphics_2d_create_sprite(0.0f, 0.0f, texture->width / texture->width, texture->height / texture->height, texture);
 
     float position = 0.0f;
@@ -114,14 +114,8 @@ int main(void)
 
         mg_graphics_2d_begin_world(&world_info);
 
-        position += delta_time * 160.0f;
-        if (position > 10000)
-            position = 0;
-
-        for (int i = 0; i < 1; i++)
-        {
-            mg_graphics_2d_draw_sprite(mg_vec2(position + i * 100, i * 100), mg_vec2(160.0f, 160.0f), mg_vec4(1.0f, 1.0f, 1.0f, 1.0f), sprite);
-        }
+        for (int i = 0; i < 16; i++)
+            mg_graphics_2d_draw_rotated_sprite(mg_vec2(cos(current_time - i / 16.0f) * 160.0f, sin(current_time - i / 16.0f) * 160.0f), mg_vec2(sin(current_time - i / 16.0f) * 160.0f, sin(current_time - i / 16.0f) * 160.0f), current_time / MG_RAD2DEG * 18.0f, mg_vec4(0.5f, 0.5f, 0.8f, 1.0f - i / 16.0f), sprite);
 
         mg_graphics_2d_end_world();
 

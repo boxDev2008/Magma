@@ -15,6 +15,8 @@ enum mg_physics_body_type_2d
 typedef struct mg_physics_body_2d mg_physics_body_2d_t;
 struct mg_physics_body_2d
 {
+    bool is_created;
+
     mg_physics_body_type_2d_t type;
     mg_vec2_t position;
     mg_vec2_t velocity;

@@ -11,10 +11,10 @@ void main() {
     vec2 uv = fragTexCoord.xy;
     outColor = texture(texSampler, uv);
 
-    uv *=  1.0 - uv.yx;
+    /*uv *=  1.0 - uv.yx;
     float vig = uv.x*uv.y * 15.0;
     vig = pow(vig, 0.25);
-    outColor *= vec4(vig);
+    outColor *= vec4(vig);*/
     
     /*vec3 hdrColor = texture(texSampler, fragTexCoord).rgb;
     const float gamma = 0.6;

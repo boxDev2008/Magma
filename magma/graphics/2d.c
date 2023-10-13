@@ -71,8 +71,7 @@ struct mg_graphics_2d_data
 
     struct
     {
-        uint32_t pipeline_id;
-        uint32_t vertex_buffer_id;
+        uint32_t bind_id;
     }
     frame_data;
 
@@ -342,6 +341,8 @@ void mg_graphics_2d_initialize(int32_t width, int32_t height)
 
 void mg_graphics_2d_shutdown(void)
 {
+    mg_rhi_renderer_wait();
+
     // World Data
     {
         mg_rhi_renderer_destroy_uniform_buffer(graphics_data.world_data.uniform_buffer);
@@ -402,9 +403,7 @@ void mg_graphics_2d_resize(int32_t width, int32_t height)
 
 void mg_graphics_2d_begin(void)
 {
-    graphics_data.frame_data.pipeline_id = 0;
-    graphics_data.frame_data.vertex_buffer_id = 0;
-    mg_rhi_renderer_bind_index_buffer(graphics_data.index_buffer, MG_INDEX_TYPE_UINT32);
+    graphics_data.frame_data.bind_id = 0;
 }
 
 void mg_graphics_2d_end(void)
@@ -430,7 +429,7 @@ void mg_graphics_2d_begin_world(mg_world_info_t *world_info)
 {
     mg_render_pass_begin_info_t render_pass_begin_info = {
         .render_area = (mg_vec4_t) {0.0f, 0.0f, graphics_data.width, graphics_data.height},
-        .clear_value = (mg_vec4_t) {1.0f, 1.0f, 1.0f, 1.0f}
+        .clear_value = (mg_vec4_t) {0.0f, 0.0f, 0.0f, 1.0f}
     };
 
     mg_rhi_renderer_begin_render_pass(graphics_data.world_data.render_pass,
@@ -460,16 +459,12 @@ void mg_graphics_2d_end_world(void)
 
 void mg_graphics_2d_draw_rect(mg_vec2_t position, mg_vec2_t scale, mg_vec4_t color)
 {
-    if (graphics_data.frame_data.pipeline_id != 1)
+    if (graphics_data.frame_data.bind_id != 1)
     {
         mg_rhi_renderer_bind_pipeline(graphics_data.quad_data.pipeline);
-        graphics_data.frame_data.pipeline_id = 1;
-    }
-
-    if (graphics_data.frame_data.vertex_buffer_id != 1)
-    {
         mg_rhi_renderer_bind_vertex_buffer(graphics_data.quad_data.vertex_buffer);
-        graphics_data.frame_data.vertex_buffer_id = 1;
+        mg_rhi_renderer_bind_index_buffer(graphics_data.index_buffer, MG_INDEX_TYPE_UINT32);
+        graphics_data.frame_data.bind_id = 1;
     }
 
     mg_mat4_t model = mg_mat4_identity();
@@ -487,16 +482,12 @@ void mg_graphics_2d_draw_rect(mg_vec2_t position, mg_vec2_t scale, mg_vec4_t col
 
 void mg_graphics_2d_draw_rotated_rect(mg_vec2_t position, mg_vec2_t scale, float rotation, mg_vec4_t color)
 {
-    if (graphics_data.frame_data.pipeline_id != 1)
+    if (graphics_data.frame_data.bind_id != 1)
     {
         mg_rhi_renderer_bind_pipeline(graphics_data.quad_data.pipeline);
-        graphics_data.frame_data.pipeline_id = 1;
-    }
-
-    if (graphics_data.frame_data.vertex_buffer_id != 1)
-    {
         mg_rhi_renderer_bind_vertex_buffer(graphics_data.quad_data.vertex_buffer);
-        graphics_data.frame_data.vertex_buffer_id = 1;
+        mg_rhi_renderer_bind_index_buffer(graphics_data.index_buffer, MG_INDEX_TYPE_UINT32);
+        graphics_data.frame_data.bind_id = 1;
     }
 
     mg_mat4_t model = mg_mat4_identity();
@@ -515,16 +506,12 @@ void mg_graphics_2d_draw_rotated_rect(mg_vec2_t position, mg_vec2_t scale, float
 
 void mg_graphics_2d_draw_sprite(mg_vec2_t position, mg_vec2_t scale, mg_vec4_t color, mg_sprite_t *sprite)
 {
-    if (graphics_data.frame_data.pipeline_id != 2)
+    if (graphics_data.frame_data.bind_id != 2)
     {
         mg_rhi_renderer_bind_pipeline(graphics_data.sprite_data.pipeline);
-        graphics_data.frame_data.pipeline_id = 2;
-    }
-
-    if (graphics_data.frame_data.vertex_buffer_id != 2)
-    {
         mg_rhi_renderer_bind_vertex_buffer(graphics_data.sprite_data.vertex_buffer);
-        graphics_data.frame_data.vertex_buffer_id = 2;
+        mg_rhi_renderer_bind_index_buffer(graphics_data.index_buffer, MG_INDEX_TYPE_UINT32);
+        graphics_data.frame_data.bind_id = 2;
     }
 
     mg_rhi_renderer_bind_image(sprite->texture->image, graphics_data.sprite_data.pipeline);
@@ -546,16 +533,12 @@ void mg_graphics_2d_draw_sprite(mg_vec2_t position, mg_vec2_t scale, mg_vec4_t c
 
 void mg_graphics_2d_draw_rotated_sprite(mg_vec2_t position, mg_vec2_t scale, float rotation, mg_vec4_t color, mg_sprite_t *sprite)
 {
-    if (graphics_data.frame_data.pipeline_id != 2)
+    if (graphics_data.frame_data.bind_id != 2)
     {
         mg_rhi_renderer_bind_pipeline(graphics_data.sprite_data.pipeline);
-        graphics_data.frame_data.pipeline_id = 2;
-    }
-
-    if (graphics_data.frame_data.vertex_buffer_id != 2)
-    {
         mg_rhi_renderer_bind_vertex_buffer(graphics_data.sprite_data.vertex_buffer);
-        graphics_data.frame_data.vertex_buffer_id = 2;
+        mg_rhi_renderer_bind_index_buffer(graphics_data.index_buffer, MG_INDEX_TYPE_UINT32);
+        graphics_data.frame_data.bind_id = 2;
     }
 
     mg_rhi_renderer_bind_image(sprite->texture->image, graphics_data.sprite_data.pipeline);
