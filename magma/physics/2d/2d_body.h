@@ -16,6 +16,7 @@ typedef struct mg_physics_body_2d mg_physics_body_2d_t;
 struct mg_physics_body_2d
 {
     bool is_created;
+    uint32_t id;
 
     mg_physics_body_type_2d_t type;
     mg_vec2_t position;

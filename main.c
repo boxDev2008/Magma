@@ -9,6 +9,8 @@
 #include "magma/math/mat4.h"
 #include "magma/math/math.h"
 
+#include <math.h>
+
 static bool is_running = true;
 
 bool is_rendering = true;
@@ -29,7 +31,7 @@ void on_resize(mg_resized_event_data_t *data)
         .width = data->width,
         .height = data->height,
         .format = MG_PIXEL_FORMAT_B8G8R8A8_SRGB,
-        .present_mode = MG_PRESENT_MODE_IMMEDIATE_KHR
+        .present_mode = MG_PRESENT_MODE_FIFO_KHR
     };
 
     mg_rhi_renderer_configure_swapchain(&config_info);
@@ -81,7 +83,7 @@ int main(void)
             .width = platform_init_info.width,
             .height = platform_init_info.height,
             .format = MG_PIXEL_FORMAT_B8G8R8A8_SRGB,
-            .present_mode = MG_PRESENT_MODE_IMMEDIATE_KHR
+            .present_mode = MG_PRESENT_MODE_FIFO_KHR
         }
     };
 
@@ -112,10 +114,10 @@ int main(void)
             //.flags = MG_WORLD_FLAG_VIGNETTE
         };
 
-        mg_graphics_2d_begin_world(&world_info);
+        int32_t x, y;
+        mg_input_get_mouse_position(&x, &y);
 
-        for (int i = 0; i < 16; i++)
-            mg_graphics_2d_draw_rotated_sprite(mg_vec2(cos(current_time - i / 16.0f) * 160.0f, sin(current_time - i / 16.0f) * 160.0f), mg_vec2(sin(current_time - i / 16.0f) * 160.0f, sin(current_time - i / 16.0f) * 160.0f), current_time / MG_RAD2DEG * 18.0f, mg_vec4(0.5f, 0.5f, 0.8f, 1.0f - i / 16.0f), sprite);
+        mg_graphics_2d_begin_world(&world_info);
 
         mg_graphics_2d_end_world();
 

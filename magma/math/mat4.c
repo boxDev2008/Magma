@@ -119,8 +119,8 @@ mg_mat4_t mg_mat4_scale(mg_mat4_t matrix, mg_vec3_t v)
 
 mg_mat4_t mg_mat4_rotate_z(mg_mat4_t matrix, float angle)
 {
-	const float cos0 = cos(angle);
-	const float sin0 = sin(angle);
+	const float cos0 = cosf(angle);
+	const float sin0 = sinf(angle);
 
 	mg_mat4_t z = mg_mat4_identity();
 

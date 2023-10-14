@@ -103,6 +103,7 @@
         "opengl_types.inl": "c",
         "wingdi.h": "c",
         "format": "c",
-        "2d.h": "c"
+        "2d.h": "c",
+        "map": "cpp"
     }
 }

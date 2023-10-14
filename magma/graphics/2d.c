@@ -404,6 +404,7 @@ void mg_graphics_2d_resize(int32_t width, int32_t height)
 void mg_graphics_2d_begin(void)
 {
     graphics_data.frame_data.bind_id = 0;
+    mg_rhi_renderer_bind_index_buffer(graphics_data.index_buffer, MG_INDEX_TYPE_UINT32);
 }
 
 void mg_graphics_2d_end(void)
@@ -418,7 +419,6 @@ void mg_graphics_2d_end(void)
 
     mg_rhi_renderer_bind_pipeline(graphics_data.world_data.pipeline);
     mg_rhi_renderer_bind_vertex_buffer(graphics_data.world_data.vertex_buffer);
-    mg_rhi_renderer_bind_uniform_buffer(graphics_data.world_data.uniform_buffer, graphics_data.world_data.pipeline);
     mg_rhi_renderer_bind_image(graphics_data.world_data.image, graphics_data.world_data.pipeline);
     mg_rhi_renderer_draw_indexed(6, 0);
 
@@ -450,6 +450,8 @@ void mg_graphics_2d_begin_world(mg_world_info_t *world_info)
     graphics_data.world_data.ubo.projection = projection;
     mg_rhi_renderer_update_uniform_buffer(graphics_data.world_data.uniform_buffer,
         sizeof(graphics_data.world_data.ubo), &graphics_data.world_data.ubo);
+
+    mg_rhi_renderer_bind_uniform_buffer(graphics_data.world_data.uniform_buffer, graphics_data.world_data.pipeline);
 }
 
 void mg_graphics_2d_end_world(void)
@@ -463,7 +465,6 @@ void mg_graphics_2d_draw_rect(mg_vec2_t position, mg_vec2_t scale, mg_vec4_t col
     {
         mg_rhi_renderer_bind_pipeline(graphics_data.quad_data.pipeline);
         mg_rhi_renderer_bind_vertex_buffer(graphics_data.quad_data.vertex_buffer);
-        mg_rhi_renderer_bind_index_buffer(graphics_data.index_buffer, MG_INDEX_TYPE_UINT32);
         graphics_data.frame_data.bind_id = 1;
     }
 
@@ -486,7 +487,6 @@ void mg_graphics_2d_draw_rotated_rect(mg_vec2_t position, mg_vec2_t scale, float
     {
         mg_rhi_renderer_bind_pipeline(graphics_data.quad_data.pipeline);
         mg_rhi_renderer_bind_vertex_buffer(graphics_data.quad_data.vertex_buffer);
-        mg_rhi_renderer_bind_index_buffer(graphics_data.index_buffer, MG_INDEX_TYPE_UINT32);
         graphics_data.frame_data.bind_id = 1;
     }
 
@@ -510,7 +510,6 @@ void mg_graphics_2d_draw_sprite(mg_vec2_t position, mg_vec2_t scale, mg_vec4_t c
     {
         mg_rhi_renderer_bind_pipeline(graphics_data.sprite_data.pipeline);
         mg_rhi_renderer_bind_vertex_buffer(graphics_data.sprite_data.vertex_buffer);
-        mg_rhi_renderer_bind_index_buffer(graphics_data.index_buffer, MG_INDEX_TYPE_UINT32);
         graphics_data.frame_data.bind_id = 2;
     }
 
@@ -537,7 +536,6 @@ void mg_graphics_2d_draw_rotated_sprite(mg_vec2_t position, mg_vec2_t scale, flo
     {
         mg_rhi_renderer_bind_pipeline(graphics_data.sprite_data.pipeline);
         mg_rhi_renderer_bind_vertex_buffer(graphics_data.sprite_data.vertex_buffer);
-        mg_rhi_renderer_bind_index_buffer(graphics_data.index_buffer, MG_INDEX_TYPE_UINT32);
         graphics_data.frame_data.bind_id = 2;
     }
 
