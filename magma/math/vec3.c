@@ -52,6 +52,12 @@ mg_vec3_t mg_vec3_normalize(mg_vec3_t vec)
     return vec;
 }
 
+float mg_vec3_distance(mg_vec3_t a, mg_vec3_t b)
+{
+    mg_vec3_t delta = mg_vec3_subtract(a, b);
+    return mg_vec3_magnitude(delta);
+}
+
 mg_vec3i_t mg_vec3i(int x, int y, int z)
 {
     mg_vec3i_t vec;

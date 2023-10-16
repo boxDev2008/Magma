@@ -10,7 +10,7 @@ typedef struct mg_platform
 }
 mg_platform_t;
 
-typedef struct mg_window_create_info
+typedef struct mg_platform_init_info
 {
     const char *title;
     int32_t position_x, position_y;

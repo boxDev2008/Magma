@@ -45,6 +45,12 @@ mg_vec4_t mg_vec4_normalize(mg_vec4_t vec)
     return vec;
 }
 
+float mg_vec4_distance(mg_vec4_t a, mg_vec4_t b)
+{
+    mg_vec4_t delta = mg_vec4_subtract(a, b);
+    return mg_vec4_magnitude(delta);
+}
+
 mg_vec4i_t mg_vec4i(int x, int y, int z, int w)
 {
     mg_vec4i_t vec;

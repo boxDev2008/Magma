@@ -16,13 +16,15 @@ typedef struct mg_physics_body_2d mg_physics_body_2d_t;
 struct mg_physics_body_2d
 {
     bool is_created;
+    bool is_static;
+
     uint32_t id;
 
     mg_physics_body_type_2d_t type;
     mg_vec2_t position;
     mg_vec2_t velocity;
+    mg_vec2_t fall_speed;
     float mass;
-    float fall_speed;
 
     struct
     {

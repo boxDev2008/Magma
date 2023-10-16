@@ -9,6 +9,8 @@
 #include "magma/math/mat4.h"
 #include "magma/math/math.h"
 
+#include "magma/physics/2d/world_2d.h"
+
 #include <math.h>
 
 static bool is_running = true;
@@ -98,11 +100,31 @@ int main(void)
 
     double current_time, last_time = 0;
 
+    mg_physics_world_2d_initialize(mg_vec2(0.0f, 0.1f), 16);
+
+    mg_physics_body_2d_t *body1[8];
+
+    for (int i = 0; i < 8; i++)
+    {
+        body1[i] = mg_physics_world_2d_create_rect_body(mg_vec4(-8.0f, -8.0f, 8.0f, 8.0f));
+        body1[i]->position = mg_vec2(0.0f, -100.0f);
+        body1[i]->fall_speed = mg_vec2(0.0f, 1.0f);
+        body1[i]->mass = 1.0f;
+        body1[i]->is_static = false;
+    }
+
+    mg_physics_body_2d_t *body2 = mg_physics_world_2d_create_rect_body(mg_vec4(-80.0f, -80.0f, 80.0f, 80.0f));
+    body2->position = mg_vec2(0.0f, 300.0f);
+    body2->mass = 1.0f;
+    body2->is_static = true;
+
     while (is_running)
     {
         current_time = mg_platform_get_time();
         const double delta_time = current_time - last_time;
         last_time = current_time;
+
+        mg_physics_world_2d_step(delta_time);
 
         mg_rhi_renderer_begin_frame();
 
@@ -114,12 +136,20 @@ int main(void)
             //.flags = MG_WORLD_FLAG_VIGNETTE
         };
 
-        int32_t x, y;
-        mg_input_get_mouse_position(&x, &y);
-
         mg_graphics_2d_begin_world(&world_info);
 
         mg_graphics_2d_end_world();
+
+        int32_t x, y;
+        mg_input_get_mouse_position(&x, &y);
+
+        body2->position.x = x - 640;
+        body2->position.y = y - 360;
+
+        for (int i = 0; i < 8; i++)
+            mg_graphics_2d_draw_rect(mg_vec2(body1[i]->position.x, body1[i]->position.y), mg_vec2(16.0f, 16.0f), mg_vec4(1.0f, 0.8f, 1.0f, 1.0f));
+
+        mg_graphics_2d_draw_rect(mg_vec2(body2->position.x, body2->position.y), mg_vec2(160.0f, 160.0f), mg_vec4(1.0f, 0.8f, 1.0f, 1.0f));
 
         mg_graphics_2d_end();
 
@@ -128,6 +158,8 @@ int main(void)
         
         mg_platform_poll_messages(platform);
     }
+
+    mg_physics_world_2d_shutdown();
 
     mg_graphics_2d_destroy_texture(texture);
     mg_graphics_2d_destroy_sprite(sprite);

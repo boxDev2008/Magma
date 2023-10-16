@@ -20,6 +20,16 @@ mg_vec2_t mg_vec2_subtract(mg_vec2_t a, mg_vec2_t b)
     return mg_vec2(a.x - b.x, a.y - b.y);
 }
 
+mg_vec2_t mg_vec2_multiply(mg_vec2_t a, mg_vec2_t b)
+{
+    return mg_vec2(a.x * b.x, a.y * b.y);
+}
+
+mg_vec2_t mg_vec2_multiply_by_float(mg_vec2_t a, float b)
+{
+    return mg_vec2(a.x * b, a.y * b);
+}
+
 float mg_vec2_dot(mg_vec2_t a, mg_vec2_t b)
 {
     return (a.x * b.x) + (a.y * b.y);
@@ -39,6 +49,12 @@ mg_vec2_t mg_vec2_normalize(mg_vec2_t vec)
         vec.y /= magnitude;
     }
     return vec;
+}
+
+float mg_vec2_distance(mg_vec2_t a, mg_vec2_t b)
+{
+    mg_vec2_t delta = mg_vec2_subtract(a, b);
+    return mg_vec2_magnitude(delta);
 }
 
 mg_vec2i_t mg_vec2i(int x, int y)
