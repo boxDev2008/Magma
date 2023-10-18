@@ -9,7 +9,7 @@
 #include "magma/math/mat4.h"
 #include "magma/math/math.h"
 
-#include "magma/physics/2d/world_2d.h"
+#include "magma/physics/2d.h"
 
 #include <math.h>
 
@@ -106,14 +106,19 @@ int main(void)
 
     for (int i = 0; i < 8; i++)
     {
-        body1[i] = mg_physics_world_2d_create_rect_body(mg_vec4(-8.0f, -8.0f, 8.0f, 8.0f));
+        body1[i] = mg_physics_world_2d_create_body();
+        body1[i]->type = MG_PHYSICS_BODY_TYPE_CIRCLE;
+        body1[i]->circle_info.radius = 8.0f;
         body1[i]->position = mg_vec2(0.0f, -100.0f);
         body1[i]->fall_speed = mg_vec2(0.0f, 1.0f);
         body1[i]->mass = 1.0f;
+        body1[i]->restitution = 1.0f;
         body1[i]->is_static = false;
     }
 
-    mg_physics_body_2d_t *body2 = mg_physics_world_2d_create_rect_body(mg_vec4(-80.0f, -80.0f, 80.0f, 80.0f));
+    mg_physics_body_2d_t *body2 = mg_physics_world_2d_create_body();
+    body2->type = MG_PHYSICS_BODY_TYPE_CIRCLE;
+    body2->circle_info.radius = 80.0f;
     body2->position = mg_vec2(0.0f, 300.0f);
     body2->mass = 1.0f;
     body2->is_static = true;
@@ -147,9 +152,9 @@ int main(void)
         body2->position.y = y - 360;
 
         for (int i = 0; i < 8; i++)
-            mg_graphics_2d_draw_rect(mg_vec2(body1[i]->position.x, body1[i]->position.y), mg_vec2(16.0f, 16.0f), mg_vec4(1.0f, 0.8f, 1.0f, 1.0f));
+            mg_graphics_2d_draw_sprite(mg_vec2(body1[i]->position.x, body1[i]->position.y), mg_vec2(16.0f, 16.0f), mg_vec4(1.0f, 0.8f, 1.0f, 1.0f), sprite);
 
-        mg_graphics_2d_draw_rect(mg_vec2(body2->position.x, body2->position.y), mg_vec2(160.0f, 160.0f), mg_vec4(1.0f, 0.8f, 1.0f, 1.0f));
+        mg_graphics_2d_draw_sprite(mg_vec2(body2->position.x, body2->position.y), mg_vec2(160.0f, 160.0f), mg_vec4(1.0f, 0.8f, 1.0f, 1.0f), sprite);
 
         mg_graphics_2d_end();
 

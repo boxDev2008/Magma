@@ -107,6 +107,7 @@
         "map": "cpp",
         "2d_world.h": "c",
         "world_2d.h": "c",
-        "body_2d.h": "c"
+        "body_2d.h": "c",
+        "cute_c2.h": "c"
     }
 }
