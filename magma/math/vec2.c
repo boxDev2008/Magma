@@ -25,11 +25,6 @@ mg_vec2_t mg_vec2_multiply(mg_vec2_t a, mg_vec2_t b)
     return mg_vec2(a.x * b.x, a.y * b.y);
 }
 
-mg_vec2_t mg_vec2_multiply_by_float(mg_vec2_t a, float b)
-{
-    return mg_vec2(a.x * b, a.y * b);
-}
-
 float mg_vec2_dot(mg_vec2_t a, mg_vec2_t b)
 {
     return (a.x * b.x) + (a.y * b.y);

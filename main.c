@@ -94,7 +94,7 @@ int main(void)
     mg_graphics_2d_initialize(platform_init_info.width, platform_init_info.height);
 
     mg_texture_t *texture = mg_graphics_2d_create_texture_from_file("a.png");
-    mg_sprite_t *sprite = mg_graphics_2d_create_sprite(0.0f, 0.0f, texture->width / texture->width, texture->height / texture->height, texture);
+    mg_sprite_t *sprite = mg_graphics_2d_create_sprite(0.0f, 0.0f, 1.0f, 1.0f, texture);
 
     float position = 0.0f;
 
@@ -112,7 +112,6 @@ int main(void)
         body1[i]->position = mg_vec2(0.0f, -100.0f);
         body1[i]->fall_speed = mg_vec2(0.0f, 1.0f);
         body1[i]->mass = 1.0f;
-        body1[i]->restitution = 1.0f;
         body1[i]->is_static = false;
     }
 

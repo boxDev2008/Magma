@@ -67,13 +67,13 @@ void mg_physics_2d_resolve_aabb_vs_aabb_collision(mg_physics_body_2d_t *body1, m
     if (manifold.n.x != 0.0f)
     {
         body1->position.x -= manifold.n.x * manifold.depths[0];
-        body1->velocity.x -= manifold.n.x * body1->restitution;
+        body1->velocity.x -= 0.0f;
     }
 
     if (manifold.n.y != 0.0f)
     {
         body1->position.y -= manifold.n.y * manifold.depths[0];
-        body1->velocity.y -= manifold.n.y * body1->restitution;
+        body1->velocity.y -= 0.0f;
     }
 }
 
@@ -97,13 +97,13 @@ void mg_physics_2d_resolve_circle_vs_circle_collision(mg_physics_body_2d_t *body
     if (manifold.n.x != 0.0f)
     {
         body1->position.x -= manifold.n.x * manifold.depths[0];
-        body1->velocity.x -= manifold.n.x * body1->restitution;
+        body1->velocity.x = 0.0f;
     }
 
     if (manifold.n.y != 0.0f)
     {
         body1->position.y -= manifold.n.y * manifold.depths[0];
-        body1->velocity.y -= manifold.n.y * body1->restitution;
+        body1->velocity.y = 0.0f;
     }
 }
 
@@ -129,13 +129,13 @@ void mg_physics_2d_resolve_circle_vs_aabb_collision(mg_physics_body_2d_t *body1,
     if (manifold.n.x != 0.0f)
     {
         body1->position.x -= manifold.n.x * manifold.depths[0];
-        body1->velocity.x -= manifold.n.x * body1->restitution;
+        body1->velocity.x -= 0.0f;
     }
 
     if (manifold.n.y != 0.0f)
     {
         body1->position.y -= manifold.n.y * manifold.depths[0];
-        body1->velocity.y -= manifold.n.y * body1->restitution;
+        body1->velocity.y -= 0.0f;
     }
 }
 
@@ -161,13 +161,13 @@ void mg_physics_2d_resolve_aabb_vs_circle_collision(mg_physics_body_2d_t *body1,
     if (manifold.n.x != 0.0f)
     {
         body1->position.x += manifold.n.x * manifold.depths[0];
-        body1->velocity.x += manifold.n.x * body1->restitution;
+        body1->velocity.x += 0.0f;
     }
 
     if (manifold.n.y != 0.0f)
     {
         body1->position.y += manifold.n.y * manifold.depths[0];
-        body1->velocity.y += manifold.n.y * body1->restitution;
+        body1->velocity.y += 0.0f;
     }
 }
 

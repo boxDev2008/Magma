@@ -24,7 +24,6 @@ struct mg_physics_body_2d
     mg_vec2_t position;
     mg_vec2_t velocity;
     mg_vec2_t fall_speed;
-    float restitution;
     float mass;
 
     struct

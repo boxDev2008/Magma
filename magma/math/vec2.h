@@ -38,7 +38,6 @@ MG_API mg_vec2_t    mg_vec2                     (float x, float y);
 MG_API mg_vec2_t    mg_vec2_add                 (mg_vec2_t a, mg_vec2_t b);
 MG_API mg_vec2_t    mg_vec2_subtract            (mg_vec2_t a, mg_vec2_t b);
 MG_API mg_vec2_t    mg_vec2_multiply            (mg_vec2_t a, mg_vec2_t b);
-MG_API mg_vec2_t    mg_vec2_multiply_by_float   (mg_vec2_t a, float b);
 
 MG_API float        mg_vec2_dot                 (mg_vec2_t a, mg_vec2_t b);
 MG_API float        mg_vec2_magnitude           (mg_vec2_t vec);
