@@ -1,4 +1,5 @@
 #include "vec2.h"
+#include "math.h"
 
 #include <math.h>
 
@@ -23,6 +24,11 @@ mg_vec2_t mg_vec2_subtract(mg_vec2_t a, mg_vec2_t b)
 mg_vec2_t mg_vec2_multiply(mg_vec2_t a, mg_vec2_t b)
 {
     return mg_vec2(a.x * b.x, a.y * b.y);
+}
+
+mg_vec2_t mg_vec2_lerp(mg_vec2_t a, mg_vec2_t b, float by)
+{
+    return mg_vec2(mg_math_lerpf(a.x, b.x, by), mg_math_lerpf(a.y, b.y, by));
 }
 
 float mg_vec2_dot(mg_vec2_t a, mg_vec2_t b)

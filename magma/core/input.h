@@ -2,17 +2,20 @@
 
 #include "base.h"
 
-typedef enum mg_mouse_buttons mg_mouse_buttons_t;
-enum mg_mouse_buttons
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef enum mg_mouse_buttons
 {
     MG_MOUSE_BUTTON_LEFT,
     MG_MOUSE_BUTTON_RIGHT,
     MG_MOUSE_BUTTON_MIDDLE,
     MG_MOUSE_BUTTON_MAX_BUTTONS
-};
+}
+mg_mouse_buttons_t;
 
-typedef enum mg_keys mg_keys_t;
-enum mg_keys
+typedef enum mg_keys
 {
     MG_KEY_BACKSPACE = 0x08,
     MG_KEY_ENTER = 0x0D,
@@ -164,7 +167,8 @@ enum mg_keys
     MG_KEY_RBRACKET = 0xDD,
 
     KEYS_MAX_KEYS = 0xFF
-};
+}
+mg_keys_t;
 
 void mg_input_process_key           (mg_keys_t key, bool pressed);
 void mg_input_process_mouse_button  (mg_mouse_buttons_t button, bool pressed);
@@ -176,3 +180,7 @@ MG_API bool     mg_input_is_mouse_button_down   (mg_mouse_buttons_t button);
 
 MG_API int8_t   mg_input_get_mouse_delta        (void);
 MG_API void     mg_input_get_mouse_position     (int32_t *x, int32_t *y);
+
+#ifdef __cplusplus
+}
+#endif

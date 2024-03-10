@@ -1,5 +1,6 @@
 #include "vulkan_renderer.h"
-#include "vulkan_types.inl"
+#include "vulkan_image.h"
+#include "vulkan_types.h"
 
 #include "math/math.h"
 
@@ -82,10 +83,10 @@ void mg_vulkan_create_swapchain(mg_swapchain_config_info_t *config_info)
     assert(result == VK_SUCCESS);
 
     vkGetSwapchainImagesKHR(vulkan_context.device.handle, vulkan_context.swapchain.handle, &vulkan_context.swapchain.image_count, NULL);
-    vulkan_context.swapchain.images = (VkImage*)malloc(vulkan_context.swapchain.image_count * sizeof(VkImage));
+    vulkan_context.swapchain.images = (VkImage*)realloc(vulkan_context.swapchain.images, vulkan_context.swapchain.image_count * sizeof(VkImage));
     vkGetSwapchainImagesKHR(vulkan_context.device.handle, vulkan_context.swapchain.handle, &vulkan_context.swapchain.image_count, vulkan_context.swapchain.images);
 
-    vulkan_context.swapchain.image_views = (VkImageView*)malloc(vulkan_context.swapchain.image_count * sizeof(VkImageView));
+    vulkan_context.swapchain.image_views = (VkImageView*)realloc(vulkan_context.swapchain.image_views, vulkan_context.swapchain.image_count * sizeof(VkImageView));
 
     for (uint32_t i = 0; i < vulkan_context.swapchain.image_count; i++)
     {
@@ -105,18 +106,37 @@ void mg_vulkan_create_swapchain(mg_swapchain_config_info_t *config_info)
         assert(result == VK_SUCCESS);
     }
 
-    vulkan_context.swapchain.framebuffers = (VkFramebuffer*)malloc(vulkan_context.swapchain.image_count * sizeof(VkFramebuffer));
+    mg_vulkan_allocate_image(config_info->width, config_info->height,
+        VK_IMAGE_TYPE_2D, VK_FORMAT_D32_SFLOAT,VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        &vulkan_context.swapchain.depth_image, &vulkan_context.swapchain.depth_image_memory);
+
+    VkImageViewCreateInfo view_info = {VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
+    view_info.image = vulkan_context.swapchain.depth_image;
+    view_info.viewType = VK_IMAGE_TYPE_2D;
+    view_info.format = VK_FORMAT_D32_SFLOAT;
+    view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    view_info.subresourceRange.baseMipLevel = 0;
+    view_info.subresourceRange.levelCount = 1;
+    view_info.subresourceRange.baseArrayLayer = 0;
+    view_info.subresourceRange.layerCount = 1;
+
+    result = vkCreateImageView(vulkan_context.device.handle, &view_info, NULL, &vulkan_context.swapchain.depth_image_view);
+    assert(result == VK_SUCCESS);
+
+    vulkan_context.swapchain.framebuffers = (VkFramebuffer*)realloc(vulkan_context.swapchain.framebuffers, vulkan_context.swapchain.image_count * sizeof(VkFramebuffer));
     for (uint32_t i = 0; i < vulkan_context.swapchain.image_count; i++)
     {
         VkFramebufferCreateInfo framebuffer_create_info = {VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
-        framebuffer_create_info.attachmentCount = 1;
+        framebuffer_create_info.attachmentCount = 2;
         framebuffer_create_info.renderPass = vulkan_context.render_pass;
-        framebuffer_create_info.pAttachments = &vulkan_context.swapchain.image_views[i];
+        framebuffer_create_info.pAttachments =
+            (VkImageView[]){ vulkan_context.swapchain.image_views[i], vulkan_context.swapchain.depth_image_view };
         framebuffer_create_info.width = extent.width;
         framebuffer_create_info.height = extent.height;
         framebuffer_create_info.layers = 1;
 
-        VkResult result = vkCreateFramebuffer(vulkan_context.device.handle, &framebuffer_create_info, NULL, &vulkan_context.swapchain.framebuffers[i]);
+        result = vkCreateFramebuffer(vulkan_context.device.handle, &framebuffer_create_info, NULL, &vulkan_context.swapchain.framebuffers[i]);
         assert(result == VK_SUCCESS);
     }
 }
@@ -131,6 +151,10 @@ void mg_vulkan_cleanup_swapchain(void)
         vkDestroyImageView(vulkan_context.device.handle, vulkan_context.swapchain.image_views[i], NULL);
     }
 
+    vkDestroyImageView(vulkan_context.device.handle, vulkan_context.swapchain.depth_image_view, NULL);
+    vkDestroyImage(vulkan_context.device.handle, vulkan_context.swapchain.depth_image, NULL);
+    vkFreeMemory(vulkan_context.device.handle, vulkan_context.swapchain.depth_image_memory, NULL);
+
     free(vulkan_context.swapchain.framebuffers);
     free(vulkan_context.swapchain.image_views);
 
@@ -141,6 +165,17 @@ void mg_vulkan_configure_swapchain(mg_swapchain_config_info_t *config_info)
 {
     vkDeviceWaitIdle(vulkan_context.device.handle);
     
-    mg_vulkan_cleanup_swapchain();
+    vkDestroySwapchainKHR(vulkan_context.device.handle, vulkan_context.swapchain.handle, NULL);
+
+    for (uint32_t i = 0; i < vulkan_context.swapchain.image_count; i++)
+    {
+        vkDestroyFramebuffer(vulkan_context.device.handle, vulkan_context.swapchain.framebuffers[i], NULL);
+        vkDestroyImageView(vulkan_context.device.handle, vulkan_context.swapchain.image_views[i], NULL);
+    }
+
+    vkDestroyImageView(vulkan_context.device.handle, vulkan_context.swapchain.depth_image_view, NULL);
+    vkDestroyImage(vulkan_context.device.handle, vulkan_context.swapchain.depth_image, NULL);
+    vkFreeMemory(vulkan_context.device.handle, vulkan_context.swapchain.depth_image_memory, NULL);
+
     mg_vulkan_create_swapchain(config_info);
 }

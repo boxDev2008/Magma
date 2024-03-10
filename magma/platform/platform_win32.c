@@ -9,12 +9,14 @@
 #include <windows.h>
 #include <windowsx.h>
 
+#include <stdio.h>
+
 typedef struct mg_win32_handle_info
 {
     HINSTANCE h_instance;
     HWND hwnd;
 
-    int32_t window_width, window_height;
+    uint32_t window_width, window_height;
 }
 mg_win32_handle_info_t;
 
@@ -22,6 +24,30 @@ static double clock_frequency;
 static LARGE_INTEGER start_time;
 
 LRESULT CALLBACK win32_process_message(HWND hwnd, uint32_t msg, WPARAM w_param, LPARAM l_param);
+
+WCHAR* mg_create_wide_string_from_utf8(const char* source)
+{
+    WCHAR* target;
+    int count;
+
+    count = MultiByteToWideChar(CP_UTF8, 0, source, -1, NULL, 0);
+    if (!count)
+    {
+        MessageBox(0, "Failed to convert string from UTF-8", "Error", MB_ICONEXCLAMATION | MB_OK);
+        return NULL;
+    }
+
+    target = (WCHAR*)malloc(count * sizeof(WCHAR));
+
+    if (!MultiByteToWideChar(CP_UTF8, 0, source, -1, target, count))
+    {
+        MessageBoxA(NULL, "Failed to convert string from UTF-8", "Error!", MB_ICONEXCLAMATION | MB_OK);
+        free(target);
+        return NULL;
+    }
+
+    return target;
+}
 
 mg_platform_t *mg_platform_initialize(mg_platform_init_info_t *create_info)
 {
@@ -49,7 +75,7 @@ mg_platform_t *mg_platform_initialize(mg_platform_init_info_t *create_info)
 
     if (!RegisterClassA(&wc))
     {
-        MessageBox(0, "Window refistration failed!", "Error", MB_ICONEXCLAMATION | MB_OK);
+        MessageBox(0, "Window refistration failed", "Error", MB_ICONEXCLAMATION | MB_OK);
         return;
     }
 
@@ -74,19 +100,30 @@ mg_platform_t *mg_platform_initialize(mg_platform_init_info_t *create_info)
     window_width += border_rect.right - border_rect.left;
     window_height += border_rect.bottom - border_rect.top;
 
+#ifdef _MSC_VER
+    WCHAR *wide_title = mg_create_wide_string_from_utf8(create_info->title);
+
+    HWND handle = CreateWindowExA(
+        window_ex_style, "magma_window_class", wide_title,
+        window_style, window_x, window_y, window_width, window_height,
+        0, 0, state->h_instance, platform);
+
+    free(wide_title);
+#else
     HWND handle = CreateWindowExA(
         window_ex_style, "magma_window_class", create_info->title,
         window_style, window_x, window_y, window_width, window_height,
         0, 0, state->h_instance, platform);
+#endif
 
     if (handle == 0)
     {
-        MessageBoxA(NULL, "Window creation failed!", "Error!", MB_ICONEXCLAMATION | MB_OK);
+        MessageBoxA(NULL, "Window creation failed", "Error!", MB_ICONEXCLAMATION | MB_OK);
         return;
     }
     else
         state->hwnd = handle;
-        
+
     uint32_t should_activate = 1;
     int32_t show_window_command_flags = should_activate ? SW_SHOW : SW_SHOWNOACTIVATE;
     ShowWindow(state->hwnd, show_window_command_flags);
@@ -233,7 +270,7 @@ double mg_platform_get_time(void)
     return (double)now_time.QuadPart * clock_frequency;
 }
 
-void mg_platform_get_window_size(mg_platform_t *platform, int32_t *width, int32_t *height)
+void mg_platform_get_window_size(mg_platform_t *platform, uint32_t *width, uint32_t *height)
 {
     mg_win32_handle_info_t *handle = (mg_win32_handle_info_t*)platform->handle;
     *width = handle->window_width;

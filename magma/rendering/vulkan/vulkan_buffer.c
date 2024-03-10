@@ -1,6 +1,7 @@
 #include "vulkan_buffer.h"
 #include "vulkan_command_buffer.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
@@ -55,9 +56,12 @@ mg_vulkan_buffer_t *mg_vulkan_create_buffer(size_t size, void *data, VkBufferUsa
 {
     mg_vulkan_buffer_t *buffer = (mg_vulkan_buffer_t*)malloc(sizeof(mg_vulkan_buffer_t));
 
+    VkBuffer staging_buffer;
+    VkDeviceMemory staging_memory;
+
     mg_vulkan_allocate_buffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-    &buffer->staging_buffer, &buffer->staging_memory);
+    &staging_buffer, &staging_memory);
 
     mg_vulkan_allocate_buffer(size,
     VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage,
@@ -66,20 +70,20 @@ mg_vulkan_buffer_t *mg_vulkan_create_buffer(size_t size, void *data, VkBufferUsa
 
     void *_data;
 
-    vkMapMemory(vulkan_context.device.handle, buffer->staging_memory, 0, size, 0, &_data);
+    vkMapMemory(vulkan_context.device.handle, staging_memory, 0, size, 0, &_data);
     memcpy(_data, data, size);
-    vkUnmapMemory(vulkan_context.device.handle, buffer->staging_memory);
+    vkUnmapMemory(vulkan_context.device.handle, staging_memory);
 
-    mg_vulkan_copy_buffer(buffer->staging_buffer, buffer->buffer, size);
+    mg_vulkan_copy_buffer(staging_buffer, buffer->buffer, size);
+
+    vkDestroyBuffer(vulkan_context.device.handle, staging_buffer, NULL);
+    vkFreeMemory(vulkan_context.device.handle, staging_memory, NULL);
 
     return buffer;
 }
 
 void mg_vulkan_destroy_buffer(mg_vulkan_buffer_t *buffer)
 {
-    vkDestroyBuffer(vulkan_context.device.handle, buffer->staging_buffer, NULL);
-    vkFreeMemory(vulkan_context.device.handle, buffer->staging_memory, NULL);
-
     vkDestroyBuffer(vulkan_context.device.handle, buffer->buffer, NULL);
     vkFreeMemory(vulkan_context.device.handle, buffer->memory, NULL);
 
@@ -189,13 +193,13 @@ void mg_vulkan_destroy_uniform_buffer(mg_vulkan_uniform_buffer_t *buffer)
     free(buffer);
 }
 
-void mg_vulkan_update_uniform_buffer(mg_vulkan_uniform_buffer_t *buffer, size_t size, void *data)
+void mg_vulkan_update_uniform_buffer(mg_vulkan_uniform_buffer_t *buffer, size_t size, uint32_t binding, void *data)
 {
     memcpy(buffer->data, data, size);
 
     VkWriteDescriptorSet write = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
     write.dstSet = buffer->descriptor_set;
-    write.dstBinding = 0;
+    write.dstBinding = binding;
     write.dstArrayElement = 0;
 
     write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;

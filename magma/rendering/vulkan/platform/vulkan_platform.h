@@ -1,6 +1,6 @@
 #pragma once
 
 #include "platform/platform.h"
-#include "../vulkan_types.inl"
+#include "../vulkan_types.h"
 
 void mg_vulkan_create_surface(mg_platform_t *platform);

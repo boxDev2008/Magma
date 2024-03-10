@@ -4,6 +4,10 @@
 
 #include "vec3.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
 	Matrix 4×4 representation:
 	0/m11 4/m12  8/m13 12/m14
@@ -36,8 +40,11 @@ typedef union mg_mat4
 }
 mg_mat4_t;
 
-MG_API mg_mat4_t mg_mat4_identity	(void);
-MG_API mg_mat4_t mg_mat4_ortho		(float bottom, float top, float left, float right, float near, float far);
+MG_API mg_mat4_t mg_mat4_identity		(void);
+MG_API mg_mat4_t mg_mat4_ortho			(float bottom, float top, float left, float right, float near, float far);
+MG_API mg_mat4_t mg_mat4_perspective	(float fov, float aspect, float near, float far);
+
+MG_API mg_mat4_t mg_mat4_look_at		(mg_vec3_t eye, mg_vec3_t center, mg_vec3_t up);
 
 MG_API mg_mat4_t mg_mat4_add		(mg_mat4_t first, mg_mat4_t second);
 MG_API mg_mat4_t mg_mat4_multiply	(mg_mat4_t first, mg_mat4_t second);
@@ -45,6 +52,12 @@ MG_API mg_mat4_t mg_mat4_multiply	(mg_mat4_t first, mg_mat4_t second);
 MG_API mg_mat4_t mg_mat4_translate	(mg_mat4_t matrix, mg_vec3_t v);
 MG_API mg_mat4_t mg_mat4_scale		(mg_mat4_t matrix, mg_vec3_t v);
 
+MG_API mg_mat4_t mg_mat4_rotate_x	(mg_mat4_t matrix, float angle);
+MG_API mg_mat4_t mg_mat4_rotate_y	(mg_mat4_t matrix, float angle);
 MG_API mg_mat4_t mg_mat4_rotate_z	(mg_mat4_t matrix, float angle);
 
-MG_API mg_mat4_t mg_mat4_rotate		(mg_mat4_t matrix, mg_vec3_t axis, float angle);
+MG_API mg_mat4_t mg_mat4_rotate		(mg_mat4_t matrix, float angle, mg_vec3_t axis);
+
+#ifdef __cplusplus
+}
+#endif

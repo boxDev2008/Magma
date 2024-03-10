@@ -2,6 +2,10 @@
 
 #include "base.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef union mg_vec3
 {
     struct
@@ -41,6 +45,8 @@ mg_vec3i_t;
 MG_API mg_vec3_t    mg_vec3             (float x, float y, float z);
 MG_API mg_vec3_t    mg_vec3_add         (mg_vec3_t a, mg_vec3_t b);
 MG_API mg_vec3_t    mg_vec3_subtract    (mg_vec3_t a, mg_vec3_t b);
+MG_API mg_vec3_t    mg_vec3_lerp        (mg_vec3_t a, mg_vec3_t b, float by);
+
 MG_API float        mg_vec3_dot         (mg_vec3_t a, mg_vec3_t b);
 MG_API mg_vec3_t    mg_vec3_cross       (mg_vec3_t a, mg_vec3_t b);
 MG_API float        mg_vec3_magnitude   (mg_vec3_t vec);
@@ -51,3 +57,7 @@ MG_API mg_vec3i_t   mg_vec3i            (int x, int y, int z);
 MG_API mg_vec3i_t   mg_vec3i_add        (mg_vec3i_t a, mg_vec3i_t b);
 MG_API mg_vec3i_t   mg_vec3i_subtract   (mg_vec3i_t a, mg_vec3i_t b);
 MG_API int          mg_vec3i_dot        (mg_vec3i_t a, mg_vec3i_t b);
+
+#ifdef __cplusplus
+}
+#endif

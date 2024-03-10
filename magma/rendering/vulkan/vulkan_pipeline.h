@@ -1,6 +1,6 @@
 #pragma once
 
-#include "vulkan_types.inl"
+#include "vulkan_types.h"
 #include "../rhi_renderer.h"
 
 mg_vulkan_pipeline_t   *mg_vulkan_create_pipeline   (mg_pipeline_create_info_t *create_info);

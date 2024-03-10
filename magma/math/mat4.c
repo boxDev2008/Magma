@@ -43,6 +43,63 @@ mg_mat4_t mg_mat4_ortho(float bottom, float top, float left, float right, float 
 	return result;
 }
 
+mg_mat4_t mg_mat4_perspective(float fov, float aspect, float near, float far)
+{
+    mg_mat4_t result = mg_mat4_identity();
+    
+    float tan_half_fov = tanf(fov / 2.0f);
+
+    result.m11 = 1.0f / (aspect * tan_half_fov);
+    result.m22 = 1.0f / tan_half_fov;
+    result.m33 = far / (near - far);
+    result.m34 = -(near * far) / (near - far);
+    result.m43 = -1.0f;
+
+    return result;
+}
+
+mg_mat4_t mg_mat4_look_at(mg_vec3_t eye, mg_vec3_t center, mg_vec3_t up)
+{
+    mg_vec3_t f = {center.x - eye.x, center.y - eye.y, center.z - eye.z};
+    mg_vec3_t r = {up.y * f.z - up.z * f.y, up.z * f.x - up.x * f.z, up.x * f.y - up.y * f.x};
+    mg_vec3_t u = {f.y * r.z - f.z * r.y, f.z * r.x - f.x * r.z, f.x * r.y - f.y * r.x};
+
+    float length_f = sqrtf(f.x * f.x + f.y * f.y + f.z * f.z);
+    float length_r = sqrtf(r.x * r.x + r.y * r.y + r.z * r.z);
+    float length_u = sqrtf(u.x * u.x + u.y * u.y + u.z * u.z);
+
+    f.x /= length_f;
+    f.y /= length_f;
+    f.z /= length_f;
+
+    r.x /= length_r;
+    r.y /= length_r;
+    r.z /= length_r;
+
+    u.x /= length_u;
+    u.y /= length_u;
+    u.z /= length_u;
+
+    mg_mat4_t view_matrix = mg_mat4_identity();
+
+    view_matrix.m11 = r.x;
+    view_matrix.m21 = r.y;
+    view_matrix.m31 = r.z;
+    view_matrix.m41 = -mg_vec3_dot(r, eye);
+
+    view_matrix.m12 = u.x;
+    view_matrix.m22 = u.y;
+    view_matrix.m32 = u.z;
+    view_matrix.m42 = -mg_vec3_dot(u, eye);
+
+    view_matrix.m13 = -f.x;
+    view_matrix.m23 = -f.y;
+    view_matrix.m33 = -f.z;
+    view_matrix.m43 = mg_vec3_dot(f, eye);
+
+    return view_matrix;
+}
+
 mg_mat4_t mg_mat4_add(mg_mat4_t first, mg_mat4_t second)
 {
 	mg_mat4_t result;
@@ -117,6 +174,36 @@ mg_mat4_t mg_mat4_scale(mg_mat4_t matrix, mg_vec3_t v)
 	return mg_mat4_multiply(matrix, scale);
 }
 
+mg_mat4_t mg_mat4_rotate_x(mg_mat4_t matrix, float angle)
+{
+    const float cos0 = cosf(angle);
+    const float sin0 = sinf(angle);
+
+    mg_mat4_t x = mg_mat4_identity();
+
+    x.m22 = cos0;
+    x.m23 = -sin0;
+    x.m32 = sin0;
+    x.m33 = cos0;
+
+    return mg_mat4_multiply(matrix, x);
+}
+
+mg_mat4_t mg_mat4_rotate_y(mg_mat4_t matrix, float angle)
+{
+    const float cos0 = cosf(angle);
+    const float sin0 = sinf(angle);
+
+    mg_mat4_t y = mg_mat4_identity();
+
+    y.m11 = cos0;
+    y.m13 = sin0;
+    y.m31 = -sin0;
+    y.m33 = cos0;
+
+    return mg_mat4_multiply(matrix, y);
+}
+
 mg_mat4_t mg_mat4_rotate_z(mg_mat4_t matrix, float angle)
 {
 	const float cos0 = cosf(angle);
@@ -130,4 +217,27 @@ mg_mat4_t mg_mat4_rotate_z(mg_mat4_t matrix, float angle)
 	z.m22 = cos0;
 
 	return mg_mat4_multiply(matrix, z);
+}
+
+mg_mat4_t mg_mat4_rotate(mg_mat4_t matrix, float angle, mg_vec3_t axis)
+{
+    mg_mat4_t rotation = mg_mat4_identity();
+
+    float cos_theta = cosf(angle);
+    float sin_theta = sinf(angle);
+    float one_minus_cos_theta = 1.0f - cos_theta;
+
+    rotation.m11 = cos_theta + axis.x * axis.x * one_minus_cos_theta;
+    rotation.m12 = axis.x * axis.y * one_minus_cos_theta - axis.z * sin_theta;
+    rotation.m13 = axis.x * axis.z * one_minus_cos_theta + axis.y * sin_theta;
+
+    rotation.m21 = axis.y * axis.x * one_minus_cos_theta + axis.z * sin_theta;
+    rotation.m22 = cos_theta + axis.y * axis.y * one_minus_cos_theta;
+    rotation.m23 = axis.y * axis.z * one_minus_cos_theta - axis.x * sin_theta;
+
+    rotation.m31 = axis.z * axis.x * one_minus_cos_theta - axis.y * sin_theta;
+    rotation.m32 = axis.z * axis.y * one_minus_cos_theta + axis.x * sin_theta;
+    rotation.m33 = cos_theta + axis.z * axis.z * one_minus_cos_theta;
+
+    return mg_mat4_multiply(matrix, rotation);
 }

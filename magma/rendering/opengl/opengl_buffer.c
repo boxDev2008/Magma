@@ -1,30 +1,11 @@
 #include "opengl_buffer.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 
-GLuint mg_opengl_get_buffer_usage(mg_buffer_usage_t usage)
-{
-    switch (usage)
-    {
-        case MG_BUFFER_USAGE_VERTEX: return GL_ARRAY_BUFFER; break;
-        case MG_BUFFER_USAGE_INDEX: return GL_ELEMENT_ARRAY_BUFFER; break;
-        case MG_BUFFER_USAGE_UNIFORM: return GL_UNIFORM_BUFFER; break;
-        case MG_BUFFER_USAGE_STORAGE: return GL_SHADER_STORAGE_BUFFER; break;
-    }
-}
-
-GLenum mg_opengl_get_buffer_update_frequency(mg_buffer_update_frequency_t frequency)
-{
-    switch (frequency)
-    {
-        case MG_BUFFER_USAGE_STATIC: return GL_STATIC_DRAW; break;
-        case MG_BUFFER_USAGE_DYNAMIC: return GL_DYNAMIC_DRAW; break;
-    }
-}
-
-GLenum mg_opengl_get_index_type(mg_index_type_t index_type)
+static GLenum mg_opengl_get_index_type(mg_index_type_t index_type)
 {
     switch (index_type)
     {
@@ -33,40 +14,206 @@ GLenum mg_opengl_get_index_type(mg_index_type_t index_type)
     }
 }
 
-mg_opengl_buffer_t *mg_opengl_create_buffer(mg_buffer_create_info_t *create_info)
+static void mg_opengl_bind_vertex_attributes(void)
 {
-    mg_opengl_buffer_t *buffer = (mg_opengl_buffer_t*)malloc(sizeof(mg_opengl_buffer_t));
-    buffer->frequency = mg_opengl_get_buffer_update_frequency(create_info->frequency);
-    buffer->usage = mg_opengl_get_buffer_usage(create_info->usage);
+    const mg_opengl_pipeline_t *pipeline = opengl_context.current_pipeline;
+    for (uint32_t i = 0; i < pipeline->vertex_layout.attribute_count; i++)
+    {
+        switch (pipeline->vertex_layout.attributes[i].format)
+        {
+        case MG_VERTEX_FORMAT_UINT:
+            glVertexAttribPointer(pipeline->vertex_layout.attributes[i].location, 1,
+                GL_UNSIGNED_INT, GL_FALSE, pipeline->vertex_layout.stride,
+                (void *)pipeline->vertex_layout.attributes[i].offset);
+            break;
+        case MG_VERTEX_FORMAT_INT:
+            glVertexAttribPointer(pipeline->vertex_layout.attributes[i].location, 1,
+                GL_INT, GL_FALSE, pipeline->vertex_layout.stride,
+                (void *)pipeline->vertex_layout.attributes[i].offset);
+            break;
+        case MG_VERTEX_FORMAT_FLOAT:
+            glVertexAttribPointer(pipeline->vertex_layout.attributes[i].location, 1,
+                GL_FLOAT, GL_FALSE, pipeline->vertex_layout.stride,
+                (void *)pipeline->vertex_layout.attributes[i].offset);
+            break;
 
+        case MG_VERTEX_FORMAT_UINT2:
+            glVertexAttribPointer(pipeline->vertex_layout.attributes[i].location, 2,
+                GL_UNSIGNED_INT, GL_FALSE, pipeline->vertex_layout.stride,
+                (void *)pipeline->vertex_layout.attributes[i].offset);
+            break;
+        case MG_VERTEX_FORMAT_INT2:
+            glVertexAttribPointer(pipeline->vertex_layout.attributes[i].location, 2,
+                GL_INT, GL_FALSE, pipeline->vertex_layout.stride,
+                (void *)pipeline->vertex_layout.attributes[i].offset);
+            break;
+        case MG_VERTEX_FORMAT_FLOAT2:
+            glVertexAttribPointer(pipeline->vertex_layout.attributes[i].location, 2,
+                GL_FLOAT, GL_FALSE, pipeline->vertex_layout.stride,
+                (void *)pipeline->vertex_layout.attributes[i].offset);
+            break;
+
+        case MG_VERTEX_FORMAT_UINT3:
+            glVertexAttribPointer(pipeline->vertex_layout.attributes[i].location, 3,
+                GL_UNSIGNED_INT, GL_FALSE, pipeline->vertex_layout.stride,
+                (void *)pipeline->vertex_layout.attributes[i].offset);
+            break;
+        case MG_VERTEX_FORMAT_INT3:
+            glVertexAttribPointer(pipeline->vertex_layout.attributes[i].location, 3,
+                GL_INT, GL_FALSE, pipeline->vertex_layout.stride,
+                (void *)pipeline->vertex_layout.attributes[i].offset);
+            break;
+        case MG_VERTEX_FORMAT_FLOAT3:
+            glVertexAttribPointer(pipeline->vertex_layout.attributes[i].location, 3,
+                GL_FLOAT, GL_FALSE, pipeline->vertex_layout.stride,
+                (void *)pipeline->vertex_layout.attributes[i].offset);
+            break;
+
+        case MG_VERTEX_FORMAT_UINT4:
+            glVertexAttribPointer(pipeline->vertex_layout.attributes[i].location, 4,
+                GL_UNSIGNED_INT, GL_FALSE, pipeline->vertex_layout.stride,
+                (void *)pipeline->vertex_layout.attributes[i].offset);
+            break;
+        case MG_VERTEX_FORMAT_INT4:
+            glVertexAttribPointer(pipeline->vertex_layout.attributes[i].location, 4,
+                GL_INT, GL_FALSE, pipeline->vertex_layout.stride,
+                (void *)pipeline->vertex_layout.attributes[i].offset);
+            break;
+        case MG_VERTEX_FORMAT_FLOAT4:
+            glVertexAttribPointer(pipeline->vertex_layout.attributes[i].location, 4,
+                GL_FLOAT, GL_FALSE, pipeline->vertex_layout.stride,
+                (void *)pipeline->vertex_layout.attributes[i].offset);
+            break;
+        }
+
+        glEnableVertexAttribArray(pipeline->vertex_layout.attributes[i].location);
+    }
+}
+
+mg_opengl_vertex_buffer_t *mg_opengl_create_vertex_buffer(size_t size, void *data)
+{
+    mg_opengl_vertex_buffer_t *buffer = (mg_opengl_vertex_buffer_t*)malloc(sizeof(mg_opengl_vertex_buffer_t));
     glGenBuffers(1, &buffer->id);
-    glBindBuffer(buffer->usage, buffer->id);
-    glBufferData(buffer->usage, create_info->size, NULL, buffer->frequency);
-    //glBindBuffer(buffer->usage, 0);
-
+    glBindBuffer(GL_ARRAY_BUFFER, buffer->id);
+    glBufferData(GL_ARRAY_BUFFER, size, data, GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
     return buffer;
 }
 
-void mg_opengl_update_buffer(mg_opengl_buffer_t *buffer, mg_buffer_update_info_t *update_info)
-{
-    glBindBuffer(buffer->usage, buffer->id);
-    glBufferData(buffer->usage, update_info->size, update_info->data, buffer->frequency);
-    //glBindBuffer(buffer->usage, 0);
-}
-
-void mg_opengl_destroy_buffer(mg_opengl_buffer_t *buffer)
+void mg_opengl_destroy_vertex_buffer(mg_opengl_vertex_buffer_t *buffer)
 {
     glDeleteBuffers(1, &buffer->id);
     free(buffer);
 }
 
-void mg_opengl_bind_vertex_buffer(mg_opengl_buffer_t *buffer)
+mg_opengl_index_buffer_t *mg_opengl_create_index_buffer(size_t size, void *data)
 {
-    glBindBuffer(GL_ARRAY_BUFFER, buffer->id);
+    mg_opengl_index_buffer_t *buffer = (mg_opengl_index_buffer_t*)malloc(sizeof(mg_opengl_index_buffer_t));
+    glGenBuffers(1, &buffer->id);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer->id);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, data, GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    return buffer;
 }
 
-void mg_opengl_bind_index_buffer(mg_opengl_buffer_t *buffer, mg_index_type_t index_type)
+void mg_opengl_destroy_index_buffer(mg_opengl_index_buffer_t *buffer)
+{
+    glDeleteBuffers(1, &buffer->id);
+    free(buffer);
+}
+
+mg_opengl_dynamic_vertex_buffer_t *mg_opengl_create_dynamic_vertex_buffer(size_t size)
+{
+    mg_opengl_dynamic_vertex_buffer_t *buffer = (mg_opengl_dynamic_vertex_buffer_t*)malloc(sizeof(mg_opengl_dynamic_vertex_buffer_t));
+    glGenBuffers(1, &buffer->id);
+    glBindBuffer(GL_ARRAY_BUFFER, buffer->id);
+    glBufferData(GL_ARRAY_BUFFER, size, NULL, GL_DYNAMIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    return buffer;
+}
+
+void mg_opengl_destroy_dynamic_vertex_buffer(mg_opengl_dynamic_vertex_buffer_t *buffer)
+{
+    glDeleteBuffers(1, &buffer->id);
+    free(buffer);
+}
+
+void mg_opengl_update_dynamic_vertex_buffer(mg_opengl_dynamic_vertex_buffer_t *buffer, size_t size, void *data)
+{
+    glBindBuffer(GL_ARRAY_BUFFER, buffer->id);
+    glBufferData(GL_ARRAY_BUFFER, size, data, GL_DYNAMIC_DRAW);
+}
+
+mg_opengl_dynamic_index_buffer_t *mg_opengl_create_dynamic_index_buffer(size_t size)
+{
+    mg_opengl_dynamic_index_buffer_t *buffer = (mg_opengl_dynamic_index_buffer_t*)malloc(sizeof(mg_opengl_dynamic_index_buffer_t));
+    glGenBuffers(1, &buffer->id);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer->id);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, NULL, GL_DYNAMIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    return buffer;
+}
+
+void mg_opengl_destroy_dynamic_index_buffer(mg_opengl_dynamic_index_buffer_t *buffer)
+{
+    glDeleteBuffers(1, &buffer->id);
+    free(buffer);
+}
+
+void mg_opengl_update_dynamic_index_buffer(mg_opengl_dynamic_index_buffer_t *buffer, size_t size, void *data)
+{
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer->id);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, data, GL_DYNAMIC_DRAW);
+}
+
+mg_opengl_uniform_buffer_t *mg_opengl_create_uniform_buffer(size_t size)
+{
+    mg_opengl_uniform_buffer_t *buffer = (mg_opengl_uniform_buffer_t*)malloc(sizeof(mg_opengl_uniform_buffer_t));
+    glGenBuffers(1, &buffer->id);
+    glBindBuffer(GL_UNIFORM_BUFFER, buffer->id);
+    glBufferData(GL_UNIFORM_BUFFER, size, NULL, GL_STATIC_DRAW);
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+    return buffer;
+}
+
+void mg_opengl_destroy_uniform_buffer(mg_opengl_uniform_buffer_t *buffer)
+{
+    glDeleteBuffers(1, &buffer->id);
+    free(buffer);
+}
+
+void mg_opengl_update_uniform_buffer(mg_opengl_uniform_buffer_t *buffer, size_t size, uint32_t binding, void *data)
+{
+    glBindBuffer(GL_UNIFORM_BUFFER, buffer->id);
+    glBufferData(GL_UNIFORM_BUFFER, size, data, GL_STATIC_DRAW);
+    buffer->binding = binding;
+}
+
+void mg_opengl_bind_vertex_buffer(mg_opengl_vertex_buffer_t *buffer)
+{
+    glBindBuffer(GL_ARRAY_BUFFER, buffer->id);
+    mg_opengl_bind_vertex_attributes();
+}
+
+void mg_opengl_bind_dynamic_vertex_buffer(mg_opengl_dynamic_vertex_buffer_t *buffer)
+{
+    glBindBuffer(GL_ARRAY_BUFFER, buffer->id);
+    mg_opengl_bind_vertex_attributes();
+}
+
+void mg_opengl_bind_index_buffer(mg_opengl_index_buffer_t *buffer, mg_index_type_t index_type)
 {
     opengl_context.index_type = mg_opengl_get_index_type(index_type);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer->id);
+}
+
+void mg_opengl_bind_dynamic_index_buffer(mg_opengl_dynamic_index_buffer_t *buffer, mg_index_type_t index_type)
+{
+    opengl_context.index_type = mg_opengl_get_index_type(index_type);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer->id);
+}
+
+void mg_opengl_bind_unifom_buffer(mg_opengl_uniform_buffer_t *buffer, mg_opengl_pipeline_t *pipeline)
+{
+    glBindBufferBase(GL_UNIFORM_BUFFER, buffer->binding, buffer->id);
 }

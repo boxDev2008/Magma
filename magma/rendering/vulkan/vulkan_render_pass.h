@@ -1,6 +1,6 @@
 #pragma once
 
-#include "vulkan_types.inl"
+#include "vulkan_types.h"
 
 VkRenderPass    mg_vulkan_create_render_pass        (mg_render_pass_create_info_t *create_info);
 void            mg_vulkan_destroy_render_pass       (VkRenderPass render_pass);

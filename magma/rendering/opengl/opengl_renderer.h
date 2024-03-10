@@ -1,6 +1,6 @@
 #pragma once
 
-#include "opengl_types.inl"
+#include "opengl_types.h"
 
 extern mg_opengl_context_t opengl_context;
 
@@ -10,7 +10,7 @@ void mg_opengl_renderer_shutdown        (void);
 void mg_opengl_renderer_begin_frame     (void);
 void mg_opengl_renderer_end_frame       (void);
 
-void mg_opengl_renderer_present         (void);
+void mg_opengl_renderer_present_frame	(void);
 
 void mg_opengl_renderer_wait            (void);
 
@@ -20,3 +20,5 @@ void mg_opengl_renderer_draw            (uint32_t vertex_count, uint32_t first_v
 void mg_opengl_renderer_draw_indexed    (uint32_t index_count, uint32_t first_index);
 
 void mg_opengl_renderer_push_constants  (mg_opengl_pipeline_t *pipeline, uint32_t size, void *data);
+
+void mg_opengl_configure_swapchain      (mg_swapchain_config_info_t *config_info);

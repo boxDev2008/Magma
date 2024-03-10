@@ -1,6 +1,6 @@
 #pragma once
 
-#include "vulkan_types.inl"
+#include "vulkan_types.h"
 
 VkCommandBuffer mg_vulkan_create_command_buffer         (void);
 void            mg_vulkan_submit_command_buffer         (VkCommandBuffer buffer);

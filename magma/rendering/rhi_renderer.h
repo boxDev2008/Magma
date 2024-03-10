@@ -3,7 +3,12 @@
 #include "platform/platform.h"
 
 #include "math/vec2.h"
+#include "math/vec3.h"
 #include "math/vec4.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #ifndef MG_CONFIG_MAX_TEXTURES
     #define MG_CONFIG_MAX_TEXTURES 4096
@@ -23,31 +28,29 @@
 
 typedef void *mg_handle_t;
 
-typedef enum mg_renderer_type mg_renderer_type_t;
-enum mg_renderer_type
+typedef enum mg_renderer_type
 {
     MG_RENDERER_TYPE_OPENGL,
     MG_RENDERER_TYPE_VULKAN
-};
+}
+mg_renderer_type_t;
 
-typedef enum mg_index_type mg_index_type_t;
-enum mg_index_type
+typedef enum mg_index_type
 {
     MG_INDEX_TYPE_UINT16 = 0,
     MG_INDEX_TYPE_UINT32 = 1
-};
+}
+mg_index_type_t;
 
 typedef struct mg_buffer
-    mg_vertex_buffer_t, mg_index_buffer_t,
-    mg_dynamic_vertex_buffer_t, mg_dynamic_index_buffer_t,
-    mg_uniform_buffer_t;
-struct mg_buffer
 {
     mg_handle_t internal_data;
-};
+}
+mg_vertex_buffer_t, mg_index_buffer_t,
+mg_dynamic_vertex_buffer_t, mg_dynamic_index_buffer_t,
+mg_uniform_buffer_t;
 
-typedef enum mg_pixel_format mg_pixel_format_t;
-enum mg_pixel_format
+typedef enum mg_pixel_format
 {
     MG_PIXEL_FORMAT_R8_UNORM = 9,
     MG_PIXEL_FORMAT_R8_SNORM = 10,
@@ -142,67 +145,71 @@ enum mg_pixel_format
     MG_PIXEL_FORMAT_R64G64B64_SFLOAT = 118,
     MG_PIXEL_FORMAT_R64G64B64A64_UINT = 119,
     MG_PIXEL_FORMAT_R64G64B64A64_SINT = 120,
-    MG_PIXEL_FORMAT_R64G64B64A64_SFLOAT = 121
-};
+    MG_PIXEL_FORMAT_R64G64B64A64_SFLOAT = 121,
+    MG_PIXEL_FORMAT_D32_SFLOAT = 126,
+    MG_PIXEL_FORMAT_D16_UNORM_S8_UINT = 128,
+    MG_PIXEL_FORMAT_D24_UNORM_S8_UINT = 129,
+    MG_PIXEL_FORMAT_D32_SFLOAT_S8_UINT = 130
+}
+mg_pixel_format_t;
 
-typedef enum mg_image_type mg_image_type_t;
-enum mg_image_type
+typedef enum mg_image_type
 {
     MG_IMAGE_TYPE_1D = 0,
     MG_IMAGE_TYPE_2D = 1,
     MG_IMAGE_TYPE_3D = 2,
     MG_IMAGE_TYPE_CUBE = 3
-};
+}
+mg_image_type_t;
 
-typedef enum mg_image_usage mg_image_usage_t;
-enum mg_image_usage
+typedef enum mg_image_usage
 {
     MG_IMAGE_USAGE_COLOR_ATTACHMENT = 16,
     MG_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT = 32
-};
+}
+mg_image_usage_t;
 
-typedef struct mg_image_create_info mg_image_create_info_t;
-struct mg_image_create_info
+typedef struct mg_image_create_info
 {
     mg_pixel_format_t format;
     mg_image_type_t type;
     uint32_t usage;
     uint32_t width, height;
-};
+}
+mg_image_create_info_t;
 
-typedef struct mg_image mg_image_t;
-struct mg_image
+typedef struct mg_image
 {
     mg_handle_t internal_data;
-};
+}
+mg_image_t;
 
-typedef struct mg_image_write_info mg_image_write_info_t;
-struct mg_image_write_info
+typedef struct mg_image_write_info
 {
     mg_pixel_format_t format;
     uint32_t width, height;
     void *data;
-};
+}
+mg_image_write_info_t;
 
-typedef enum mg_sampler_filter mg_sampler_filter_t;
-enum mg_sampler_filter
+typedef enum mg_sampler_filter
 {
     MG_SAMPLER_FILTER_NEAREST = 0,
     MG_SAMPLER_FILTER_LINEAR = 1
-};
+}
+mg_sampler_filter_t;
 
-typedef enum mg_sampler_address_mode mg_sampler_address_mode_t;
-enum mg_sampler_address_mode
+typedef enum mg_sampler_address_mode
 {
     MG_SAMPLER_ADDRESS_MODE_REPEAT = 0,
     MG_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT = 1,
     MG_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE = 2,
     MG_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER = 3,
     MG_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE = 4
-};
+}
+mg_sampler_address_mode_t;
 
-typedef struct mg_sampler_create_info mg_sampler_create_info_t;
-struct mg_sampler_create_info
+typedef struct mg_sampler_create_info
 {
     mg_sampler_filter_t mag_filter;
     mg_sampler_filter_t min_filter;
@@ -210,108 +217,107 @@ struct mg_sampler_create_info
     mg_sampler_address_mode_t address_mode_u;
     mg_sampler_address_mode_t address_mode_v;
     mg_sampler_address_mode_t address_mode_w;
-};
+}
+mg_sampler_create_info_t;
 
-typedef struct mg_sampler mg_sampler_t;
-struct mg_sampler
+typedef struct mg_sampler
 {
     mg_handle_t internal_data;
-};
+}
+mg_sampler_t;
 
-typedef enum mg_attachment_load_op mg_attachment_load_op_t;
-enum mg_attachment_load_op
+typedef enum mg_attachment_load_op
 {
     MG_ATTACHMENT_LOAD_OP_LOAD = 0,
     MG_ATTACHMENT_LOAD_OP_CLEAR = 1,
     MG_ATTACHMENT_LOAD_OP_DONT_CARE = 2,
-};
+}
+mg_attachment_load_op_t;
 
-typedef enum mg_attachment_load_op mg_attachment_store_op_t;
-enum mg_attachment_store_op_t
+typedef enum mg_attachment_store_op
 {
     MG_ATTACHMENT_STORE_OP_STORE = 0,
     MG_ATTACHMENT_STORE_OP_DONT_CARE = 1,
-};
+}
+mg_attachment_store_op_t;
 
-typedef struct mg_attachment_info mg_attachment_info_t;
-struct mg_attachment_info
+typedef struct mg_attachment_info
 {
     mg_pixel_format_t format;
-    mg_attachment_load_op_t load_op;
-    mg_attachment_store_op_t store_op;
-};
+}
+mg_attachment_info_t;
 
-typedef struct mg_render_pass_create_info mg_render_pass_create_info_t;
-struct mg_render_pass_create_info
+typedef struct mg_render_pass_create_info
 {
     mg_attachment_info_t color_attachment;
-    //mg_attachment_info_t depth_stencil_attachment;
-    //bool has_depth_stencil_attachment;
-};
+    mg_attachment_info_t depth_stencil_attachment;
+    bool has_depth_stencil_attachment;
+}
+mg_render_pass_create_info_t;
 
-typedef struct mg_render_pass mg_render_pass_t;
-struct mg_render_pass
+typedef struct mg_render_pass
 {
     mg_handle_t internal_data;
-};
+}
+mg_render_pass_t;
 
-typedef struct mg_framebuffer_create_info mg_framebuffer_create_info_t;
-struct mg_framebuffer_create_info
+typedef struct mg_framebuffer_create_info
 {
     mg_render_pass_t render_pass;
-    mg_image_t image;
+    mg_image_t color_attachment;
+    mg_image_t depth_stencil_attachment;
     uint32_t width, height;
-};
+}
+mg_framebuffer_create_info_t;
 
-typedef struct mg_framebuffer mg_framebuffer_t;
-struct mg_framebuffer
+typedef struct mg_framebuffer
 {
     mg_handle_t internal_data;
-};
+}
+mg_framebuffer_t;
 
-typedef struct mg_render_pass_begin_info mg_render_pass_begin_info_t;
-struct mg_render_pass_begin_info
+typedef struct mg_render_pass_begin_info
 {
     mg_vec4_t render_area;
     mg_vec4_t clear_value;
-};
+}
+mg_render_pass_begin_info_t;
 
-typedef enum mg_primitive_topology mg_primitive_topology_t;
-enum mg_primitive_topology
+/*typedef enum mg_primitive_topology
 {
     MG_PRIMITIVE_TOPOLOGY_POINT_LIST = 0,
     MG_PRIMITIVE_TOPOLOGY_LINE_LIST = 1,
     MG_PRIMITIVE_TOPOLOGY_LINE_STRIP = 2,
     MG_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST = 3,
     MG_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP = 4
-};
+}
+mg_primitive_topology_t;*/
 
-typedef enum mg_polygon_mode mg_polygon_mode_t;
-enum mg_polygon_mode
+typedef enum mg_polygon_mode
 {
     MG_POLYGON_MODE_FILL = 0,
     MG_POLYGON_MODE_LINE = 1,
     MG_POLYGON_MODE_POINT = 2
-};
+}
+mg_polygon_mode_t;
 
-typedef enum mg_cull_mode mg_cull_mode_t;
-enum mg_cull_mode
+typedef enum mg_cull_mode
 {
     MG_CULL_MODE_NONE = 0,
     MG_CULL_MODE_FRONT = 0x00000001,
     MG_CULL_MODE_BACK = 0x00000002,
     MG_CULL_MODE_FRONT_AND_BACK = 0x00000003
-};
+}
+mg_cull_mode_t;
 
-typedef enum mg_front_face mg_front_face_t;
-enum mg_front_face
+typedef enum mg_front_face
 {
     MG_FRONT_FACE_CCW = 0,
     MG_FRONT_FACE_CW = 1
-};
+}
+mg_front_face_t;
 
-typedef enum mg_blend_factor mg_blend_factor_t;
-enum mg_blend_factor
+typedef enum mg_blend_factor
 {
     MG_BLEND_FACTOR_ZERO = 0,
     MG_BLEND_FACTOR_ONE = 1,
@@ -332,10 +338,10 @@ enum mg_blend_factor
     MG_BLEND_FACTOR_ONE_MINUS_SRC1_COLOR = 16,
     MG_BLEND_FACTOR_SRC1_ALPHA = 17,
     MG_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA = 18
-};
+}
+mg_blend_factor_t;
 
-typedef enum mg_blend_op mg_blend_op_t;
-enum mg_blend_op
+typedef enum mg_blend_op
 {
     MG_BLEND_OP_ADD = 0,
     MG_BLEND_OP_SUBTRACT = 1,
@@ -388,10 +394,18 @@ enum mg_blend_op
     MG_BLEND_OP_RED = 1000148043,
     MG_BLEND_OP_GREEN = 1000148044,
     MG_BLEND_OP_BLUE = 1000148045
-};
+}
+mg_blend_op_t;
 
-typedef struct mg_color_blend mg_color_blend_t;
-struct mg_color_blend
+typedef struct mg_multisample_state
+{
+    bool sample_shading_enable;
+    bool alpha_to_coverage_enable;
+    bool alpha_to_one_enable;
+}
+mg_multisample_state_t;
+
+typedef struct mg_color_blend
 {
     bool blend_enabled;
 
@@ -402,19 +416,42 @@ struct mg_color_blend
     mg_blend_factor_t src_alpha_blend_factor;
     mg_blend_factor_t dst_alpha_blend_factor;
     mg_blend_op_t alpha_blend_op;
-};
+}
+mg_color_blend_t;
 
-typedef enum mg_shader_stage mg_shader_stage_t;
-enum mg_shader_stage
+typedef enum mg_compare_op
+{
+    MG_COMPARE_OP_NEVER = 0,
+    MG_COMPARE_OP_LESS = 1,
+    MG_COMPARE_OP_EQUAL = 2,
+    MG_COMPARE_OP_LESS_OR_EQUAL = 3,
+    MG_COMPARE_OP_GREATER = 4,
+    MG_COMPARE_OP_NOT_EQUAL = 5,
+    MG_COMPARE_OP_GREATER_OR_EQUAL = 6,
+    MG_COMPARE_OP_ALWAYS = 7
+}
+mg_compare_op_t;
+
+typedef struct mg_depth_stencil_state
+{
+    bool depth_test_enable;
+    bool depth_write_enable;
+    bool stencil_test_enable;
+
+    mg_compare_op_t depth_compare_op;
+}
+mg_depth_stencil_state_t;
+
+typedef enum mg_shader_stage
 {
     MG_SHADER_STAGE_VERTEX = 0x00000001,
     MG_SHADER_STAGE_GEOMETRY = 0x00000008,
     MG_SHADER_STAGE_FRAGMENT = 0x00000010,
     MG_SHADER_STAGE_COMPUTE = 0x00000020
-};
+}
+mg_shader_stage_t;
 
-typedef enum mg_vertex_format mg_vertex_format_t;
-enum mg_vertex_format
+typedef enum mg_vertex_format
 {
     MG_VERTEX_FORMAT_UINT = 98,
     MG_VERTEX_FORMAT_INT = 99,
@@ -431,90 +468,92 @@ enum mg_vertex_format
     MG_VERTEX_FORMAT_UINT4 = 107,
     MG_VERTEX_FORMAT_INT4 = 108,
     MG_VERTEX_FORMAT_FLOAT4 = 109
-};
+}
+mg_vertex_format_t;
 
-typedef struct mg_vertex_attribute_info mg_vertex_attribute_info_t;
-struct mg_vertex_attribute_info
+typedef struct mg_vertex_attribute_info
 {
     uint32_t location;
     mg_vertex_format_t format;
     uint32_t offset;
-};
+}
+mg_vertex_attribute_info_t;
 
-typedef struct mg_vertex_layout_info mg_vertex_layout_info_t;
-struct mg_vertex_layout_info
+typedef struct mg_vertex_layout_info
 {
     uint32_t stride;
     mg_vertex_attribute_info_t *attributes;
     uint32_t attribute_count;
-};
+}
+mg_vertex_layout_info_t;
 
-/*typedef enum mg_shader_type mg_shader_type_t;
-enum mg_shader_type
+/*typedef enum mg_shader_type
 {
 	MG_SHADER_TYPE_VERTEX = 0x00000001,
 	MG_SHADER_TYPE_GEOMETRY = 0x00000008,
 	MG_SHADER_TYPE_FRAGMENT = 0x00000010,
 	MG_SHADER_TYPE_COMPUTE = 0x00000020
-};*/
+}
+mg_shader_type_t;*/
 
-typedef struct mg_shader_source mg_shader_source_t;
-struct mg_shader_source
+typedef struct mg_shader_source
 {
-	uint32_t* code;
+	uint32_t *code;
 	size_t code_size;
-};
+}
+mg_shader_source_t;
 
-typedef struct mg_pipeline_create_info mg_pipeline_create_info_t;
-struct mg_pipeline_create_info
+typedef struct mg_pipeline_create_info
 {
-    mg_shader_source_t *vertex_shader;
-    mg_shader_source_t *fragment_shader;
+    mg_shader_source_t vertex_shader;
+    mg_shader_source_t fragment_shader;
 
     mg_vertex_layout_info_t vertex_layout;
 
-    mg_primitive_topology_t primitive_topology;
+    //mg_primitive_topology_t primitive_topology;
     mg_polygon_mode_t polygon_mode;
     mg_cull_mode_t cull_mode;
     mg_front_face_t front_face;
     mg_color_blend_t color_blend;
+    mg_depth_stencil_state_t depth_stencil;
 
     mg_render_pass_t render_pass;
 
     bool has_push_constants;
     uint16_t push_constants_size;
-};
+}
+mg_pipeline_create_info_t;
 
-typedef struct mg_pipeline mg_pipeline_t;
-struct mg_pipeline
+typedef struct mg_pipeline
 {
     mg_handle_t internal_data;
-};
+}
+mg_pipeline_t;
 
-typedef enum mg_present_mode mg_present_mode_t;
-enum mg_present_mode
+typedef enum mg_present_mode
 {
-    MG_PRESENT_MODE_IMMEDIATE_KHR = 0,
-    MG_PRESENT_MODE_MAILBOX_KHR = 1,
-    MG_PRESENT_MODE_FIFO_KHR = 2,
-    MG_PRESENT_MODE_FIFO_RELAXED_KHR = 3
-};
+    MG_PRESENT_MODE_IMMEDIATE = 0,
+    MG_PRESENT_MODE_MAILBOX = 1,
+    MG_PRESENT_MODE_FIFO = 2,
+    MG_PRESENT_MODE_FIFO_RELAXED = 3
+}
+mg_present_mode_t;
 
-typedef struct mg_swapchain_config_info mg_swapchain_config_info_t;
-struct mg_swapchain_config_info
+typedef struct mg_swapchain_config_info
 {
     mg_pixel_format_t format;
     mg_present_mode_t present_mode;
     uint32_t width, height;
-};
+}
+mg_swapchain_config_info_t;
 
-typedef struct mg_renderer_init_info mg_renderer_init_info_t;
-struct mg_renderer_init_info
+typedef struct mg_renderer_init_info
 {
     mg_platform_t *platform;
     mg_renderer_type_t type;
     mg_swapchain_config_info_t *swapchain_config_info;
-};
+}
+mg_renderer_init_info_t;
 
 MG_API void                         mg_rhi_renderer_initialize                      (mg_renderer_init_info_t *init_info);
 MG_API void                         mg_rhi_renderer_shutdown                        (void);
@@ -558,7 +597,7 @@ MG_API void                         mg_rhi_renderer_update_dynamic_index_buffer 
 
 MG_API mg_uniform_buffer_t          mg_rhi_renderer_create_uniform_buffer           (size_t size);
 MG_API void                         mg_rhi_renderer_destroy_uniform_buffer          (mg_uniform_buffer_t buffer);
-MG_API void                         mg_rhi_renderer_update_uniform_buffer           (mg_uniform_buffer_t buffer, size_t size, void *data);
+MG_API void                         mg_rhi_renderer_update_uniform_buffer           (mg_uniform_buffer_t buffer, size_t size, uint32_t binding, void *data);
 
 MG_API void                         mg_rhi_renderer_bind_vertex_buffer              (mg_vertex_buffer_t buffer);
 MG_API void                         mg_rhi_renderer_bind_dynamic_vertex_buffer      (mg_dynamic_vertex_buffer_t buffer);
@@ -569,7 +608,7 @@ MG_API void                         mg_rhi_renderer_bind_uniform_buffer         
 MG_API mg_image_t                   mg_rhi_renderer_create_image                    (mg_image_create_info_t *create_info);
 MG_API void                         mg_rhi_renderer_destroy_image                   (mg_image_t image);
 MG_API void                         mg_rhi_renderer_write_image                     (mg_image_t image, mg_image_write_info_t *write_info);
-MG_API void                         mg_rhi_renderer_update_image                    (mg_image_t image, mg_sampler_t sampler);
+MG_API void                         mg_rhi_renderer_update_image                    (mg_image_t image, mg_sampler_t sampler, uint32_t binding);
 MG_API void                         mg_rhi_renderer_bind_image                      (mg_image_t image, mg_pipeline_t pipeline);
 
 MG_API mg_sampler_t                 mg_rhi_renderer_create_sampler                  (mg_sampler_create_info_t *create_info);
@@ -579,3 +618,7 @@ MG_API mg_framebuffer_t             mg_rhi_renderer_create_framebuffer          
 MG_API void                         mg_rhi_renderer_destroy_framebuffer             (mg_framebuffer_t framebuffer);
 
 MG_API void                         mg_rhi_renderer_push_constants                  (mg_pipeline_t pipeline, uint32_t size, void *data);
+
+#ifdef __cplusplus
+}
+#endif

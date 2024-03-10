@@ -2,9 +2,8 @@
 
 #if MG_PLATFORM_WINDOWS
 
-#include <GL/gl.h>
 #include <windows.h>
-#include <assert.h>
+#include <GL/gl.h>
 
 typedef struct mg_win32_handle_info
 {

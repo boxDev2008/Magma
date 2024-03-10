@@ -1,4 +1,5 @@
 #include "vec4.h"
+#include "math.h"
 
 #include <math.h>
 
@@ -20,6 +21,12 @@ mg_vec4_t mg_vec4_add(mg_vec4_t a, mg_vec4_t b)
 mg_vec4_t mg_vec4_subtract(mg_vec4_t a, mg_vec4_t b)
 {
     return mg_vec4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w);
+}
+
+mg_vec4_t mg_vec4_lerp(mg_vec4_t a, mg_vec4_t b, float by)
+{
+    return mg_vec4(mg_math_lerpf(a.x, b.x, by), mg_math_lerpf(a.y, b.y, by),
+        mg_math_lerpf(a.z, b.z, by), mg_math_lerpf(a.w, b.w, by));
 }
 
 float mg_vec4_dot(mg_vec4_t a, mg_vec4_t b)

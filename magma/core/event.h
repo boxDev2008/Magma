@@ -2,6 +2,10 @@
 
 #include "base.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef void (*PFN_on_event)(void *data);
 
 typedef struct mg_event
@@ -24,7 +28,9 @@ typedef enum mg_system_event_code
 }
 mg_system_event_code_t;
 
-MG_API void mg_event_register(mg_system_event_code_t code, PFN_on_event on_event);
-MG_API void mg_event_unregister(mg_system_event_code_t code);
-
+MG_API void mg_event_connect(mg_system_event_code_t code, PFN_on_event on_event);
 MG_API void mg_event_call(mg_system_event_code_t code, void *data);
+
+#ifdef __cplusplus
+}
+#endif

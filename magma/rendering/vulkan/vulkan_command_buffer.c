@@ -23,8 +23,7 @@ void mg_vulkan_submit_command_buffer(VkCommandBuffer buffer)
 {
     VkQueue submit_queue = vulkan_context.device.graphics_queue;
 
-    VkSubmitInfo submit_info = { 0 };
-    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    VkSubmitInfo submit_info = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
     submit_info.commandBufferCount = 1;
     submit_info.pCommandBuffers = &buffer;
 
@@ -39,15 +38,15 @@ VkCommandBuffer mg_vulkan_begin_single_time_commands(void)
     alloc_info.commandPool = vulkan_context.command_pool;
     alloc_info.commandBufferCount = 1;
 
-    VkCommandBuffer commandBuffer;
-    vkAllocateCommandBuffers(vulkan_context.device.handle, &alloc_info, &commandBuffer);
+    VkCommandBuffer command_buffer;
+    vkAllocateCommandBuffers(vulkan_context.device.handle, &alloc_info, &command_buffer);
 
-    VkCommandBufferBeginInfo beginInfo = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
-    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    VkCommandBufferBeginInfo begin_info = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+    begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
-    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+    vkBeginCommandBuffer(command_buffer, &begin_info);
 
-    return commandBuffer;
+    return command_buffer;
 }
 
 void mg_vulkan_end_single_time_commands(VkCommandBuffer commandBuffer)
@@ -66,8 +65,7 @@ void mg_vulkan_end_single_time_commands(VkCommandBuffer commandBuffer)
 
 void mg_vulkan_begin_command_buffer(VkCommandBuffer buffer)
 {
-    VkCommandBufferBeginInfo begin_info = { 0 };
-    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    VkCommandBufferBeginInfo begin_info = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
     begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
     VkResult result = vkBeginCommandBuffer(buffer, &begin_info);

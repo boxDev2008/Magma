@@ -1,6 +1,6 @@
 #pragma once
 
-#include "vulkan_types.inl"
+#include "vulkan_types.h"
 
 #if MG_PLATFORM_WINDOWS
     #define VK_USE_PLATFORM_WIN32_KHR

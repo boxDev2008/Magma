@@ -6,10 +6,10 @@
 #include <string.h>
 #include <assert.h>
 
-void mg_vulkan_allocate_image(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage *image, VkDeviceMemory *memory)
+void mg_vulkan_allocate_image(uint32_t width, uint32_t height, VkImageType type, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage *image, VkDeviceMemory *memory)
 {
     VkImageCreateInfo image_info = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
-    image_info.imageType = VK_IMAGE_TYPE_2D;
+    image_info.imageType = type;
     image_info.extent.width = width;
     image_info.extent.height = height;
     image_info.extent.depth = 1;
@@ -125,7 +125,7 @@ mg_vulkan_image_t *mg_vulkan_create_image(mg_image_create_info_t *create_info)
 {
     mg_vulkan_image_t *image = (mg_vulkan_image_t*)malloc(sizeof(mg_vulkan_image_t));
 
-    mg_vulkan_allocate_image(create_info->width, create_info->height, create_info->format,
+    mg_vulkan_allocate_image(create_info->width, create_info->height, create_info->type, create_info->format,
         VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | create_info->usage,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &image->image, &image->memory);
 
@@ -187,11 +187,11 @@ void mg_vulkan_write_image(mg_vulkan_image_t *image, mg_image_write_info_t *writ
     vkFreeMemory(vulkan_context.device.handle, staging_memory, NULL);
 }
 
-void mg_vulkan_update_image(mg_vulkan_image_t *image, VkSampler sampler)
+void mg_vulkan_update_image(mg_vulkan_image_t *image, VkSampler sampler, uint32_t binding)
 {
     VkWriteDescriptorSet write = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
     write.dstSet = image->descriptor_set;
-    write.dstBinding = 0; // TODO (box): Make this bindable by the user
+    write.dstBinding = binding;
     write.dstArrayElement = 0;
 
     write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -253,10 +253,21 @@ void mg_vulkan_destroy_sampler(VkSampler sampler)
 VkFramebuffer mg_vulkan_create_framebuffer(mg_framebuffer_create_info_t *create_info)
 {
     VkFramebufferCreateInfo framebuffer_create_info = {VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
-    framebuffer_create_info.attachmentCount = 1;
+    mg_vulkan_image_t *color_attachment = (mg_vulkan_image_t*)create_info->color_attachment.internal_data;
 
-    mg_vulkan_image_t *image = (mg_vulkan_image_t*)create_info->image.internal_data;
-    framebuffer_create_info.pAttachments = &image->view;
+    if (create_info->depth_stencil_attachment.internal_data)
+    {
+        mg_vulkan_image_t *depth_stencil_attachment =
+            (mg_vulkan_image_t*)create_info->depth_stencil_attachment.internal_data;
+        framebuffer_create_info.pAttachments = (VkImageView[]){ color_attachment->view, depth_stencil_attachment->view };
+        framebuffer_create_info.attachmentCount = 2;
+    }
+    else
+    {
+        framebuffer_create_info.pAttachments = &color_attachment->view;
+        framebuffer_create_info.attachmentCount = 1;
+    }
+
     framebuffer_create_info.renderPass = create_info->render_pass.internal_data;
     framebuffer_create_info.width = create_info->width;
     framebuffer_create_info.height = create_info->height;

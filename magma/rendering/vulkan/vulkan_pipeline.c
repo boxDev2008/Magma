@@ -21,8 +21,8 @@ mg_vulkan_pipeline_t *mg_vulkan_create_pipeline(mg_pipeline_create_info_t *creat
 {
     mg_vulkan_pipeline_t *pipeline = (mg_vulkan_pipeline_t*)malloc(sizeof(mg_vulkan_pipeline_t));
 
-    VkShaderModule vertex_shader_module = mg_vulkan_create_shader(create_info->vertex_shader->code, create_info->vertex_shader->code_size);
-    VkShaderModule fragment_shader_module = mg_vulkan_create_shader(create_info->fragment_shader->code, create_info->fragment_shader->code_size);
+    VkShaderModule vertex_shader_module = mg_vulkan_create_shader(create_info->vertex_shader.code, create_info->vertex_shader.code_size);
+    VkShaderModule fragment_shader_module = mg_vulkan_create_shader(create_info->fragment_shader.code, create_info->fragment_shader.code_size);
 
     VkPipelineShaderStageCreateInfo vert_shader_stage_info = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
     vert_shader_stage_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
@@ -36,7 +36,7 @@ mg_vulkan_pipeline_t *mg_vulkan_create_pipeline(mg_pipeline_create_info_t *creat
 
     VkPipelineShaderStageCreateInfo shader_stages[] = {vert_shader_stage_info, frag_shader_stage_info};
 
-    VkDynamicState dynamic_states[] = {
+    const VkDynamicState dynamic_states[] = {
         VK_DYNAMIC_STATE_VIEWPORT,
         VK_DYNAMIC_STATE_SCISSOR
     };
@@ -88,6 +88,12 @@ mg_vulkan_pipeline_t *mg_vulkan_create_pipeline(mg_pipeline_create_info_t *creat
     multisampling.sampleShadingEnable = VK_FALSE;
     multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
+    VkPipelineDepthStencilStateCreateInfo depth_stencil = {VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO};
+    depth_stencil.depthTestEnable = create_info->depth_stencil.depth_test_enable;
+    depth_stencil.depthWriteEnable = create_info->depth_stencil.depth_write_enable;
+    depth_stencil.depthCompareOp = create_info->depth_stencil.depth_compare_op;
+    depth_stencil.stencilTestEnable = create_info->depth_stencil.stencil_test_enable;
+
     VkPipelineColorBlendAttachmentState color_blend_attachment = { 0 };
     color_blend_attachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
     color_blend_attachment.blendEnable = create_info->color_blend.blend_enabled;
@@ -137,6 +143,7 @@ mg_vulkan_pipeline_t *mg_vulkan_create_pipeline(mg_pipeline_create_info_t *creat
     pipeline_info.pViewportState = &viewport_state;
     pipeline_info.pRasterizationState = &rasterizer;
     pipeline_info.pMultisampleState = &multisampling;
+    pipeline_info.pDepthStencilState = &depth_stencil;
     pipeline_info.pColorBlendState = &color_blending;
     pipeline_info.pDynamicState = &dynamic_state;
 

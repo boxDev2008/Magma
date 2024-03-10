@@ -219,10 +219,12 @@ void mg_vulkan_renderer_initialize(mg_renderer_init_info_t *init_info)
     vulkan_context.render_pass =
         mg_vulkan_create_render_pass(&(mg_render_pass_create_info_t) {
             .color_attachment = {
-                .format = MG_PIXEL_FORMAT_R8G8B8A8_SRGB,
-                .load_op = MG_ATTACHMENT_LOAD_OP_CLEAR,
-                .store_op = MG_ATTACHMENT_STORE_OP_STORE
-            }
+                .format = MG_PIXEL_FORMAT_R8G8B8A8_SRGB
+            },
+            .depth_stencil_attachment = {
+                .format = MG_PIXEL_FORMAT_D32_SFLOAT
+            },
+            .has_depth_stencil_attachment = true
         });
     
     mg_vulkan_create_swapchain(init_info->swapchain_config_info);
