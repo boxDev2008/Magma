@@ -85,22 +85,27 @@ void mg_opengl_renderer_initialize(mg_renderer_init_info_t *init_info)
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
-    switch (init_info->swapchain_config_info->format)
-    {
-        case MG_PIXEL_FORMAT_R8_SRGB:
-        case MG_PIXEL_FORMAT_R8G8_SRGB:
-        case MG_PIXEL_FORMAT_R8G8B8_SRGB:
-        case MG_PIXEL_FORMAT_R8G8B8A8_SRGB:
-        glEnable(GL_FRAMEBUFFER_SRGB);
-    }
-
     glGenFramebuffers(1, &opengl_context.back_buffer.framebuffer);
     glBindFramebuffer(GL_FRAMEBUFFER, opengl_context.back_buffer.framebuffer);
 
     glGenTextures(1, &opengl_context.back_buffer.color_attachment);
     glBindTexture(GL_TEXTURE_2D, opengl_context.back_buffer.color_attachment);
     
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, init_info->swapchain_config_info->width, init_info->swapchain_config_info->height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    switch (init_info->swapchain_config_info->format)
+    {
+    case MG_PIXEL_FORMAT_R8_SRGB:
+    case MG_PIXEL_FORMAT_R8G8_SRGB:
+    case MG_PIXEL_FORMAT_R8G8B8_SRGB:
+    case MG_PIXEL_FORMAT_R8G8B8A8_SRGB:
+    case MG_PIXEL_FORMAT_B8G8R8_SRGB:
+    case MG_PIXEL_FORMAT_B8G8R8A8_SRGB:
+        glEnable(GL_FRAMEBUFFER_SRGB);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB, init_info->swapchain_config_info->width, init_info->swapchain_config_info->height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+        break;
+    default:
+        glDisable(GL_FRAMEBUFFER_SRGB);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, init_info->swapchain_config_info->width, init_info->swapchain_config_info->height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    }
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
@@ -181,5 +186,19 @@ void mg_opengl_renderer_push_constants(mg_opengl_pipeline_t *pipeline, uint32_t 
 void mg_opengl_configure_swapchain(mg_swapchain_config_info_t *config_info)
 {
     glBindTexture(GL_TEXTURE_2D, opengl_context.back_buffer.color_attachment);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, config_info->width, config_info->height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    switch (config_info->format)
+    {
+    case MG_PIXEL_FORMAT_R8_SRGB:
+    case MG_PIXEL_FORMAT_R8G8_SRGB:
+    case MG_PIXEL_FORMAT_R8G8B8_SRGB:
+    case MG_PIXEL_FORMAT_R8G8B8A8_SRGB:
+    case MG_PIXEL_FORMAT_B8G8R8_SRGB:
+    case MG_PIXEL_FORMAT_B8G8R8A8_SRGB:
+        glEnable(GL_FRAMEBUFFER_SRGB);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB, config_info->width, config_info->height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+        break;
+    default:
+        glDisable(GL_FRAMEBUFFER_SRGB);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, config_info->width, config_info->height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    }
 }
