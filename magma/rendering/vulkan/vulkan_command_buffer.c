@@ -83,22 +83,32 @@ void mg_vulkan_free_command_buffer(VkCommandBuffer buffer)
     vkFreeCommandBuffers(vulkan_context.device.handle, vulkan_context.command_pool, 1, &buffer);
 }
 
-void mg_vulkan_command_buffer_set_viewport(VkCommandBuffer buffer, uint32_t width, uint32_t height)
+void mg_vulkan_command_buffer_set_viewport(VkCommandBuffer buffer, int32_t x, int32_t y, uint32_t width, uint32_t height)
 {
     VkViewport viewport = { 0 };
     viewport.width = (float)width;
     viewport.height = (float)height;
-    viewport.x = 0.0f;
-    viewport.y = 0.0f;
+    viewport.x = x;
+    viewport.y = y;
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
 
     VkRect2D scissor = { 0 };
-    scissor.offset.x = 0;
-    scissor.offset.y = 0;
+    scissor.offset.x = x;
+    scissor.offset.y = y;
     scissor.extent.width = width;
     scissor.extent.height = height;
 
     vkCmdSetViewport(buffer, 0, 1, &viewport);
+    vkCmdSetScissor(buffer, 0, 1, &scissor);
+}
+
+void mg_vulkan_command_buffer_set_scissor(VkCommandBuffer buffer, int32_t x, int32_t y, uint32_t width, uint32_t height)
+{
+    VkRect2D scissor = { 0 };
+    scissor.offset.x = x;
+    scissor.offset.y = y;
+    scissor.extent.width = width;
+    scissor.extent.height = height;
     vkCmdSetScissor(buffer, 0, 1, &scissor);
 }

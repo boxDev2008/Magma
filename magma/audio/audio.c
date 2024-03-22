@@ -1,5 +1,7 @@
 #include "audio.h"
 
+#include <stdlib.h>
+
 typedef struct mg_audio_data
 {
     ma_resource_manager resource_manager;
@@ -33,95 +35,20 @@ void mg_audio_shutdown(void)
     ma_resource_manager_uninit(&audio_data.resource_manager);
 }
 
-mg_sound_t *mg_create_sound_from_file(const char *file_name)
+mg_sound_resource_t *mg_audio_create_sound_resource_from_file(const char *file_name)
 {
-    mg_sound_t sound;
-    ma_sound_init_from_file(&audio_data.sfx_engine, file_name, MA_SOUND_FLAG_ASYNC | MA_SOUND_FLAG_NO_DEFAULT_ATTACHMENT | MA_SOUND_FLAG_NO_SPATIALIZATION, NULL, NULL, &sound);
-    return NULL;
+    mg_sound_resource_t *sound = (mg_sound_resource_t*)malloc(sizeof(mg_sound_resource_t));
+    ma_sound_init_from_file(&audio_data.sfx_engine, file_name, MA_SOUND_FLAG_ASYNC | MA_SOUND_FLAG_NO_DEFAULT_ATTACHMENT | MA_SOUND_FLAG_NO_SPATIALIZATION, NULL, NULL, &sound->internal_data);
+    return sound;
 }
 
-void mg_destroy_sound(mg_sound_t *sound)
+void mg_audio_destroy_sound_resource(mg_sound_resource_t *sound)
 {
-    ma_sound_uninit(sound);
+    ma_sound_uninit(&sound->internal_data);
     free(sound);
 }
 
-mg_sound_t *mg_audio_play_sound(mg_sound_t *sound)
-{
-    ma_result result = MA_SUCCESS;
-    ma_sound_inlined* p_sound = NULL;
-    ma_sound_inlined* p_next_sound = NULL;
-
-    ma_node *p_node = ma_node_graph_get_endpoint(&audio_data.sfx_engine.nodeGraph);
-
-    ma_spinlock_lock(&audio_data.sfx_engine.inlinedSoundLock);
-    {
-        ma_uint32 sound_flags = 0;
-
-        for (p_next_sound = audio_data.sfx_engine.pInlinedSoundHead; p_next_sound != NULL; p_next_sound = p_next_sound->pNext)
-        {
-            if (ma_sound_at_end(&p_next_sound->sound))
-            {
-                p_sound = p_next_sound;
-                break;
-            }
-        }
-
-        if (p_sound != NULL)
-        {
-            if (audio_data.sfx_engine.pInlinedSoundHead == p_sound)
-                audio_data.sfx_engine.pInlinedSoundHead =  p_sound->pNext;
-
-            if (p_sound->pPrev != NULL)
-                p_sound->pPrev->pNext = p_sound->pNext;
-
-            if (p_sound->pNext != NULL)
-                p_sound->pNext->pPrev = p_sound->pPrev;
-
-            ma_sound_uninit(&p_next_sound->sound);
-        }
-        else
-            p_sound = (ma_sound_inlined*)ma_malloc(sizeof(*p_sound), &audio_data.sfx_engine.allocationCallbacks);
-
-        if (p_sound != NULL)
-        {
-            sound_flags |= MA_SOUND_FLAG_ASYNC;                 /* For inlined sounds we don't want to be sitting around waiting for stuff to load so force an async load. */
-            sound_flags |= MA_SOUND_FLAG_NO_DEFAULT_ATTACHMENT; /* We want specific control over where the sound is attached in the graph. We'll attach it manually just before playing the sound. */
-            //sound_flags |= MA_SOUND_FLAG_NO_PITCH;            /* Pitching isn't usable with inlined sounds, so disable it to save on speed. */
-            sound_flags |= MA_SOUND_FLAG_NO_SPATIALIZATION;     /* Not currently doing spatialization with inlined sounds, but this might actually change later. For now disable spatialization. Will be removed if we ever add support for spatialization here. */
-
-            result = ma_sound_init_copy(&audio_data.sfx_engine, sound, sound_flags, NULL, &p_sound->sound);
-            if (result == MA_SUCCESS)
-            {
-                result = ma_node_attach_output_bus(p_sound, 0, p_node, 0);
-                if (result == MA_SUCCESS)
-                {
-                    p_sound->pNext = audio_data.sfx_engine.pInlinedSoundHead;
-                    p_sound->pPrev = NULL;
-
-                    audio_data.sfx_engine.pInlinedSoundHead = p_sound;
-                    if (p_sound->pNext != NULL)
-                    {
-                        p_sound->pNext->pPrev = p_sound;
-                    }
-                }
-                else
-                    ma_free(p_sound, &audio_data.sfx_engine.allocationCallbacks);
-            }
-            else
-                ma_free(p_sound, &audio_data.sfx_engine.allocationCallbacks);
-        }
-        else
-            result = MA_OUT_OF_MEMORY;
-    }
-    ma_spinlock_unlock(&audio_data.sfx_engine.inlinedSoundLock);
-
-    result = ma_sound_start(&p_sound->sound);
-    
-    return &p_sound->sound;
-}
-
-mg_sound_t *mg_audio_play_sound_from_file(const char *file_name)
+void mg_audio_play_sound(mg_sound_resource_t *resource, mg_sound_t *out_sound)
 {
     ma_result result = MA_SUCCESS;
     ma_sound_inlined* p_sound = NULL;
@@ -165,8 +92,7 @@ mg_sound_t *mg_audio_play_sound_from_file(const char *file_name)
             //sound_flags |= MA_SOUND_FLAG_NO_PITCH;
             sound_flags |= MA_SOUND_FLAG_NO_SPATIALIZATION;
 
-            result = ma_sound_init_from_file(&audio_data.sfx_engine, file_name, sound_flags, NULL, NULL, &p_sound->sound);
-
+            result = ma_sound_init_copy(&audio_data.sfx_engine, &resource->internal_data, sound_flags, NULL, &p_sound->sound);
             if (result == MA_SUCCESS)
             {
                 result = ma_node_attach_output_bus(p_sound, 0, p_node, 0);
@@ -193,6 +119,22 @@ mg_sound_t *mg_audio_play_sound_from_file(const char *file_name)
     ma_spinlock_unlock(&audio_data.sfx_engine.inlinedSoundLock);
 
     result = ma_sound_start(&p_sound->sound);
+    
+    if (out_sound)
+        out_sound->internal_data = &p_sound->sound;
+}
 
-    return &p_sound->sound;
+void mg_audio_set_sound_volume(mg_sound_t sound, float volume)
+{
+    ma_sound_set_volume(sound.internal_data, volume);
+}
+
+void mg_audio_set_sound_pitch(mg_sound_t sound, float pitch)
+{
+    ma_sound_set_pitch(sound.internal_data, pitch);
+}
+
+void mg_audio_set_sound_position(mg_sound_t sound, float x, float y, float z)
+{
+    ma_sound_set_position(sound.internal_data, x, y, z);
 }

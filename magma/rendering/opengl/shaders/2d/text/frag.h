@@ -14,6 +14,5 @@ const char *OPENGL_TEXT_FRAG = "#version 450\n"
 "    vec4 tex_color = texture(tex_sampler, frag_tex_coord);"
 "    if (tex_color.a > 0)"
 "        tex_color = vec4(1.0, 1.0, 1.0, tex_color.a);"
-
 "    out_color = tex_color * frag_color;"
 "}\0";

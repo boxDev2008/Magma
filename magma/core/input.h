@@ -34,8 +34,8 @@ typedef enum mg_keys
     MG_KEY_MODECHANGE = 0x1F,
 
     MG_KEY_SPACE = 0x20,
-    MG_KEY_PAGEUP = 0x21,
-    MG_KEY_PAGEDOWN = 0x22,
+    MG_KEY_PAGE_UP = 0x21,
+    MG_KEY_PAGE_DOWN = 0x22,
     MG_KEY_END = 0x23,
     MG_KEY_HOME = 0x24,
     MG_KEY_LEFT = 0x25,
@@ -45,7 +45,7 @@ typedef enum mg_keys
     MG_KEY_SELECT = 0x29,
     MG_KEY_PRINT = 0x2A,
     MG_KEY_EXECUTE = 0x2B,
-    MG_KEY_PRINTSCREEN = 0x2C,
+    MG_KEY_PRINT_SCREEN = 0x2C,
     MG_KEY_INSERT = 0x2D,
     MG_KEY_DELETE = 0x2E,
     MG_KEY_HELP = 0x2F,
@@ -171,6 +171,7 @@ typedef enum mg_keys
 mg_keys_t;
 
 void mg_input_process_key           (mg_keys_t key, bool pressed);
+void mg_input_process_char          (char ch);
 void mg_input_process_mouse_button  (mg_mouse_buttons_t button, bool pressed);
 void mg_input_process_mouse_move    (int16_t x, int16_t y);
 void mg_input_process_mouse_wheel   (int8_t z_delta);

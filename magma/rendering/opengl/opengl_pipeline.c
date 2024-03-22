@@ -2,7 +2,6 @@
 #include "opengl_renderer.h"
 
 #include <stdlib.h>
-#include <assert.h>
 
 static GLenum mg_opengl_get_blend_factor(mg_blend_factor_t factor)
 {

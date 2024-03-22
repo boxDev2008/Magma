@@ -17,7 +17,7 @@ const char *OPENGL_MESH_VERT = "#version 450\n"
 "}"
 "ubo;"
 
-"layout(std140, binding = 4) uniform PushConstants"
+"layout(std140, binding = 16) uniform PushConstants"
 "{"
 	"mat4 model;"
 	"vec4 color;"

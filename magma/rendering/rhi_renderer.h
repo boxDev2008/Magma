@@ -23,15 +23,15 @@ extern "C" {
 #endif
 
 #ifndef MG_CONFIG_MAX_BINDABLE_UNIFORM_BUFFERS
-    #define MG_CONFIG_MAX_BINDABLE_UNIFORM_BUFFERS 1
+    #define MG_CONFIG_MAX_BINDABLE_UNIFORM_BUFFERS 4
 #endif
 
 typedef void *mg_handle_t;
 
 typedef enum mg_renderer_type
 {
-    MG_RENDERER_TYPE_OPENGL,
-    MG_RENDERER_TYPE_VULKAN
+    MG_RENDERER_TYPE_VULKAN,
+    MG_RENDERER_TYPE_OPENGL
 }
 mg_renderer_type_t;
 
@@ -564,7 +564,8 @@ MG_API void                         mg_rhi_renderer_present_frame               
 
 MG_API void                         mg_rhi_renderer_wait                            (void);
 
-MG_API void                         mg_rhi_renderer_viewport                        (uint32_t width, uint32_t height);
+MG_API void                         mg_rhi_renderer_viewport                        (int32_t x, int32_t y, uint32_t width, uint32_t height);
+MG_API void                         mg_rhi_renderer_scissor                         (int32_t x, int32_t y, uint32_t width, uint32_t height);
 
 MG_API void                         mg_rhi_renderer_draw                            (uint32_t vertex_count, uint32_t first_vertex);
 MG_API void                         mg_rhi_renderer_draw_indexed                    (uint32_t index_count, uint32_t first_index);

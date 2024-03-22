@@ -2,8 +2,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <assert.h>
 
 static GLenum mg_opengl_get_index_type(mg_index_type_t index_type)
 {
@@ -24,65 +22,65 @@ static void mg_opengl_bind_vertex_attributes(void)
         case MG_VERTEX_FORMAT_UINT:
             glVertexAttribPointer(pipeline->vertex_layout.attributes[i].location, 1,
                 GL_UNSIGNED_INT, GL_FALSE, pipeline->vertex_layout.stride,
-                (void *)pipeline->vertex_layout.attributes[i].offset);
+                (void*)pipeline->vertex_layout.attributes[i].offset);
             break;
         case MG_VERTEX_FORMAT_INT:
             glVertexAttribPointer(pipeline->vertex_layout.attributes[i].location, 1,
                 GL_INT, GL_FALSE, pipeline->vertex_layout.stride,
-                (void *)pipeline->vertex_layout.attributes[i].offset);
+                (void*)pipeline->vertex_layout.attributes[i].offset);
             break;
         case MG_VERTEX_FORMAT_FLOAT:
             glVertexAttribPointer(pipeline->vertex_layout.attributes[i].location, 1,
                 GL_FLOAT, GL_FALSE, pipeline->vertex_layout.stride,
-                (void *)pipeline->vertex_layout.attributes[i].offset);
+                (void*)pipeline->vertex_layout.attributes[i].offset);
             break;
 
         case MG_VERTEX_FORMAT_UINT2:
             glVertexAttribPointer(pipeline->vertex_layout.attributes[i].location, 2,
                 GL_UNSIGNED_INT, GL_FALSE, pipeline->vertex_layout.stride,
-                (void *)pipeline->vertex_layout.attributes[i].offset);
+                (void*)pipeline->vertex_layout.attributes[i].offset);
             break;
         case MG_VERTEX_FORMAT_INT2:
             glVertexAttribPointer(pipeline->vertex_layout.attributes[i].location, 2,
                 GL_INT, GL_FALSE, pipeline->vertex_layout.stride,
-                (void *)pipeline->vertex_layout.attributes[i].offset);
+                (void*)pipeline->vertex_layout.attributes[i].offset);
             break;
         case MG_VERTEX_FORMAT_FLOAT2:
             glVertexAttribPointer(pipeline->vertex_layout.attributes[i].location, 2,
                 GL_FLOAT, GL_FALSE, pipeline->vertex_layout.stride,
-                (void *)pipeline->vertex_layout.attributes[i].offset);
+                (void*)pipeline->vertex_layout.attributes[i].offset);
             break;
 
         case MG_VERTEX_FORMAT_UINT3:
             glVertexAttribPointer(pipeline->vertex_layout.attributes[i].location, 3,
                 GL_UNSIGNED_INT, GL_FALSE, pipeline->vertex_layout.stride,
-                (void *)pipeline->vertex_layout.attributes[i].offset);
+                (void*)pipeline->vertex_layout.attributes[i].offset);
             break;
         case MG_VERTEX_FORMAT_INT3:
             glVertexAttribPointer(pipeline->vertex_layout.attributes[i].location, 3,
                 GL_INT, GL_FALSE, pipeline->vertex_layout.stride,
-                (void *)pipeline->vertex_layout.attributes[i].offset);
+                (void*)pipeline->vertex_layout.attributes[i].offset);
             break;
         case MG_VERTEX_FORMAT_FLOAT3:
             glVertexAttribPointer(pipeline->vertex_layout.attributes[i].location, 3,
                 GL_FLOAT, GL_FALSE, pipeline->vertex_layout.stride,
-                (void *)pipeline->vertex_layout.attributes[i].offset);
+                (void*)pipeline->vertex_layout.attributes[i].offset);
             break;
 
         case MG_VERTEX_FORMAT_UINT4:
             glVertexAttribPointer(pipeline->vertex_layout.attributes[i].location, 4,
                 GL_UNSIGNED_INT, GL_FALSE, pipeline->vertex_layout.stride,
-                (void *)pipeline->vertex_layout.attributes[i].offset);
+                (void*)pipeline->vertex_layout.attributes[i].offset);
             break;
         case MG_VERTEX_FORMAT_INT4:
             glVertexAttribPointer(pipeline->vertex_layout.attributes[i].location, 4,
                 GL_INT, GL_FALSE, pipeline->vertex_layout.stride,
-                (void *)pipeline->vertex_layout.attributes[i].offset);
+                (void*)pipeline->vertex_layout.attributes[i].offset);
             break;
         case MG_VERTEX_FORMAT_FLOAT4:
             glVertexAttribPointer(pipeline->vertex_layout.attributes[i].location, 4,
                 GL_FLOAT, GL_FALSE, pipeline->vertex_layout.stride,
-                (void *)pipeline->vertex_layout.attributes[i].offset);
+                (void*)pipeline->vertex_layout.attributes[i].offset);
             break;
         }
 

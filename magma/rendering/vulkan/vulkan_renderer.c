@@ -36,8 +36,6 @@ void mg_vulkan_create_instance(void)
 
     VkResult result = vkCreateInstance(&create_info, NULL, &vulkan_context.instance);
     assert(result == VK_SUCCESS);
-
-    volkLoadInstance(vulkan_context.instance);
 }
 
 void mg_vulkan_get_physical_device(void)
@@ -110,8 +108,6 @@ void mg_vulkan_create_device(void)
 
     VkResult result = vkCreateDevice(vulkan_context.physical_device.handle, &create_info, NULL, &vulkan_context.device.handle);
     assert(result == VK_SUCCESS);
-
-    volkLoadDevice(vulkan_context.device.handle);
 
     vkGetDeviceQueue(vulkan_context.device.handle, vulkan_context.physical_device.graphics_family, 0, &vulkan_context.device.graphics_queue);
 }
@@ -203,7 +199,6 @@ void mg_vulkan_create_descriptor_set_layouts(void)
 
 void mg_vulkan_renderer_initialize(mg_renderer_init_info_t *init_info)
 {
-    volkInitialize();
     mg_vulkan_create_instance();
 
     mg_vulkan_create_surface(init_info->platform);
@@ -317,9 +312,14 @@ void mg_vulkan_renderer_wait(void)
     vkDeviceWaitIdle(vulkan_context.device.handle);
 }
 
-void mg_vulkan_renderer_viewport(uint32_t width, uint32_t height)
+void mg_vulkan_renderer_viewport(int32_t x, int32_t y, uint32_t width, uint32_t height)
 {
-    mg_vulkan_command_buffer_set_viewport(vulkan_context.command_buffer, width, height);
+    mg_vulkan_command_buffer_set_viewport(vulkan_context.command_buffer, x, y, width, height);
+}
+
+void mg_vulkan_renderer_scissor(int32_t x, int32_t y, uint32_t width, uint32_t height)
+{
+    mg_vulkan_command_buffer_set_scissor(vulkan_context.command_buffer, x, y, width, height);
 }
 
 void mg_vulkan_renderer_draw(uint32_t vertex_count, uint32_t first_vertex)

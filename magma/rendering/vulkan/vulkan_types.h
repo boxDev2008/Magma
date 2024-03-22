@@ -3,7 +3,6 @@
 #include "base.h"
 #include "../rhi_renderer.h"
 
-#include <volk.h>
 #include <vulkan/vulkan.h>
 
 typedef struct mg_vulkan_sampler

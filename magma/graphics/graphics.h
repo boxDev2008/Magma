@@ -55,6 +55,9 @@ MG_API void mg_graphics_resize              (int32_t width, int32_t height);
 MG_API void mg_graphics_begin               (void);
 MG_API void mg_graphics_end                 (void);
 
+MG_API void mg_graphics_2d_begin_background (mg_vec4_t clear_color);
+MG_API void mg_graphics_2d_end_background   (void);
+
 MG_API void mg_graphics_2d_begin_world      (mg_world_info_2d_t *world_info);
 MG_API void mg_graphics_2d_end_world        (void);
 
@@ -63,8 +66,9 @@ MG_API void mg_graphics_2d_end_nonlit       (void);
 
 MG_API void mg_graphics_2d_draw_rect        (mg_mat4_t model, mg_vec4_t color);
 MG_API void mg_graphics_2d_draw_sprite      (mg_mat4_t model, mg_vec4_t color, mg_sprite_t *sprite);
-MG_API void mg_graphics_2d_draw_line        (mg_vec2_t point1, mg_vec2_t point2, mg_vec4_t color);
+MG_API void mg_graphics_2d_draw_line        (mg_vec2_t point1, mg_vec2_t point2, float width, mg_vec4_t color);
 MG_API void mg_graphics_2d_draw_text        (mg_mat4_t model, mg_vec4_t color, const char *text, mg_font_t *font);
+
 MG_API void mg_graphics_2d_draw_point_light (mg_vec2_t position, float scale, float intensity, mg_vec3_t color);
 
 MG_API void mg_graphics_3d_begin_world      (void);

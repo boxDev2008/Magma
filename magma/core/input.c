@@ -33,6 +33,12 @@ void mg_input_process_key(mg_keys_t key, bool pressed)
     mg_event_call(pressed ? MG_EVENT_CODE_KEY_PRESSED : MG_EVENT_CODE_KEY_RELEASED, (void*)&data);
 }
 
+void mg_input_process_char(char ch)
+{
+    mg_char_event_data_t data = { ch };
+    mg_event_call(MG_EVENT_CODE_CHAR, (void*)&data);
+}
+
 void mg_input_process_mouse_button(mg_mouse_buttons_t button, bool pressed)
 {
     mg_input_state.mouse.buttons[button] = pressed;

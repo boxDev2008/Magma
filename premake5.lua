@@ -1,3 +1,6 @@
+local VULKAN_LIB_PATH = os.getenv("VULKAN_SDK").."\\Lib";
+print(VULKAN_LIB_PATH)
+
 workspace "Magma"
    configurations { "Release" }
 
@@ -12,10 +15,10 @@ project "Magma"
    includedirs { ".", "magma", "magma/vendor" }
 
    filter { "system:windows" }
-      links { "user32", "gdi32", "opengl32" }
-
-   filter "configurations:Release"
-      defines { "NDEBUG", "VK_USE_PLATFORM_WIN32_KHR" }
+      libdirs { VULKAN_LIB_PATH }
+      links { "user32", "gdi32", "vulkan-1", "opengl32" }
+      filter "configurations:Release"
+         defines { "NDEBUG", "VK_USE_PLATFORM_WIN32_KHR" }
 
 project "Sandbox"
    kind "ConsoleApp"
@@ -25,7 +28,7 @@ project "Sandbox"
 
    architecture "x64"
 
-   files { "sandbox/**.h", "sandbox/**.c", "sandbox/**.hpp", "sandbox/**.cpp" }
+   files { "sandbox/**.h", "sandbox/**.cpp" }
    includedirs { ".", "magma", "magma/vendor", "sandbox" }
 
    links { "Magma" }

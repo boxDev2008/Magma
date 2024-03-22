@@ -6,7 +6,6 @@
 
 #if MG_PLATFORM_WINDOWS
 
-#include <windows.h>
 #include <windowsx.h>
 
 #include <stdio.h>
@@ -193,8 +192,8 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, uint32_t msg, WPARAM w_param, 
             GetClientRect(hwnd, &r);
 
             mg_resized_event_data_t data = {r.right - r.left, r.bottom - r.top};
-            mg_win32_handle_info_t *handle = (mg_win32_handle_info_t*)state->handle;
 
+            mg_win32_handle_info_t *handle = (mg_win32_handle_info_t*)state->handle;
             handle->window_width = data.width; 
             handle->window_height = data.height; 
 
@@ -211,6 +210,9 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, uint32_t msg, WPARAM w_param, 
 
             mg_input_process_key(key, pressed);
         }
+        break;
+        case WM_CHAR:
+            mg_input_process_char((wchar_t)w_param);
         break;
         case WM_MOUSEMOVE:
         {
@@ -275,6 +277,12 @@ void mg_platform_get_window_size(mg_platform_t *platform, uint32_t *width, uint3
     mg_win32_handle_info_t *handle = (mg_win32_handle_info_t*)platform->handle;
     *width = handle->window_width;
     *height = handle->window_height;
+}
+
+HWND mg_platform_win32_get_handler(mg_platform_t *platform)
+{
+    mg_win32_handle_info_t *handle = (mg_win32_handle_info_t*)platform->handle;
+    return handle->hwnd;
 }
 
 #endif

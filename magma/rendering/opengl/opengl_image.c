@@ -267,7 +267,7 @@ void mg_opengl_update_image(mg_opengl_image_t *image, mg_opengl_sampler_t *sampl
 {
     glActiveTexture(GL_TEXTURE0 + binding);
 	glBindTexture(image->texture_target, image->texture_id);
-   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, sampler->address_mode_u);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, sampler->address_mode_u);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, sampler->address_mode_v);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, sampler->address_mode_w);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, sampler->min_filter);

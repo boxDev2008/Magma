@@ -28,7 +28,8 @@ typedef struct mg_rhi_renderer_plugin
 
     void (*configure_swapchain) (mg_swapchain_config_info_t *config_info);
 
-    void (*viewport)        (uint32_t width, uint32_t height);
+    void (*viewport)        (int32_t x, int32_t y, uint32_t width, uint32_t height);
+    void (*scissor)         (int32_t x, int32_t y, uint32_t width, uint32_t height);
 
     void *(*create_render_pass)         (mg_render_pass_create_info_t *create_info);
     void (*destroy_render_pass)         (void *render_pass);
@@ -89,68 +90,6 @@ void mg_rhi_renderer_initialize(mg_renderer_init_info_t *init_info)
 {
     switch (init_info->type)
     {
-        case MG_RENDERER_TYPE_OPENGL:
-            plugin.initialize       =   mg_opengl_renderer_initialize;
-            plugin.shutdown         =   mg_opengl_renderer_shutdown;
-            plugin.begin_frame      =   mg_opengl_renderer_begin_frame;
-            plugin.end_frame        =   mg_opengl_renderer_end_frame;
-            plugin.present_frame    =   mg_opengl_renderer_present_frame;
-            plugin.wait             =   mg_opengl_renderer_wait;
-            plugin.viewport         =   mg_opengl_renderer_viewport;
-
-            plugin.configure_swapchain          =   mg_opengl_configure_swapchain;
-
-            plugin.create_render_pass           =   mg_opengl_create_render_pass;
-            plugin.destroy_render_pass          =   mg_opengl_destroy_render_pass;
-            plugin.begin_render_pass            =   mg_opengl_begin_render_pass;
-            plugin.begin_default_render_pass    =   mg_opengl_begin_default_render_pass;
-            plugin.end_render_pass              =   mg_opengl_end_render_pass;
-
-            plugin.create_pipeline  =   mg_opengl_create_pipeline;
-            plugin.destroy_pipeline =   mg_opengl_destroy_pipeline;
-            plugin.bind_pipeline    =   mg_opengl_bind_pipeline;
-
-            plugin.create_vertex_buffer             =   mg_opengl_create_vertex_buffer;
-            plugin.destroy_vertex_buffer            =   mg_opengl_destroy_vertex_buffer;
-
-            plugin.create_index_buffer              =   mg_opengl_create_index_buffer;
-            plugin.destroy_index_buffer             =   mg_opengl_destroy_index_buffer;
-
-            plugin.create_dynamic_vertex_buffer     =   mg_opengl_create_dynamic_vertex_buffer;
-            plugin.destroy_dynamic_vertex_buffer    =   mg_opengl_destroy_dynamic_vertex_buffer;
-            plugin.update_dynamic_vertex_buffer     =   mg_opengl_update_dynamic_vertex_buffer;
-
-            plugin.create_dynamic_index_buffer      =   mg_opengl_create_dynamic_index_buffer;
-            plugin.destroy_dynamic_index_buffer     =   mg_opengl_destroy_dynamic_index_buffer;
-            plugin.update_dynamic_index_buffer      =   mg_opengl_update_dynamic_index_buffer;
-
-            plugin.create_uniform_buffer            =   mg_opengl_create_uniform_buffer;
-            plugin.destroy_uniform_buffer           =   mg_opengl_destroy_uniform_buffer;
-            plugin.update_uniform_buffer            =   mg_opengl_update_uniform_buffer;
-
-            plugin.bind_vertex_buffer               =   mg_opengl_bind_vertex_buffer;
-            plugin.bind_dynamic_vertex_buffer       =   mg_opengl_bind_dynamic_vertex_buffer;
-            plugin.bind_index_buffer                =   mg_opengl_bind_index_buffer;
-            plugin.bind_dynamic_index_buffer        =   mg_opengl_bind_dynamic_index_buffer;
-            plugin.bind_unifom_buffer               =   mg_opengl_bind_unifom_buffer;
-
-            plugin.create_image     =   mg_opengl_create_image;
-            plugin.destroy_image    =   mg_opengl_destroy_image;
-            plugin.write_image      =   mg_opengl_write_image;
-            plugin.update_image     =   mg_opengl_update_image;
-            plugin.bind_image       =   mg_opengl_bind_image;
-
-            plugin.create_sampler     =   mg_opengl_create_sampler;
-            plugin.destroy_sampler    =   mg_opengl_destroy_sampler;
-
-            plugin.create_framebuffer   =   mg_opengl_create_framebuffer;
-            plugin.destroy_framebuffer  =   mg_opengl_destroy_framebuffer;
-
-            plugin.draw         =   mg_opengl_renderer_draw;
-            plugin.draw_indexed =   mg_opengl_renderer_draw_indexed;
-
-            plugin.push_constants = mg_opengl_renderer_push_constants;
-        break;
         case MG_RENDERER_TYPE_VULKAN:
             plugin.initialize       =   mg_vulkan_renderer_initialize;
             plugin.shutdown         =   mg_vulkan_renderer_shutdown;
@@ -159,6 +98,7 @@ void mg_rhi_renderer_initialize(mg_renderer_init_info_t *init_info)
             plugin.present_frame    =   mg_vulkan_renderer_present_frame;
             plugin.wait             =   mg_vulkan_renderer_wait;
             plugin.viewport         =   mg_vulkan_renderer_viewport;
+            plugin.scissor          =   mg_vulkan_renderer_scissor;
 
             plugin.configure_swapchain          =   mg_vulkan_configure_swapchain;
 
@@ -213,6 +153,69 @@ void mg_rhi_renderer_initialize(mg_renderer_init_info_t *init_info)
 
             plugin.push_constants   =   mg_vulkan_renderer_push_constants;
         break;
+        case MG_RENDERER_TYPE_OPENGL:
+            plugin.initialize       =   mg_opengl_renderer_initialize;
+            plugin.shutdown         =   mg_opengl_renderer_shutdown;
+            plugin.begin_frame      =   mg_opengl_renderer_begin_frame;
+            plugin.end_frame        =   mg_opengl_renderer_end_frame;
+            plugin.present_frame    =   mg_opengl_renderer_present_frame;
+            plugin.wait             =   mg_opengl_renderer_wait;
+            plugin.viewport         =   mg_opengl_renderer_viewport;
+            plugin.scissor          =   mg_opengl_renderer_scissor;
+
+            plugin.configure_swapchain          =   mg_opengl_configure_swapchain;
+
+            plugin.create_render_pass           =   mg_opengl_create_render_pass;
+            plugin.destroy_render_pass          =   mg_opengl_destroy_render_pass;
+            plugin.begin_render_pass            =   mg_opengl_begin_render_pass;
+            plugin.begin_default_render_pass    =   mg_opengl_begin_default_render_pass;
+            plugin.end_render_pass              =   mg_opengl_end_render_pass;
+
+            plugin.create_pipeline  =   mg_opengl_create_pipeline;
+            plugin.destroy_pipeline =   mg_opengl_destroy_pipeline;
+            plugin.bind_pipeline    =   mg_opengl_bind_pipeline;
+
+            plugin.create_vertex_buffer             =   mg_opengl_create_vertex_buffer;
+            plugin.destroy_vertex_buffer            =   mg_opengl_destroy_vertex_buffer;
+
+            plugin.create_index_buffer              =   mg_opengl_create_index_buffer;
+            plugin.destroy_index_buffer             =   mg_opengl_destroy_index_buffer;
+
+            plugin.create_dynamic_vertex_buffer     =   mg_opengl_create_dynamic_vertex_buffer;
+            plugin.destroy_dynamic_vertex_buffer    =   mg_opengl_destroy_dynamic_vertex_buffer;
+            plugin.update_dynamic_vertex_buffer     =   mg_opengl_update_dynamic_vertex_buffer;
+
+            plugin.create_dynamic_index_buffer      =   mg_opengl_create_dynamic_index_buffer;
+            plugin.destroy_dynamic_index_buffer     =   mg_opengl_destroy_dynamic_index_buffer;
+            plugin.update_dynamic_index_buffer      =   mg_opengl_update_dynamic_index_buffer;
+
+            plugin.create_uniform_buffer            =   mg_opengl_create_uniform_buffer;
+            plugin.destroy_uniform_buffer           =   mg_opengl_destroy_uniform_buffer;
+            plugin.update_uniform_buffer            =   mg_opengl_update_uniform_buffer;
+
+            plugin.bind_vertex_buffer               =   mg_opengl_bind_vertex_buffer;
+            plugin.bind_dynamic_vertex_buffer       =   mg_opengl_bind_dynamic_vertex_buffer;
+            plugin.bind_index_buffer                =   mg_opengl_bind_index_buffer;
+            plugin.bind_dynamic_index_buffer        =   mg_opengl_bind_dynamic_index_buffer;
+            plugin.bind_unifom_buffer               =   mg_opengl_bind_unifom_buffer;
+
+            plugin.create_image     =   mg_opengl_create_image;
+            plugin.destroy_image    =   mg_opengl_destroy_image;
+            plugin.write_image      =   mg_opengl_write_image;
+            plugin.update_image     =   mg_opengl_update_image;
+            plugin.bind_image       =   mg_opengl_bind_image;
+
+            plugin.create_sampler     =   mg_opengl_create_sampler;
+            plugin.destroy_sampler    =   mg_opengl_destroy_sampler;
+
+            plugin.create_framebuffer   =   mg_opengl_create_framebuffer;
+            plugin.destroy_framebuffer  =   mg_opengl_destroy_framebuffer;
+
+            plugin.draw         =   mg_opengl_renderer_draw;
+            plugin.draw_indexed =   mg_opengl_renderer_draw_indexed;
+
+            plugin.push_constants = mg_opengl_renderer_push_constants;
+        break;
     }
 
     plugin.initialize(init_info);
@@ -243,9 +246,14 @@ void mg_rhi_renderer_wait(void)
     plugin.wait();
 }
 
-void mg_rhi_renderer_viewport(uint32_t width, uint32_t height)
+void mg_rhi_renderer_viewport(int32_t x, int32_t y, uint32_t width, uint32_t height)
 {
-    plugin.viewport(width, height);
+    plugin.viewport(x, y, width, height);
+}
+
+void mg_rhi_renderer_scissor(int32_t x, int32_t y, uint32_t width, uint32_t height)
+{
+    plugin.scissor(x, y, width, height);
 }
 
 void mg_rhi_renderer_configure_swapchain(mg_swapchain_config_info_t *config_info)

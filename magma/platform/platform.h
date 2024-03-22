@@ -8,6 +8,10 @@
 extern "C" {
 #endif
 
+#if MG_PLATFORM_WINDOWS
+#include <windows.h>
+#endif
+
 typedef struct mg_platform
 {
     void *handle;
@@ -22,13 +26,17 @@ typedef struct mg_platform_init_info
 }
 mg_platform_init_info_t;
 
+#if MG_PLATFORM_WINDOWS
+MG_API HWND mg_platform_win32_get_handler(mg_platform_t *platform);
+#endif
+
 MG_API mg_platform_t   *mg_platform_initialize      (mg_platform_init_info_t *create_info);
 MG_API void             mg_platform_shutdown        (mg_platform_t *platform);
 
 MG_API void             mg_platform_poll_messages   (mg_platform_t *platform);
 MG_API double           mg_platform_get_time        (void);
 
-MG_API void             mg_platform_get_window_size (mg_platform_t *platform, uint32_t*width, uint32_t*height);
+MG_API void             mg_platform_get_window_size (mg_platform_t *platform, uint32_t *width, uint32_t *height);
 
 #ifdef __cplusplus
 }

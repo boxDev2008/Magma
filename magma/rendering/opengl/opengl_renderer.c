@@ -13,27 +13,23 @@
 
 #include <stb_image.h>
 
-#define MG_OPENGL_PUSH_CONSTANT_BINDING 4
+#define MG_OPENGL_PUSH_CONSTANT_BINDING 16
 
 mg_opengl_context_t opengl_context;
 
 const char *BACK_BUFFER_VERT = "#version 450 core\n"
-    "layout (location = 0) in vec3 in_position;\n"
+    "layout (location = 0) in vec2 in_position;\n"
     "layout (location = 1) in vec2 in_tex_coord;\n"
     "out vec2 tex_coord;\n"
     "void main()\n"
     "{\n"
-        "gl_Position = vec4(in_position.x, in_position.y, in_position.z, 1.0);\n"
+        "gl_Position = vec4(in_position, 0.0, 1.0);\n"
         "tex_coord = in_tex_coord;\n"
     "}\0";
 
-    
 const char *BACK_BUFFER_FRAG = "#version 450 core\n"
     "out vec4 out_color;\n"
     "in vec2 tex_coord;\n"
-    /*"layout(std140, binding = 1) uniform Ubo {\n"
-    "float time;\n"
-    "};\n"*/
     "uniform sampler2D u_texture;\n"
     "void main()\n"
     "{\n"
@@ -91,6 +87,11 @@ void mg_opengl_renderer_initialize(mg_renderer_init_info_t *init_info)
     glGenTextures(1, &opengl_context.back_buffer.color_attachment);
     glBindTexture(GL_TEXTURE_2D, opengl_context.back_buffer.color_attachment);
     
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
     switch (init_info->swapchain_config_info->format)
     {
     case MG_PIXEL_FORMAT_R8_SRGB:
@@ -106,11 +107,6 @@ void mg_opengl_renderer_initialize(mg_renderer_init_info_t *init_info)
         glDisable(GL_FRAMEBUFFER_SRGB);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, init_info->swapchain_config_info->width, init_info->swapchain_config_info->height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
     }
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, opengl_context.back_buffer.color_attachment, 0);
 
@@ -132,6 +128,8 @@ void mg_opengl_renderer_shutdown(void)
 void mg_opengl_renderer_begin_frame(void)
 {
     glBindVertexArray(opengl_context.vao);
+    glActiveTexture(0);
+    glBindTexture(GL_TEXTURE_2D, 0);
     glBindFramebuffer(GL_FRAMEBUFFER, opengl_context.back_buffer.framebuffer);
 }
 
@@ -148,6 +146,15 @@ void mg_opengl_renderer_present_frame(void)
     glActiveTexture(0);
     glBindTexture(GL_TEXTURE_2D, opengl_context.back_buffer.color_attachment);
     glBindBuffer(GL_ARRAY_BUFFER, opengl_context.back_buffer.vertex_buffer);
+        glVertexAttribPointer(0, 2,
+            GL_FLOAT, GL_FALSE, 4 * sizeof(float),
+            (void*)0);
+    glEnableVertexAttribArray(0);
+        glVertexAttribPointer(1, 2,
+            GL_FLOAT, GL_FALSE, 4 * sizeof(float),
+            (void*)(2 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, opengl_context.back_buffer.index_buffer);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);
 
@@ -159,9 +166,14 @@ void mg_opengl_renderer_wait(void)
 
 }
 
-void mg_opengl_renderer_viewport(uint32_t width, uint32_t height)
+void mg_opengl_renderer_viewport(int32_t x, int32_t y, uint32_t width, uint32_t height)
 {
-    glViewport(0, 0, width, height);
+    glViewport(x, y, width, height);
+}
+
+void mg_opengl_renderer_scissor(int32_t x, int32_t y, uint32_t width, uint32_t height)
+{
+    glScissor(x, y, width, height);
 }
 
 void mg_opengl_renderer_draw(uint32_t vertex_count, uint32_t first_vertex)
