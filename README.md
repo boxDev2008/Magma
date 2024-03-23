@@ -277,7 +277,7 @@ mg_render_pass_begin_info_t render_pass_begin_info = {
 	.render_area = {0, 0, swapchain_config_info.width, swapchain_config_info.height},
 	.clear_value = /* Define your clear color */
 };
-        mg_rhi_renderer_begin_render_pass(render_pass, framebuffer, &render_pass_begin_info);
+mg_rhi_renderer_begin_render_pass(render_pass, framebuffer, &render_pass_begin_info);
 
 // Bind pipeline
 mg_rhi_renderer_bind_pipeline(pipeline);
