@@ -54,24 +54,27 @@
 #define MG_GRAPHICS_2D_GLOBAL_UNIFORM_BUFFER_WORLD_INDEX 0
 #define MG_GRAPHICS_2D_GLOBAL_UNIFORM_BUFFER_NONLIT_INDEX 1
 
-typedef struct mg_render_layer_2d
+typedef struct mg_shader_resources
 {
-    mg_pipeline_t pipeline;
-    mg_render_pass_t render_pass;
-    mg_framebuffer_t framebuffer;
-    mg_image_t color_attachment;
-}
-mg_render_layer_2d_t;
+    void
+    *world_2d_vert, *world_2d_frag,
+    *nonlit_2d_vert, *nonlit_2d_frag,
+    *world_3d_vert, *world_3d_frag,
+    *quad_vert, *quad_frag,
+    *sprite_vert, *sprite_frag,
+    *text_vert, *text_frag,
+    *mesh_vert, *mesh_frag;
 
-typedef struct mg_render_layer_3d
-{
-    mg_pipeline_t pipeline;
-    mg_render_pass_t render_pass;
-    mg_framebuffer_t framebuffer;
-    mg_image_t color_attachment;
-    mg_image_t depth_stencil_attachment;
+    size_t
+    world_2d_vert_size, world_2d_frag_size,
+    nonlit_2d_vert_size, nonlit_2d_frag_size,
+    world_3d_vert_size, world_3d_frag_size,
+    quad_vert_size, quad_frag_size,
+    sprite_vert_size, sprite_frag_size,
+    text_vert_size, text_frag_size,
+    mesh_vert_size, mesh_frag_size;
 }
-mg_render_layer_3d_t;
+mg_shader_resources_t;
 
 typedef struct mg_graphics_data
 {
@@ -80,29 +83,14 @@ typedef struct mg_graphics_data
     mg_vertex_buffer_t screen_vertex_buffer;
     mg_sampler_t screen_sampler;
 
-    struct
-    {
-        mg_mat4_t view_projection;
-    }
-    global_background_ubo;
-
-    mg_uniform_buffer_t global_background_uniform_buffer;
+    mg_render_layer_t *layers[MG_CONFIG_GRAPHICS_MAX_RENDER_LAYERS];
+    uint32_t layer_count;
 
     struct
     {
         mg_mat4_t view_projection;
     }
-    global_2d_ubo;
-
-    mg_uniform_buffer_t global_2d_uniform_buffers[2];
-
-    struct
-    {
-        mg_mat4_t view_projection;
-    }
-    global_3d_ubo;
-
-    mg_uniform_buffer_t global_3d_uniform_buffer;
+    global_ubo;
 
     struct
     {
@@ -117,14 +105,6 @@ typedef struct mg_graphics_data
         int32_t flag_enable_shadows;
     }
     world_2d_ubo;
-
-    mg_render_layer_2d_t background_layer;
-
-    mg_uniform_buffer_t world_2d_uniform_buffer;
-    mg_render_layer_2d_t world_2d_layer;
-
-    mg_render_layer_2d_t nonlit_2d_layer;
-    mg_render_layer_3d_t world_3d_layer;
 
     struct
     {
@@ -196,70 +176,24 @@ typedef struct mg_graphics_data
     }
     frame_data;
 
-    mg_pixel_format_t format;
+    mg_shader_resources_t shader_resources;
 
+    mg_pixel_format_t format;
     int32_t width, height;
-    uint64_t flags;
 }
 mg_graphics_data_t;
 
 static mg_graphics_data_t graphics_data;
 
-static void mg_create_render_layer_2d(mg_render_layer_2d_t *layer, mg_shader_source_t vertex_shader, mg_shader_source_t fragment_shader)
+mg_render_layer_t *mg_graphics_create_render_layer(mg_shader_source_t vertex_shader, mg_shader_source_t fragment_shader,
+bool has_depth_stencil_attachment, size_t global_ub_size, size_t internal_ub_size)
 {
+    mg_render_layer_t *layer = (mg_render_layer_t*)calloc(1, sizeof(mg_render_layer_t));
     mg_render_pass_create_info_t render_pass_create_info = {
         .color_attachment = {
             .format = graphics_data.format
         }
     };
-
-    layer->render_pass =
-        mg_rhi_renderer_create_render_pass(&render_pass_create_info);
-
-    const mg_vertex_attribute_info_t vertex_attributes[2] = {
-        {
-            .location = 0,
-            .offset = 0,
-            .format = MG_VERTEX_FORMAT_FLOAT2
-        },
-        {
-            .location = 1,
-            .offset = 2 * sizeof(float),
-            .format = MG_VERTEX_FORMAT_FLOAT2
-        }
-    };
-
-    mg_vertex_layout_info_t vertex_layout = {
-        .stride = 4 * sizeof(float),
-        .attributes = vertex_attributes,
-        .attribute_count = 2
-    };
-
-    mg_pipeline_create_info_t pipeline_create_info = {
-        .vertex_shader = vertex_shader,
-        .fragment_shader = fragment_shader,
-
-        vertex_layout = vertex_layout,
-
-        .polygon_mode = MG_POLYGON_MODE_FILL,
-        .cull_mode = MG_CULL_MODE_NONE,
-        .front_face = MG_FRONT_FACE_CW,
-
-        .color_blend = {
-            .blend_enabled = true,
-            .src_color_blend_factor = MG_BLEND_FACTOR_SRC_ALPHA,
-            .dst_color_blend_factor = MG_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
-            .color_blend_op = MG_BLEND_OP_ADD,
-            .src_alpha_blend_factor = MG_BLEND_FACTOR_SRC_ALPHA,
-            .dst_alpha_blend_factor = MG_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
-            .alpha_blend_op = MG_BLEND_OP_ADD
-        },
-
-        .render_pass = layer->render_pass
-    };
-
-    layer->pipeline =
-        mg_rhi_renderer_create_pipeline(&pipeline_create_info);
 
     mg_image_create_info_t color_attachment_create_info = {
         .format = graphics_data.format,
@@ -273,68 +207,41 @@ static void mg_create_render_layer_2d(mg_render_layer_2d_t *layer, mg_shader_sou
         mg_rhi_renderer_create_image(&color_attachment_create_info);
 
     mg_rhi_renderer_update_image(layer->color_attachment, graphics_data.screen_sampler, 0);
-    
+
     mg_framebuffer_create_info_t framebuffer_create_info = {
         .width = graphics_data.width,
         .height = graphics_data.height,
-        .render_pass = layer->render_pass,
-        .color_attachment = layer->color_attachment
-    };
-    layer->framebuffer =
-        mg_rhi_renderer_create_framebuffer(&framebuffer_create_info);
-}
-
-static void mg_destroy_render_layer_2d(mg_render_layer_2d_t *layer)
-{
-    mg_rhi_renderer_destroy_framebuffer(layer->framebuffer);
-    mg_rhi_renderer_destroy_image(layer->color_attachment);
-    mg_rhi_renderer_destroy_pipeline(layer->pipeline);
-    mg_rhi_renderer_destroy_render_pass(layer->render_pass);
-}
-
-static void mg_resize_render_layer_2d(mg_render_layer_2d_t *layer, uint32_t width, uint32_t height)
-{
-    mg_rhi_renderer_destroy_framebuffer(layer->framebuffer);
-    mg_rhi_renderer_destroy_image(layer->color_attachment);
-
-    mg_image_create_info_t image_create_info = {
-        .format = graphics_data.format,
-        .type = MG_IMAGE_TYPE_2D,
-        .usage = MG_IMAGE_USAGE_COLOR_ATTACHMENT,
-        .width = width,
-        .height = height
-    };
-
-    layer->color_attachment =
-        mg_rhi_renderer_create_image(&image_create_info);
-
-    mg_rhi_renderer_update_image(layer->color_attachment, graphics_data.screen_sampler, 0);
-
-    mg_framebuffer_create_info_t framebuffer_create_info = {
-        .width = width,
-        .height = height,
-        .render_pass = layer->render_pass,
         .color_attachment = layer->color_attachment
     };
 
-    layer->framebuffer =
-        mg_rhi_renderer_create_framebuffer(&framebuffer_create_info);
-}
-
-static void mg_create_render_layer_3d(mg_render_layer_3d_t* layer, mg_shader_source_t vertex_shader, mg_shader_source_t fragment_shader)
-{
-    mg_render_pass_create_info_t render_pass_create_info = {
-        .color_attachment = {
-            .format = graphics_data.format
-        },
-        .depth_stencil_attachment = {
+    if (has_depth_stencil_attachment)
+    {
+        render_pass_create_info.depth_stencil_attachment = (mg_attachment_info_t){
             .format = MG_PIXEL_FORMAT_D32_SFLOAT
-        },
-        .has_depth_stencil_attachment = true
-    };
+        };
+        render_pass_create_info.has_depth_stencil_attachment = true;
+
+        mg_image_create_info_t depth_stencil_attachment_create_info = {
+            .format = MG_PIXEL_FORMAT_D32_SFLOAT,
+            .type = MG_IMAGE_TYPE_2D,
+            .usage = MG_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT,
+            .width = graphics_data.width,
+            .height = graphics_data.height
+        };
+
+        layer->depth_stencil_attachment =
+            mg_rhi_renderer_create_image(&depth_stencil_attachment_create_info);
+
+        framebuffer_create_info.depth_stencil_attachment = layer->depth_stencil_attachment;
+    }
 
     layer->render_pass =
         mg_rhi_renderer_create_render_pass(&render_pass_create_info);
+
+    framebuffer_create_info.render_pass = layer->render_pass;
+
+    layer->framebuffer =
+        mg_rhi_renderer_create_framebuffer(&framebuffer_create_info);
 
     const mg_vertex_attribute_info_t vertex_attributes[2] = {
         {
@@ -380,6 +287,38 @@ static void mg_create_render_layer_3d(mg_render_layer_3d_t* layer, mg_shader_sou
 
     layer->pipeline =
         mg_rhi_renderer_create_pipeline(&pipeline_create_info);
+    
+    layer->global_ub = mg_rhi_renderer_create_uniform_buffer(global_ub_size);
+
+    if (internal_ub_size > 0)
+        layer->internal_ub = mg_rhi_renderer_create_uniform_buffer(internal_ub_size);
+
+    return layer;
+}
+
+void mg_graphics_destroy_render_layer(mg_render_layer_t *layer)
+{
+    mg_rhi_renderer_destroy_framebuffer(layer->framebuffer);
+    mg_rhi_renderer_destroy_image(layer->color_attachment);
+
+    if (layer->depth_stencil_attachment.internal_data)
+        mg_rhi_renderer_destroy_image(layer->depth_stencil_attachment);
+
+    mg_rhi_renderer_destroy_pipeline(layer->pipeline);
+    mg_rhi_renderer_destroy_render_pass(layer->render_pass);
+
+    mg_rhi_renderer_destroy_uniform_buffer(layer->global_ub);
+
+    if (layer->internal_ub.internal_data)
+        mg_rhi_renderer_destroy_uniform_buffer(layer->internal_ub);
+
+    free(layer);
+}
+
+static void mg_graphics_resize_render_layer(mg_render_layer_t *layer)
+{
+    mg_rhi_renderer_destroy_framebuffer(layer->framebuffer);
+    mg_rhi_renderer_destroy_image(layer->color_attachment);
 
     mg_image_create_info_t color_attachment_create_info = {
         .format = graphics_data.format,
@@ -394,109 +333,122 @@ static void mg_create_render_layer_3d(mg_render_layer_3d_t* layer, mg_shader_sou
 
     mg_rhi_renderer_update_image(layer->color_attachment, graphics_data.screen_sampler, 0);
 
-    mg_image_create_info_t depth_stencil_attachment_create_info = {
-        .format = MG_PIXEL_FORMAT_D32_SFLOAT,
-        .type = MG_IMAGE_TYPE_2D,
-        .usage = MG_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT,
-        .width = graphics_data.width,
-        .height = graphics_data.height
-    };
-
-    layer->depth_stencil_attachment =
-        mg_rhi_renderer_create_image(&depth_stencil_attachment_create_info);
-
     mg_framebuffer_create_info_t framebuffer_create_info = {
         .width = graphics_data.width,
         .height = graphics_data.height,
         .render_pass = layer->render_pass,
-        .color_attachment = layer->color_attachment,
-        .depth_stencil_attachment = layer->depth_stencil_attachment
-    };
-    layer->framebuffer =
-        mg_rhi_renderer_create_framebuffer(&framebuffer_create_info);
-}
-
-static void mg_destroy_render_layer_3d(mg_render_layer_3d_t* layer)
-{
-    mg_rhi_renderer_destroy_framebuffer(layer->framebuffer);
-    mg_rhi_renderer_destroy_image(layer->color_attachment);
-    mg_rhi_renderer_destroy_image(layer->depth_stencil_attachment);
-    mg_rhi_renderer_destroy_pipeline(layer->pipeline);
-    mg_rhi_renderer_destroy_render_pass(layer->render_pass);
-}
-
-static void mg_resize_render_layer_3d(mg_render_layer_3d_t* layer, uint32_t width, uint32_t height)
-{
-    mg_rhi_renderer_destroy_framebuffer(layer->framebuffer);
-    mg_rhi_renderer_destroy_image(layer->color_attachment);
-    mg_rhi_renderer_destroy_image(layer->depth_stencil_attachment);
-
-    mg_image_create_info_t image_create_info = {
-        .format = graphics_data.format,
-        .type = MG_IMAGE_TYPE_2D,
-        .usage = MG_IMAGE_USAGE_COLOR_ATTACHMENT,
-        .width = width,
-        .height = height
+        .color_attachment = layer->color_attachment
     };
 
-    layer->color_attachment =
-        mg_rhi_renderer_create_image(&image_create_info);
+    if (layer->depth_stencil_attachment.internal_data)
+    {
+        mg_image_create_info_t depth_stencil_attachment_create_info = {
+            .format = MG_PIXEL_FORMAT_D32_SFLOAT,
+            .type = MG_IMAGE_TYPE_2D,
+            .usage = MG_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT,
+            .width = graphics_data.width,
+            .height = graphics_data.height
+        };
 
-    mg_rhi_renderer_update_image(layer->color_attachment, graphics_data.screen_sampler, 0);
+        layer->depth_stencil_attachment =
+            mg_rhi_renderer_create_image(&depth_stencil_attachment_create_info);
 
-    mg_image_create_info_t depth_stencil_attachment_create_info = {
-        .format = MG_PIXEL_FORMAT_D32_SFLOAT,
-        .type = MG_IMAGE_TYPE_2D,
-        .usage = MG_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT,
-        .width = graphics_data.width,
-        .height = graphics_data.height
-    };
-
-    layer->depth_stencil_attachment =
-        mg_rhi_renderer_create_image(&depth_stencil_attachment_create_info);
-
-    mg_framebuffer_create_info_t framebuffer_create_info = {
-        .width = width,
-        .height = height,
-        .render_pass = layer->render_pass,
-        .color_attachment = layer->color_attachment,
-        .depth_stencil_attachment = layer->depth_stencil_attachment
-    };
+        framebuffer_create_info.depth_stencil_attachment = layer->depth_stencil_attachment;
+    }
 
     layer->framebuffer =
         mg_rhi_renderer_create_framebuffer(&framebuffer_create_info);
 }
 
-void mg_graphics_initialize(mg_renderer_init_info_t *renderer_info, uint64_t flags)
+void mg_graphics_add_render_layer(mg_render_layer_t *layer)
+{
+    graphics_data.layers[graphics_data.layer_count] = layer;
+    graphics_data.layer_count++;
+}
+
+void mg_graphics_begin_render_layer(mg_render_layer_t *layer, mg_vec4_t clear_value)
+{
+    mg_render_pass_begin_info_t render_pass_begin_info = {
+        .render_area = (mg_vec4_t) {0.0f, 0.0f, graphics_data.width, graphics_data.height},
+        .clear_value = clear_value
+    };
+
+    mg_rhi_renderer_begin_render_pass(layer->render_pass,
+        layer->framebuffer, &render_pass_begin_info);
+
+    mg_rhi_renderer_viewport(0, 0, graphics_data.width, graphics_data.height);
+}
+
+void mg_graphics_end_render_layer(mg_render_layer_t *layer)
+{
+    mg_rhi_renderer_end_render_pass();
+}
+
+mg_render_layer_t *mg_graphics_create_nonlit_layer_2d(void)
+{
+    mg_shader_source_t vertex_shader = {
+        .code = graphics_data.shader_resources.nonlit_2d_vert,
+        .code_size = graphics_data.shader_resources.nonlit_2d_vert_size
+    };
+
+    mg_shader_source_t fragment_shader = {
+        .code = graphics_data.shader_resources.nonlit_2d_frag,
+        .code_size = graphics_data.shader_resources.nonlit_2d_frag_size
+    };
+
+    mg_render_layer_t *layer = mg_graphics_create_render_layer(vertex_shader, fragment_shader,
+        false, sizeof(graphics_data.global_ubo), 0);
+
+    return layer;
+}
+
+mg_render_layer_t *mg_graphics_create_world_layer_2d(void)
+{
+    mg_shader_source_t vertex_shader = {
+        .code = graphics_data.shader_resources.world_2d_vert,
+        .code_size = graphics_data.shader_resources.world_2d_vert_size
+    };
+
+    mg_shader_source_t fragment_shader = {
+        .code = graphics_data.shader_resources.world_2d_frag,
+        .code_size = graphics_data.shader_resources.world_2d_frag_size
+    };
+
+    mg_render_layer_t *layer = mg_graphics_create_render_layer(vertex_shader, fragment_shader,
+        false, sizeof(graphics_data.global_ubo), sizeof(graphics_data.world_2d_ubo));
+
+    return layer;
+}
+
+mg_render_layer_t *mg_graphics_create_world_layer_3d(void)
+{
+    mg_shader_source_t vertex_shader = {
+        .code = graphics_data.shader_resources.world_3d_vert,
+        .code_size = graphics_data.shader_resources.world_3d_vert_size
+    };
+
+    mg_shader_source_t fragment_shader = {
+        .code = graphics_data.shader_resources.world_3d_frag,
+        .code_size = graphics_data.shader_resources.world_3d_frag_size
+    };
+
+    mg_render_layer_t *layer = mg_graphics_create_render_layer(vertex_shader, fragment_shader,
+        true, sizeof(graphics_data.global_ubo), 0);
+
+    return layer;
+}
+
+void mg_graphics_initialize(mg_renderer_init_info_t *renderer_info)
 {
     graphics_data.width = renderer_info->swapchain_config_info->width;
     graphics_data.height = renderer_info->swapchain_config_info->height;
     graphics_data.format = renderer_info->swapchain_config_info->format;
-    graphics_data.flags = flags;
 
     graphics_data.world_2d_ubo.resolution = (mg_vec2_t){ graphics_data.width, graphics_data.height };
 
-    struct
-    {
-        void
-        *world_2d_vert, *world_2d_frag,
-        *nonlit_2d_vert, *nonlit_2d_frag,
-        *world_3d_vert, *world_3d_frag,
-        *quad_vert, *quad_frag,
-        *sprite_vert, *sprite_frag,
-        *text_vert, *text_frag,
-        *mesh_vert, *mesh_frag;
+    graphics_data.layer_count = 0;
 
-        size_t
-        world_2d_vert_size, world_2d_frag_size,
-        nonlit_2d_vert_size, nonlit_2d_frag_size,
-        world_3d_vert_size, world_3d_frag_size,
-        quad_vert_size, quad_frag_size,
-        sprite_vert_size, sprite_frag_size,
-        text_vert_size, text_frag_size,
-        mesh_vert_size, mesh_frag_size;
-    }
-    shader_resources;
+    mg_shader_resources_t shader_resources;
 
     switch (renderer_info->type)
     {
@@ -574,6 +526,8 @@ void mg_graphics_initialize(mg_renderer_init_info_t *renderer_info, uint64_t fla
         break;
     }
 
+    graphics_data.shader_resources = shader_resources;
+
     uint16_t indices[6] = {
         0, 1, 3, 1, 2, 3
     };
@@ -605,81 +559,6 @@ void mg_graphics_initialize(mg_renderer_init_info_t *renderer_info, uint64_t fla
             mg_rhi_renderer_create_sampler(&sampler_create_info);
     }
 #pragma endregion
-
-    if (graphics_data.flags & MG_GRAPHICS_FLAG_ENABLE_BACKGROUND)
-    {
-        mg_shader_source_t vertex_shader = {
-            .code = shader_resources.nonlit_2d_vert,
-            .code_size = shader_resources.nonlit_2d_vert_size
-        };
-
-        mg_shader_source_t fragment_shader = {
-            .code = shader_resources.nonlit_2d_frag,
-            .code_size = shader_resources.nonlit_2d_frag_size
-        };
-
-        mg_create_render_layer_2d(&graphics_data.background_layer, vertex_shader, fragment_shader);
-
-        graphics_data.global_background_uniform_buffer =
-            mg_rhi_renderer_create_uniform_buffer(sizeof(graphics_data.global_2d_ubo));
-    }
-
-    if (graphics_data.flags & MG_GRAPHICS_FLAG_ENABLE_WORLD_2D)
-    {
-        mg_shader_source_t vertex_shader = {
-            .code = shader_resources.world_2d_vert,
-            .code_size = shader_resources.world_2d_vert_size
-        };
-
-        mg_shader_source_t fragment_shader = {
-            .code = shader_resources.world_2d_frag,
-            .code_size = shader_resources.world_2d_frag_size
-        };
-
-        mg_create_render_layer_2d(&graphics_data.world_2d_layer, vertex_shader, fragment_shader);
-
-        graphics_data.global_2d_uniform_buffers[MG_GRAPHICS_2D_GLOBAL_UNIFORM_BUFFER_WORLD_INDEX] =
-            mg_rhi_renderer_create_uniform_buffer(sizeof(graphics_data.global_2d_ubo));
-
-        graphics_data.world_2d_uniform_buffer =
-            mg_rhi_renderer_create_uniform_buffer(sizeof(graphics_data.world_2d_ubo));
-    }
-
-    if (graphics_data.flags & MG_GRAPHICS_FLAG_ENABLE_NONLIT_2D)
-    {
-        mg_shader_source_t vertex_shader = {
-            .code = shader_resources.nonlit_2d_vert,
-            .code_size = shader_resources.nonlit_2d_vert_size
-        };
-
-        mg_shader_source_t fragment_shader = {
-            .code = shader_resources.nonlit_2d_frag,
-            .code_size = shader_resources.nonlit_2d_frag_size
-        };
-
-        mg_create_render_layer_2d(&graphics_data.nonlit_2d_layer, vertex_shader, fragment_shader);
-
-        graphics_data.global_2d_uniform_buffers[MG_GRAPHICS_2D_GLOBAL_UNIFORM_BUFFER_NONLIT_INDEX] =
-            mg_rhi_renderer_create_uniform_buffer(sizeof(graphics_data.global_2d_ubo));
-    }
-
-    if (graphics_data.flags & MG_GRAPHICS_FLAG_ENABLE_WORLD_3D)
-    {
-        mg_shader_source_t vertex_shader = {
-            .code = shader_resources.world_3d_vert,
-            .code_size = shader_resources.world_3d_vert_size
-        };
-
-        mg_shader_source_t fragment_shader = {
-            .code = shader_resources.world_3d_frag,
-            .code_size = shader_resources.world_3d_frag_size
-        };
-
-        mg_create_render_layer_3d(&graphics_data.world_3d_layer, vertex_shader, fragment_shader);
-
-        graphics_data.global_3d_uniform_buffer =
-            mg_rhi_renderer_create_uniform_buffer(sizeof(graphics_data.global_3d_ubo));
-    }
 
 #pragma region QUAD_DATA
     {
@@ -961,31 +840,6 @@ void mg_graphics_shutdown(void)
 {
     mg_rhi_renderer_wait();
 
-    if (graphics_data.flags & MG_GRAPHICS_FLAG_ENABLE_BACKGROUND)
-    {
-        mg_destroy_render_layer_2d(&graphics_data.background_layer);
-        mg_rhi_renderer_destroy_uniform_buffer(graphics_data.global_background_uniform_buffer);
-    }
-
-    if (graphics_data.flags & MG_GRAPHICS_FLAG_ENABLE_WORLD_2D)
-    {
-        mg_destroy_render_layer_2d(&graphics_data.world_2d_layer);
-        mg_rhi_renderer_destroy_uniform_buffer(graphics_data.global_2d_uniform_buffers[MG_GRAPHICS_2D_GLOBAL_UNIFORM_BUFFER_WORLD_INDEX]);
-        mg_rhi_renderer_destroy_uniform_buffer(graphics_data.world_2d_uniform_buffer);
-    }
-
-    if (graphics_data.flags & MG_GRAPHICS_FLAG_ENABLE_NONLIT_2D)
-    {
-        mg_destroy_render_layer_2d(&graphics_data.nonlit_2d_layer);
-        mg_rhi_renderer_destroy_uniform_buffer(graphics_data.global_2d_uniform_buffers[MG_GRAPHICS_2D_GLOBAL_UNIFORM_BUFFER_NONLIT_INDEX]);
-    }
-
-    if (graphics_data.flags & MG_GRAPHICS_FLAG_ENABLE_WORLD_3D)
-    {
-        mg_destroy_render_layer_3d(&graphics_data.world_3d_layer);
-        mg_rhi_renderer_destroy_uniform_buffer(graphics_data.global_3d_uniform_buffer);
-    }
-
     // Quad Data
     {
         mg_rhi_renderer_destroy_vertex_buffer(graphics_data.quad_data.vertex_buffer);
@@ -1026,17 +880,8 @@ void mg_graphics_resize(int32_t width, int32_t height)
 
     graphics_data.world_2d_ubo.resolution = (mg_vec2_t){ width, height };
 
-    if (graphics_data.flags & MG_GRAPHICS_FLAG_ENABLE_BACKGROUND)
-        mg_resize_render_layer_2d(&graphics_data.background_layer, width, height);
-
-    if (graphics_data.flags & MG_GRAPHICS_FLAG_ENABLE_WORLD_2D)
-        mg_resize_render_layer_2d(&graphics_data.world_2d_layer, width, height);
-    
-    if (graphics_data.flags & MG_GRAPHICS_FLAG_ENABLE_NONLIT_2D)
-        mg_resize_render_layer_2d(&graphics_data.nonlit_2d_layer, width, height);
-
-    if (graphics_data.flags & MG_GRAPHICS_FLAG_ENABLE_WORLD_3D)
-        mg_resize_render_layer_3d(&graphics_data.world_3d_layer, width, height);
+    for (uint32_t i = 0; i < graphics_data.layer_count; i++)
+        mg_graphics_resize_render_layer(graphics_data.layers[i]);
 }
 
 void mg_graphics_begin(void)
@@ -1058,40 +903,15 @@ void mg_graphics_end(void)
     mg_rhi_renderer_begin_default_render_pass(&render_pass_begin_info);
     mg_rhi_renderer_viewport(0, 0, graphics_data.width, graphics_data.height);
 
-    mg_rhi_renderer_update_uniform_buffer(graphics_data.world_2d_uniform_buffer,
-        sizeof(graphics_data.world_2d_ubo), 0, &graphics_data.world_2d_ubo);
-
     mg_rhi_renderer_bind_index_buffer(graphics_data.index_buffer, MG_INDEX_TYPE_UINT16);
 
-    if (graphics_data.flags & MG_GRAPHICS_FLAG_ENABLE_BACKGROUND)
+    for (uint32_t i = 0; i < graphics_data.layer_count; i++)
     {
-        mg_rhi_renderer_bind_pipeline(graphics_data.background_layer.pipeline);
-        mg_rhi_renderer_bind_image(graphics_data.background_layer.color_attachment, graphics_data.background_layer.pipeline);
-        mg_rhi_renderer_bind_vertex_buffer(graphics_data.screen_vertex_buffer);
-        mg_rhi_renderer_draw_indexed(6, 0);
-    }
-
-    if (graphics_data.flags & MG_GRAPHICS_FLAG_ENABLE_WORLD_3D)
-    {
-        mg_rhi_renderer_bind_pipeline(graphics_data.world_3d_layer.pipeline);
-        mg_rhi_renderer_bind_image(graphics_data.world_3d_layer.color_attachment, graphics_data.world_3d_layer.pipeline);
-        mg_rhi_renderer_bind_vertex_buffer(graphics_data.screen_vertex_buffer);
-        mg_rhi_renderer_draw_indexed(6, 0);
-    }
-
-    if (graphics_data.flags & MG_GRAPHICS_FLAG_ENABLE_WORLD_2D)
-    {
-        mg_rhi_renderer_bind_pipeline(graphics_data.world_2d_layer.pipeline);
-        mg_rhi_renderer_bind_uniform_buffer(graphics_data.world_2d_uniform_buffer, graphics_data.world_2d_layer.pipeline);
-        mg_rhi_renderer_bind_image(graphics_data.world_2d_layer.color_attachment, graphics_data.world_2d_layer.pipeline);
-        mg_rhi_renderer_bind_vertex_buffer(graphics_data.screen_vertex_buffer);
-        mg_rhi_renderer_draw_indexed(6, 0);
-    }
-
-    if (graphics_data.flags & MG_GRAPHICS_FLAG_ENABLE_NONLIT_2D)
-    {
-        mg_rhi_renderer_bind_pipeline(graphics_data.nonlit_2d_layer.pipeline);
-        mg_rhi_renderer_bind_image(graphics_data.nonlit_2d_layer.color_attachment, graphics_data.nonlit_2d_layer.pipeline);
+        mg_render_layer_t *layer = graphics_data.layers[i];
+        mg_rhi_renderer_bind_pipeline(layer->pipeline);
+        if (layer->internal_ub.internal_data)
+            mg_rhi_renderer_bind_uniform_buffer(layer->internal_ub, layer->pipeline);
+        mg_rhi_renderer_bind_image(layer->color_attachment, layer->pipeline);
         mg_rhi_renderer_bind_vertex_buffer(graphics_data.screen_vertex_buffer);
         mg_rhi_renderer_draw_indexed(6, 0);
     }
@@ -1099,50 +919,34 @@ void mg_graphics_end(void)
     mg_rhi_renderer_end_render_pass();
 }
 
-void mg_graphics_2d_begin_background(mg_vec4_t clear_color)
+void mg_graphics_2d_begin_background(mg_render_layer_t *layer, mg_vec4_t clear_color)
 {
-    mg_render_pass_begin_info_t render_pass_begin_info = {
-        .render_area = (mg_vec4_t) {0.0f, 0.0f, graphics_data.width, graphics_data.height},
-        .clear_value = clear_color
-    };
-
-    mg_rhi_renderer_begin_render_pass(graphics_data.background_layer.render_pass,
-        graphics_data.background_layer.framebuffer, &render_pass_begin_info);
-
-    mg_rhi_renderer_viewport(0, 0, graphics_data.width, graphics_data.height);
+    mg_graphics_begin_render_layer(layer, clear_color);
 
     const int32_t width = graphics_data.width;
     const int32_t height = graphics_data.height;
 
-    graphics_data.global_background_ubo.view_projection = mg_mat4_ortho(height * 0.5f, -height * 0.5f, -width * 0.5f, width * 0.5f, -1.0f, 1.0f);
+    graphics_data.global_ubo.view_projection = mg_mat4_ortho(height * 0.5f, -height * 0.5f, -width * 0.5f, width * 0.5f, -1.0f, 1.0f);
 
-    mg_rhi_renderer_update_uniform_buffer(graphics_data.global_background_uniform_buffer,
-        sizeof(graphics_data.global_background_ubo), 0, &graphics_data.global_background_ubo);
+    mg_rhi_renderer_update_uniform_buffer(layer->global_ub,
+        sizeof(graphics_data.global_ubo), 0, &graphics_data.global_ubo);
 
-    mg_rhi_renderer_bind_uniform_buffer(graphics_data.global_background_uniform_buffer, graphics_data.background_layer.pipeline);
+    mg_rhi_renderer_bind_uniform_buffer(layer->global_ub, layer->pipeline);
 }
 
-void mg_graphics_2d_end_background(void)
+void mg_graphics_2d_end_background(mg_render_layer_t *layer)
 {
-    mg_rhi_renderer_end_render_pass();
+    mg_graphics_end_render_layer(layer);
 }
 
-void mg_graphics_2d_begin_world(mg_world_info_2d_t *world_info)
+void mg_graphics_2d_begin_world(mg_render_layer_t *layer, mg_world_info_2d_t *world_info)
 {
-    mg_render_pass_begin_info_t render_pass_begin_info = {
-        .render_area = (mg_vec4_t) {0.0f, 0.0f, graphics_data.width, graphics_data.height},
-        .clear_value = (mg_vec4_t) {0.0f, 0.0f, 0.0f, 0.0f}
-    };
+    mg_graphics_begin_render_layer(layer, (mg_vec4_t) {0.0f, 0.0f, 0.0f, 0.0f});
 
-    mg_rhi_renderer_begin_render_pass(graphics_data.world_2d_layer.render_pass,
-        graphics_data.world_2d_layer.framebuffer, &render_pass_begin_info);
-
-    mg_rhi_renderer_viewport(0, 0, graphics_data.width, graphics_data.height);
+    const int32_t width = graphics_data.width;
+    const int32_t height = graphics_data.height;
 
     mg_mat4_t projection;
-
-    const int32_t width = graphics_data.width;
-    const int32_t height = graphics_data.height;
 
     projection = mg_mat4_ortho(height * 0.5f, -height * 0.5f, -width * 0.5f, width * 0.5f, -1.0f, 1.0f);
     projection = mg_mat4_translate(projection, (mg_vec3_t) { -world_info->camera_position.x / width * 2.0f, -world_info->camera_position.y / height * 2.0f, 0.0f });
@@ -1157,45 +961,40 @@ void mg_graphics_2d_begin_world(mg_world_info_2d_t *world_info)
         (mg_vec4_t) { world_info->global_light_color.x, world_info->global_light_color.y, world_info->global_light_color.z,
         world_info->global_light_intensity};
 
-    graphics_data.global_2d_ubo.view_projection = projection;
+    graphics_data.global_ubo.view_projection = projection;
 
-    mg_rhi_renderer_update_uniform_buffer(graphics_data.global_2d_uniform_buffers[MG_GRAPHICS_2D_GLOBAL_UNIFORM_BUFFER_WORLD_INDEX],
-        sizeof(graphics_data.global_2d_ubo), 0, &graphics_data.global_2d_ubo);
+    mg_rhi_renderer_update_uniform_buffer(layer->global_ub,
+        sizeof(graphics_data.global_ubo), 0, &graphics_data.global_ubo);
 
-    mg_rhi_renderer_bind_uniform_buffer(graphics_data.global_2d_uniform_buffers[MG_GRAPHICS_2D_GLOBAL_UNIFORM_BUFFER_WORLD_INDEX], graphics_data.world_2d_layer.pipeline);
+    mg_rhi_renderer_bind_uniform_buffer(layer->global_ub, layer->pipeline);
 }
 
-void mg_graphics_2d_end_world(void)
+void mg_graphics_2d_end_world(mg_render_layer_t *layer)
 {
-    mg_rhi_renderer_end_render_pass();
+    mg_graphics_end_render_layer(layer);
+
+    mg_rhi_renderer_update_uniform_buffer(layer->internal_ub,
+        sizeof(graphics_data.world_2d_ubo), 0, &graphics_data.world_2d_ubo);
 }
 
-void mg_graphics_2d_begin_nonlit(void)
+void mg_graphics_2d_begin_nonlit(mg_render_layer_t *layer)
 {
-    mg_render_pass_begin_info_t render_pass_begin_info = {
-        .render_area = (mg_vec4_t) {0.0f, 0.0f, graphics_data.width, graphics_data.height},
-        .clear_value = (mg_vec4_t) {0.0f, 0.0f, 0.0f, 0.0f}
-    };
-
-    mg_rhi_renderer_begin_render_pass(graphics_data.nonlit_2d_layer.render_pass,
-        graphics_data.nonlit_2d_layer.framebuffer, &render_pass_begin_info);
-
-    mg_rhi_renderer_viewport(0, 0, graphics_data.width, graphics_data.height);
+    mg_graphics_begin_render_layer(layer, (mg_vec4_t) {0.0f, 0.0f, 0.0f, 0.0f});
 
     const int32_t width = graphics_data.width;
     const int32_t height = graphics_data.height;
 
-    graphics_data.global_2d_ubo.view_projection = mg_mat4_ortho(height * 0.5f, -height * 0.5f, -width * 0.5f, width * 0.5f, -1.0f, 1.0f);
+    graphics_data.global_ubo.view_projection = mg_mat4_ortho(height * 0.5f, -height * 0.5f, -width * 0.5f, width * 0.5f, -1.0f, 1.0f);
 
-    mg_rhi_renderer_update_uniform_buffer(graphics_data.global_2d_uniform_buffers[MG_GRAPHICS_2D_GLOBAL_UNIFORM_BUFFER_NONLIT_INDEX],
-        sizeof(graphics_data.global_2d_ubo), 0, &graphics_data.global_2d_ubo);
+    mg_rhi_renderer_update_uniform_buffer(layer->global_ub,
+        sizeof(graphics_data.global_ubo), 0, &graphics_data.global_ubo);
 
-    mg_rhi_renderer_bind_uniform_buffer(graphics_data.global_2d_uniform_buffers[MG_GRAPHICS_2D_GLOBAL_UNIFORM_BUFFER_NONLIT_INDEX], graphics_data.nonlit_2d_layer.pipeline);
+    mg_rhi_renderer_bind_uniform_buffer(layer->global_ub, layer->pipeline);
 }
 
-void mg_graphics_2d_end_nonlit(void)
+void mg_graphics_2d_end_nonlit(mg_render_layer_t *layer)
 {
-    mg_rhi_renderer_end_render_pass();
+    mg_graphics_end_render_layer(layer);
 }
 
 void mg_graphics_2d_draw_rect(mg_mat4_t model, mg_vec4_t color)
@@ -1437,28 +1236,20 @@ void mg_graphics_2d_draw_point_light(mg_vec2_t position, float scale, float inte
     graphics_data.world_2d_ubo.light_count++;
 }
 
-void mg_graphics_3d_begin_world(void)
+void mg_graphics_3d_begin_world(mg_render_layer_t *layer)
 {
-    mg_render_pass_begin_info_t render_pass_begin_info = {
-        .render_area = (mg_vec4_t) {0.0f, 0.0f, graphics_data.width, graphics_data.height},
-        .clear_value = (mg_vec4_t) {0.0f, 0.0f, 0.0f, 0.0f}
-    };
+    mg_graphics_begin_render_layer(layer, (mg_vec4_t) {0.0f, 0.0f, 0.0f, 0.0f});
 
-    mg_rhi_renderer_begin_render_pass(graphics_data.world_3d_layer.render_pass,
-        graphics_data.world_3d_layer.framebuffer, &render_pass_begin_info);
+    graphics_data.global_ubo.view_projection = mg_mat4_perspective(45 * MG_DEG2RAD, (float)graphics_data.width / (float)graphics_data.height, 0.001f, 10.0f);
+    graphics_data.global_ubo.view_projection = mg_mat4_multiply(mg_mat4_look_at(mg_vec3(0.0f, 0.0f, 1.0f), mg_vec3(0.0f, 0.0f, 3.0f), mg_vec3(0.0f, 1.0f, 0.0f)), graphics_data.global_ubo.view_projection);
 
-    mg_rhi_renderer_viewport(0, 0, graphics_data.width, graphics_data.height);
+    mg_rhi_renderer_update_uniform_buffer(layer->global_ub,
+        sizeof(graphics_data.global_ubo), 0, &graphics_data.global_ubo);
 
-    graphics_data.global_3d_ubo.view_projection = mg_mat4_perspective(45 * MG_DEG2RAD, (float)graphics_data.width / (float)graphics_data.height, 0.001f, 10.0f);
-    graphics_data.global_3d_ubo.view_projection = mg_mat4_multiply(mg_mat4_look_at(mg_vec3(0.0f, 0.0f, 1.0f), mg_vec3(0.0f, 0.0f, 3.0f), mg_vec3(0.0f, 1.0f, 0.0f)), graphics_data.global_3d_ubo.view_projection);
-
-    mg_rhi_renderer_update_uniform_buffer(graphics_data.global_3d_uniform_buffer,
-        sizeof(graphics_data.global_3d_ubo), 0, &graphics_data.global_3d_ubo);
-
-    mg_rhi_renderer_bind_uniform_buffer(graphics_data.global_3d_uniform_buffer, graphics_data.world_3d_layer.pipeline);
+    mg_rhi_renderer_bind_uniform_buffer(layer->global_ub, layer->pipeline);
 }
 
-void mg_graphics_3d_end_world(void)
+void mg_graphics_3d_end_world(mg_render_layer_t *layer)
 {
     mg_rhi_renderer_end_render_pass();
 }

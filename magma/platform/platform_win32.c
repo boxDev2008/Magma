@@ -24,9 +24,9 @@ static LARGE_INTEGER start_time;
 
 LRESULT CALLBACK win32_process_message(HWND hwnd, uint32_t msg, WPARAM w_param, LPARAM l_param);
 
-WCHAR* mg_create_wide_string_from_utf8(const char* source)
+WCHAR *mg_create_wide_string_from_utf8(const char* source)
 {
-    WCHAR* target;
+    WCHAR *target;
     int count;
 
     count = MultiByteToWideChar(CP_UTF8, 0, source, -1, NULL, 0);
@@ -126,7 +126,7 @@ mg_platform_t *mg_platform_initialize(mg_platform_init_info_t *create_info)
     uint32_t should_activate = 1;
     int32_t show_window_command_flags = should_activate ? SW_SHOW : SW_SHOWNOACTIVATE;
     ShowWindow(state->hwnd, show_window_command_flags);
-    
+
     LARGE_INTEGER frequency;
     QueryPerformanceFrequency(&frequency);
     clock_frequency = 1.0 / (double)frequency.QuadPart;

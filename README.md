@@ -2,6 +2,11 @@
 <br>
 Magma is yet another set of tools for game development in C.
 
+# Compilation
+To generate the `Sandbox` project we can use premake in the `tools` folder or you can install it yourself.
+
+Then you can run ```.\tools\premake5\premake5.exe vs2022``` on Windows to generate a `Visual Studio 2022` project.
+
 # How to use:
 
 # Platform layer
@@ -22,7 +27,7 @@ mg_platform_t *platform = mg_platform_initialize(&platform_init_info);
 
 while (is_running)
 {
-	mg_platform_poll_messages(platform);
+    mg_platform_poll_messages(platform);
 }
 
 mg_platform_shutdown(platform);
@@ -100,7 +105,7 @@ Magma provides a Render Hardware Interface (RHI) to allow easy access to differe
 
 ### Usage
 
-###### Initializing the renderer
+#### Initializing the renderer
 ```c
 mg_swapchain_config_info_t swapchain_config_info = {
     .format = MG_PIXEL_FORMAT_R8G8B8A8_UNORM,
@@ -121,7 +126,7 @@ mg_rhi_renderer_initialize(&init_info);
 mg_rhi_renderer_shutdown();
 ```
 
-###### Buffers
+#### Buffers
 - Buffers are regions of memory used to store data required for rendering, such as vertex data, index data, and uniform data.
 - There are various types of buffers, including vertex buffers, index buffers, dynamic vertex buffers, dynamic index buffers, and uniform buffers.
 - Vertex buffers hold vertex data used to define geometry, while index buffers hold indices that reference vertices, enabling efficient vertex reuse.
@@ -143,7 +148,7 @@ mg_vertex_buffer_t vertex_buffer = mg_rhi_renderer_create_vertex_buffer(vertex_b
 mg_rhi_renderer_bind_vertex_buffer(vertex_buffer);
 ```
 
-###### Render passes
+#### Render passes
 - A render pass represents a collection of attachments (such as color and depth buffers) used during rendering.
 - It defines the layout and usage of these attachments, specifying how they are used as input and output during rendering operations.
 - Render passes are essential for organizing rendering operations efficiently and enabling optimizations like framebuffer compression and tile-based rendering.
@@ -164,7 +169,7 @@ mg_render_pass_create_info_t render_pass_create_info = {
 mg_render_pass_t render_pass = mg_rhi_renderer_create_render_pass(&render_pass_create_info);
 ```
 
-###### Samplers
+#### Samplers
 - Samples can be taken using various filtering methods, such as nearest-neighbor filtering or bilinear/trilinear filtering, depending on the sampling mode and texture configuration.
 
 Example usage:
@@ -182,7 +187,7 @@ mg_sampler_create_info_t sampler_create_info = {
 mg_sampler_t sampler = mg_rhi_renderer_create_sampler(&sampler_create_info);
 ```
 
-###### Images
+#### Images
 - Images represent two-dimensional arrays of texels (texture elements) used for rendering and texturing.
 - They can be used as color attachments, depth attachments, or sampled within shaders for texturing.
 - Images are often associated with specific formats (e.g., RGBA8, depth/stencil formats) that define how texel data is stored and interpreted.
@@ -208,11 +213,11 @@ mg_image_write_info_t image_write_info = {
 mg_rhi_renderer_write_image(image, sampler, 0, &image_write_info);
 
 // Update the image to send the new one to the shader
-// NOTE: You most update the image after applying any changes to it if you want to see results
+// NOTE: You must update the image after applying any changes to it if you want to see results
 mg_rhi_renderer_update_image(image);
 ```
 
-###### Creating a pipeline
+#### Pipeline
 - A pipeline encapsulates the configuration of the rendering pipeline, including vertex and fragment processing stages, rasterization settings, blending options, and input assembly.
 - It defines how vertices and primitives are processed and transformed into fragments, and how those fragments are shaded and combined to produce final pixel values.
 - Pipelines are crucial for defining the behavior of the GPU during rendering, ensuring consistency across different rendering operations and enabling efficient parallel processing.
@@ -250,7 +255,7 @@ mg_pipeline_create_info_t pipeline_create_info = {
 mg_pipeline_t pipeline = mg_rhi_renderer_create_pipeline(&pipeline_create_info);
 ```
 
-###### Framebuffers
+#### Framebuffers
 - Framebuffers represent a collection of attachments (usually images) that define the rendering target for a particular render pass.
 - They provide the render targets where the output of rendering operations (such as color, depth, and stencil data) is written.
 - Framebuffers typically consist of one or more attachments, including color attachments for rendering color data and depth/stencil attachments for depth and stencil testing.
@@ -267,7 +272,7 @@ mg_framebuffer_create_info_t framebuffer_create_info = {
 mg_framebuffer_t framebuffer = mg_rhi_renderer_create_framebuffer(&framebuffer_create_info);
 ```
 
-###### Drawing in render loop
+#### Drawing in render loop
 ```c
 // Begin renderer
 mg_rhi_renderer_begin_frame();

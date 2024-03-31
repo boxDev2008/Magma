@@ -109,6 +109,11 @@
         "world_2d.h": "c",
         "body_2d.h": "c",
         "cute_c2.h": "c",
-        "stdio.h": "c"
+        "stdio.h": "c",
+        "glad.h": "c",
+        "wglext.h": "c",
+        "glad_wgl.h": "c",
+        "wgl.h": "c",
+        "span": "c"
     }
 }

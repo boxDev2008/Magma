@@ -83,6 +83,7 @@ void mg_vulkan_create_swapchain(mg_swapchain_config_info_t *config_info)
     assert(result == VK_SUCCESS);
 
     vkGetSwapchainImagesKHR(vulkan_context.device.handle, vulkan_context.swapchain.handle, &vulkan_context.swapchain.image_count, NULL);
+
     vulkan_context.swapchain.images = (VkImage*)realloc(vulkan_context.swapchain.images, vulkan_context.swapchain.image_count * sizeof(VkImage));
     vkGetSwapchainImagesKHR(vulkan_context.device.handle, vulkan_context.swapchain.handle, &vulkan_context.swapchain.image_count, vulkan_context.swapchain.images);
 

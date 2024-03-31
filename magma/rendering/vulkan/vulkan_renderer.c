@@ -7,6 +7,7 @@
 
 #include "platform/vulkan_platform.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
 
@@ -221,9 +222,9 @@ void mg_vulkan_renderer_initialize(mg_renderer_init_info_t *init_info)
             },
             .has_depth_stencil_attachment = true
         });
-    
+
     mg_vulkan_create_swapchain(init_info->swapchain_config_info);
-    
+
     mg_vulkan_create_descriptor_set_layouts();
     mg_vulkan_create_descriptor_pool();
 }
@@ -251,6 +252,8 @@ void mg_vulkan_renderer_shutdown(void)
     vkDestroyDevice(vulkan_context.device.handle, NULL);
     vkDestroySurfaceKHR(vulkan_context.instance, vulkan_context.surface, NULL);
     vkDestroyInstance(vulkan_context.instance, NULL);
+
+    vulkan_context = (mg_vulkan_context_t){ 0 };
 }
 
 void mg_vulkan_renderer_begin_frame(void)

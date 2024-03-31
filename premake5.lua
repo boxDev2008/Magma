@@ -1,8 +1,8 @@
 local VULKAN_LIB_PATH = os.getenv("VULKAN_SDK").."\\Lib";
-print(VULKAN_LIB_PATH)
 
 workspace "Magma"
    configurations { "Release" }
+   startproject "Sandbox"
 
 project "Magma"
    kind "SharedLib"
