@@ -4,6 +4,7 @@ Magma is yet another set of tools for game development in C.
 
 # Project Generation
 To generate the `Sandbox` project you can use premake in the `tools` folder or install it yourself.
+
 Run ```.\tools\premake5\premake5.exe vs2022``` to generate a `Visual Studio 2022` project (On Windows)
 
 # Compilation
