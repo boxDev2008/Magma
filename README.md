@@ -1,4 +1,7 @@
-<img src="content/logo.png" width=800>
+<p align="center">
+  <img width="400" src="content/logo.png">
+</p>
+
 <br>
 Magma is yet another set of tools for game development in C.
 
