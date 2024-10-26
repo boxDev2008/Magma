@@ -35,20 +35,25 @@ void mg_audio_shutdown(void)
     ma_resource_manager_uninit(&audio_data.resource_manager);
 }
 
-mg_sound_resource_t *mg_audio_create_sound_resource_from_file(const char *file_name)
+void mg_audio_set_music_volume(float volume)
 {
-    mg_sound_resource_t *sound = (mg_sound_resource_t*)malloc(sizeof(mg_sound_resource_t));
+    
+}
+
+mg_sound_resource *mg_audio_create_sound_resource_from_file(const char *file_name)
+{
+    mg_sound_resource *sound = (mg_sound_resource*)malloc(sizeof(mg_sound_resource));
     ma_sound_init_from_file(&audio_data.sfx_engine, file_name, MA_SOUND_FLAG_ASYNC | MA_SOUND_FLAG_NO_DEFAULT_ATTACHMENT | MA_SOUND_FLAG_NO_SPATIALIZATION, NULL, NULL, &sound->internal_data);
     return sound;
 }
 
-void mg_audio_destroy_sound_resource(mg_sound_resource_t *sound)
+void mg_audio_destroy_sound_resource(mg_sound_resource *sound)
 {
     ma_sound_uninit(&sound->internal_data);
     free(sound);
 }
 
-void mg_audio_play_sound(mg_sound_resource_t *resource, mg_sound_t *out_sound)
+mg_sound *mg_audio_play_sound(mg_sound_resource *resource)
 {
     ma_result result = MA_SUCCESS;
     ma_sound_inlined* p_sound = NULL;
@@ -120,21 +125,20 @@ void mg_audio_play_sound(mg_sound_resource_t *resource, mg_sound_t *out_sound)
 
     result = ma_sound_start(&p_sound->sound);
     
-    if (out_sound)
-        out_sound->internal_data = &p_sound->sound;
+    return &p_sound->sound;
 }
 
-void mg_audio_set_sound_volume(mg_sound_t sound, float volume)
+void mg_audio_set_sound_volume(mg_sound *sound, float volume)
 {
-    ma_sound_set_volume(sound.internal_data, volume);
+    ma_sound_set_volume(sound, volume);
 }
 
-void mg_audio_set_sound_pitch(mg_sound_t sound, float pitch)
+void mg_audio_set_sound_pitch(mg_sound *sound, float pitch)
 {
-    ma_sound_set_pitch(sound.internal_data, pitch);
+    ma_sound_set_pitch(sound, pitch);
 }
 
-void mg_audio_set_sound_position(mg_sound_t sound, float x, float y, float z)
+void mg_audio_set_sound_position(mg_sound *sound, float x, float y, float z)
 {
-    ma_sound_set_position(sound.internal_data, x, y, z);
+    ma_sound_set_position(sound, x, y, z);
 }

@@ -2,9 +2,9 @@
 
 #include <math.h>
 
-mg_mat4_t mg_mat4_identity(void)
+mg_mat4 mg_mat4_identity(void)
 {
-	mg_mat4_t result;
+	mg_mat4 result;
 
 	result.m11 = 1.0f;
 	result.m21 = 0.0f;
@@ -29,9 +29,9 @@ mg_mat4_t mg_mat4_identity(void)
 	return result;
 }
 
-mg_mat4_t mg_mat4_ortho(float bottom, float top, float left, float right, float near, float far)
+mg_mat4 mg_mat4_ortho(float bottom, float top, float left, float right, float near, float far)
 {
-	mg_mat4_t result = mg_mat4_identity();
+	mg_mat4 result = mg_mat4_identity();
 
     result.m11 = 2.0f / (right - left); 
     result.m22 = -2.0f / (top - bottom);
@@ -43,9 +43,9 @@ mg_mat4_t mg_mat4_ortho(float bottom, float top, float left, float right, float 
 	return result;
 }
 
-mg_mat4_t mg_mat4_perspective(float fov, float aspect, float near, float far)
+mg_mat4 mg_mat4_perspective(float fov, float aspect, float near, float far)
 {
-    mg_mat4_t result = mg_mat4_identity();
+    mg_mat4 result = mg_mat4_identity();
     
     float tan_half_fov = tanf(fov / 2.0f);
 
@@ -58,11 +58,11 @@ mg_mat4_t mg_mat4_perspective(float fov, float aspect, float near, float far)
     return result;
 }
 
-mg_mat4_t mg_mat4_look_at(mg_vec3_t eye, mg_vec3_t center, mg_vec3_t up)
+mg_mat4 mg_mat4_look_at(mg_vec3 eye, mg_vec3 center, mg_vec3 up)
 {
-    mg_vec3_t f = {center.x - eye.x, center.y - eye.y, center.z - eye.z};
-    mg_vec3_t r = {up.y * f.z - up.z * f.y, up.z * f.x - up.x * f.z, up.x * f.y - up.y * f.x};
-    mg_vec3_t u = {f.y * r.z - f.z * r.y, f.z * r.x - f.x * r.z, f.x * r.y - f.y * r.x};
+    mg_vec3 f = {center.x - eye.x, center.y - eye.y, center.z - eye.z};
+    mg_vec3 r = {up.y * f.z - up.z * f.y, up.z * f.x - up.x * f.z, up.x * f.y - up.y * f.x};
+    mg_vec3 u = {f.y * r.z - f.z * r.y, f.z * r.x - f.x * r.z, f.x * r.y - f.y * r.x};
 
     float length_f = sqrtf(f.x * f.x + f.y * f.y + f.z * f.z);
     float length_r = sqrtf(r.x * r.x + r.y * r.y + r.z * r.z);
@@ -80,7 +80,7 @@ mg_mat4_t mg_mat4_look_at(mg_vec3_t eye, mg_vec3_t center, mg_vec3_t up)
     u.y /= length_u;
     u.z /= length_u;
 
-    mg_mat4_t view_matrix = mg_mat4_identity();
+    mg_mat4 view_matrix = mg_mat4_identity();
 
     view_matrix.m11 = r.x;
     view_matrix.m21 = r.y;
@@ -100,9 +100,9 @@ mg_mat4_t mg_mat4_look_at(mg_vec3_t eye, mg_vec3_t center, mg_vec3_t up)
     return view_matrix;
 }
 
-mg_mat4_t mg_mat4_add(mg_mat4_t first, mg_mat4_t second)
+mg_mat4 mg_mat4_add(mg_mat4 first, mg_mat4 second)
 {
-	mg_mat4_t result;
+	mg_mat4 result;
 
 	result.m11 = first.m11 + second.m11;
 	result.m21 = first.m21 + second.m21;
@@ -127,9 +127,9 @@ mg_mat4_t mg_mat4_add(mg_mat4_t first, mg_mat4_t second)
 	return result;
 }
 
-mg_mat4_t mg_mat4_multiply(mg_mat4_t first, mg_mat4_t second)
+mg_mat4 mg_mat4_multiply(mg_mat4 first, mg_mat4 second)
 {
-	mg_mat4_t result;
+	mg_mat4 result;
 
 	result.m11 = first.m11 * second.m11 + first.m21 * second.m12 + first.m31 * second.m13 + first.m41 * second.m14;
 	result.m21 = first.m11 * second.m21 + first.m21 * second.m22 + first.m31 * second.m23 + first.m41 * second.m24;
@@ -154,9 +154,9 @@ mg_mat4_t mg_mat4_multiply(mg_mat4_t first, mg_mat4_t second)
 	return result;
 }
 
-mg_mat4_t mg_mat4_translate(mg_mat4_t matrix, mg_vec3_t v)
+mg_mat4 mg_mat4_translate(mg_mat4 matrix, mg_vec3 v)
 {
-	mg_mat4_t translation = mg_mat4_identity();
+	mg_mat4 translation = mg_mat4_identity();
 	translation.m14 = v.x;
 	translation.m24 = v.y;
 	translation.m34 = v.z;
@@ -164,9 +164,9 @@ mg_mat4_t mg_mat4_translate(mg_mat4_t matrix, mg_vec3_t v)
 	return mg_mat4_multiply(matrix, translation);
 }
 
-mg_mat4_t mg_mat4_scale(mg_mat4_t matrix, mg_vec3_t v)
+mg_mat4 mg_mat4_scale(mg_mat4 matrix, mg_vec3 v)
 {
-	mg_mat4_t scale = mg_mat4_identity();
+	mg_mat4 scale = mg_mat4_identity();
 	scale.m11 = v.x;
 	scale.m22 = v.y;
 	scale.m33 = v.z;
@@ -174,12 +174,12 @@ mg_mat4_t mg_mat4_scale(mg_mat4_t matrix, mg_vec3_t v)
 	return mg_mat4_multiply(matrix, scale);
 }
 
-mg_mat4_t mg_mat4_rotate_x(mg_mat4_t matrix, float angle)
+mg_mat4 mg_mat4_rotate_x(mg_mat4 matrix, float angle)
 {
     const float cos0 = cosf(angle);
     const float sin0 = sinf(angle);
 
-    mg_mat4_t x = mg_mat4_identity();
+    mg_mat4 x = mg_mat4_identity();
 
     x.m22 = cos0;
     x.m23 = -sin0;
@@ -189,12 +189,12 @@ mg_mat4_t mg_mat4_rotate_x(mg_mat4_t matrix, float angle)
     return mg_mat4_multiply(matrix, x);
 }
 
-mg_mat4_t mg_mat4_rotate_y(mg_mat4_t matrix, float angle)
+mg_mat4 mg_mat4_rotate_y(mg_mat4 matrix, float angle)
 {
     const float cos0 = cosf(angle);
     const float sin0 = sinf(angle);
 
-    mg_mat4_t y = mg_mat4_identity();
+    mg_mat4 y = mg_mat4_identity();
 
     y.m11 = cos0;
     y.m13 = sin0;
@@ -204,12 +204,12 @@ mg_mat4_t mg_mat4_rotate_y(mg_mat4_t matrix, float angle)
     return mg_mat4_multiply(matrix, y);
 }
 
-mg_mat4_t mg_mat4_rotate_z(mg_mat4_t matrix, float angle)
+mg_mat4 mg_mat4_rotate_z(mg_mat4 matrix, float angle)
 {
 	const float cos0 = cosf(angle);
 	const float sin0 = sinf(angle);
 
-	mg_mat4_t z = mg_mat4_identity();
+	mg_mat4 z = mg_mat4_identity();
 
 	z.m11 = cos0;
 	z.m12 = -sin0;
@@ -219,13 +219,13 @@ mg_mat4_t mg_mat4_rotate_z(mg_mat4_t matrix, float angle)
 	return mg_mat4_multiply(matrix, z);
 }
 
-mg_mat4_t mg_mat4_rotate(mg_mat4_t matrix, float angle, mg_vec3_t axis)
+mg_mat4 mg_mat4_rotate(mg_mat4 matrix, float angle, mg_vec3 axis)
 {
-    mg_mat4_t rotation = mg_mat4_identity();
+    mg_mat4 rotation = mg_mat4_identity();
 
-    float cos_theta = cosf(angle);
-    float sin_theta = sinf(angle);
-    float one_minus_cos_theta = 1.0f - cos_theta;
+    const float cos_theta = cosf(angle);
+    const float sin_theta = sinf(angle);
+    const float one_minus_cos_theta = 1.0f - cos_theta;
 
     rotation.m11 = cos_theta + axis.x * axis.x * one_minus_cos_theta;
     rotation.m12 = axis.x * axis.y * one_minus_cos_theta - axis.z * sin_theta;

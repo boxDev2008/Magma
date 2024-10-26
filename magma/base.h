@@ -1,11 +1,12 @@
 #pragma once
 
+#include <stddef.h>
 #include <stdbool.h>
 #include <stdint.h>
 
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__)
 #define MG_PLATFORM_WINDOWS 1
-#elif define(__linux__) || define(__gnu_linux__)
+#elif defined(__linux__) || defined(__gnu_linux__)
 #define MG_PLATFORM_LINUX 1
 #endif
 

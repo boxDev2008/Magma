@@ -9,19 +9,16 @@
 typedef struct mg_physics_world_2d mg_physics_world_2d_t;
 struct mg_physics_world_2d
 {
-    mg_vec2_t gravity;
+    mg_vec2 gravity;
     mg_physics_body_2d_t bodies[MG_CONFIG_PHYSICS_2D_BODIES];
 };
 
 static mg_physics_world_2d_t *physics_world;
 
-void mg_physics_world_2d_initialize(mg_vec2_t gravity)
+void mg_physics_world_2d_initialize(mg_vec2 gravity)
 {
-    physics_world = (mg_physics_world_2d_t*)malloc(sizeof(mg_physics_world_2d_t));
+    physics_world = (mg_physics_world_2d_t*)calloc(1, sizeof(mg_physics_world_2d_t));
     physics_world->gravity = gravity;
-
-    for (uint32_t i = 0; i < MG_CONFIG_PHYSICS_2D_BODIES; i++)
-        physics_world->bodies[i].is_created = false;
 }
 
 void mg_physics_world_2d_shutdown(void)
@@ -75,7 +72,7 @@ void mg_physics_2d_resolve_aabb_vs_aabb_collision(mg_physics_body_2d_t *body1, m
 
     if (manifold.n.y != 0.0f)
     {
-        body1->is_grounded = manifold.n.y > 0.0f;
+        body1->is_grounded = body1->info.ground_layers & body2->info.layer && manifold.n.y > 0.0f;
         body1->info.position.y -= manifold.n.y * manifold.depths[0];
         body1->info.velocity.y = (body1->info.velocity.y - manifold.n.y) * body1->info.restitution;
     }
@@ -106,7 +103,7 @@ void mg_physics_2d_resolve_circle_vs_circle_collision(mg_physics_body_2d_t *body
 
     if (manifold.n.y != 0.0f)
     {
-        body1->is_grounded = manifold.n.y > 0.0f;
+        body1->is_grounded = body1->info.ground_layers & body2->info.layer && manifold.n.y > 0.0f;
         body1->info.position.y -= manifold.n.y * manifold.depths[0];
         body1->info.velocity.y = (body1->info.velocity.y - manifold.n.y) * body1->info.restitution;
     }
@@ -139,7 +136,7 @@ void mg_physics_2d_resolve_circle_vs_aabb_collision(mg_physics_body_2d_t *body1,
 
     if (manifold.n.y != 0.0f)
     {
-        body1->is_grounded = manifold.n.y > 0.0f;
+        body1->is_grounded = body1->info.ground_layers & body2->info.layer && manifold.n.y > 0.0f;
         body1->info.position.y -= manifold.n.y * manifold.depths[0];
         body1->info.velocity.y = (body1->info.velocity.y - manifold.n.y) * body1->info.restitution;
     }
@@ -172,7 +169,7 @@ void mg_physics_2d_resolve_aabb_vs_circle_collision(mg_physics_body_2d_t *body1,
 
     if (manifold.n.y != 0.0f)
     {
-        body1->is_grounded = manifold.n.y < 0.0f;
+        body1->is_grounded = body1->info.ground_layers & body2->info.layer && manifold.n.y < 0.0f;
         body1->info.position.y += manifold.n.y * manifold.depths[0];
         body1->info.velocity.y = (body1->info.velocity.y + manifold.n.y) * body1->info.restitution;
     }
@@ -211,7 +208,7 @@ void mg_physics_world_2d_step_collision(float delta_time)
                 continue;
 
             mg_physics_body_2d_t *body2 = &physics_world->bodies[j];
-            
+
             if (body1->info.type == MG_PHYSICS_BODY_TYPE_AABB &&
                 body2->info.type == MG_PHYSICS_BODY_TYPE_AABB)
                 mg_physics_2d_resolve_aabb_vs_aabb_collision(body1, body2);

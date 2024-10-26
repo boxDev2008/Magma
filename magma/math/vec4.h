@@ -24,7 +24,7 @@ typedef union mg_vec4
     };
     float v[4];
 }
-mg_vec4_t;
+mg_vec4;
 
 typedef union mg_vec4i
 {
@@ -44,22 +44,23 @@ typedef union mg_vec4i
     };
     int v[4];
 }
-mg_vec4i_t;
+mg_vec4i;
 
-MG_API mg_vec4_t    mg_vec4             (float x, float y, float z, float w);
-MG_API mg_vec4_t    mg_vec4_add         (mg_vec4_t a, mg_vec4_t b);
-MG_API mg_vec4_t    mg_vec4_subtract    (mg_vec4_t a, mg_vec4_t b);
-MG_API mg_vec4_t    mg_vec4_lerp        (mg_vec4_t a, mg_vec4_t b, float by);
+MG_API mg_vec4 mg_vec4_new (float x, float y, float z, float w);
 
-MG_API float        mg_vec4_dot         (mg_vec4_t a, mg_vec4_t b);
-MG_API float        mg_vec4_magnitude   (mg_vec4_t vec);
-MG_API mg_vec4_t    mg_vec4_normalize   (mg_vec4_t vec);
-MG_API float        mg_vec4_distance    (mg_vec4_t a, mg_vec4_t b);
+MG_API mg_vec4  mg_vec4_add         (mg_vec4 a, mg_vec4 b);
+MG_API mg_vec4  mg_vec4_subtract    (mg_vec4 a, mg_vec4 b);
+MG_API mg_vec4  mg_vec4_lerp        (mg_vec4 a, mg_vec4 b, float by);
 
-MG_API mg_vec4i_t   mg_vec4i            (int x, int y, int z, int w);
-MG_API mg_vec4i_t   mg_vec4i_add        (mg_vec4i_t a, mg_vec4i_t b);
-MG_API mg_vec4i_t   mg_vec4i_subtract   (mg_vec4i_t a, mg_vec4i_t b);
-MG_API int          mg_vec4i_dot        (mg_vec4i_t a, mg_vec4i_t b);
+MG_API float    mg_vec4_dot         (mg_vec4 a, mg_vec4 b);
+MG_API float    mg_vec4_magnitude   (mg_vec4 vec);
+MG_API mg_vec4  mg_vec4_normalize   (mg_vec4 vec);
+MG_API float    mg_vec4_distance    (mg_vec4 a, mg_vec4 b);
+
+MG_API mg_vec4i mg_vec4i_new        (int x, int y, int z, int w);
+MG_API mg_vec4i mg_vec4i_add        (mg_vec4i a, mg_vec4i b);
+MG_API mg_vec4i mg_vec4i_subtract   (mg_vec4i a, mg_vec4i b);
+MG_API int      mg_vec4i_dot        (mg_vec4i a, mg_vec4i b);
 
 #ifdef __cplusplus
 }

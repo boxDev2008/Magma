@@ -13,7 +13,7 @@ typedef enum mg_mouse_buttons
     MG_MOUSE_BUTTON_MIDDLE,
     MG_MOUSE_BUTTON_MAX_BUTTONS
 }
-mg_mouse_buttons_t;
+mg_mouse_buttons;
 
 typedef enum mg_keys
 {
@@ -166,18 +166,50 @@ typedef enum mg_keys
     MG_KEY_BACKSLASH = MG_KEY_PIPE,
     MG_KEY_RBRACKET = 0xDD,
 
-    KEYS_MAX_KEYS = 0xFF
+    MG_KEY_MAX_KEYS = 0xFF
 }
-mg_keys_t;
+mg_keys;
 
-void mg_input_process_key           (mg_keys_t key, bool pressed);
+/*typedef enum mg_gamepad_buttons
+{
+    MG_GAMEPAD_DPAD_UP = 0x0001,
+    MG_GAMEPAD_DPAD_DOWN = 0x0002,
+    MG_GAMEPAD_DPAD_LEFT = 0x0004,
+    MG_GAMEPAD_DPAD_RIGHT = 0x0008,
+    MG_GAMEPAD_START = 0x0010,
+    MG_GAMEPAD_BACK = 0x0020,
+    MG_GAMEPAD_LEFT_THUMB = 0x0040,
+    MG_GAMEPAD_RIGHT_THUMB = 0x0080,
+    MG_GAMEPAD_LEFT_SHOULDER = 0x0100,
+    MG_GAMEPAD_RIGHT_SHOULDER = 0x0200,
+    MG_GAMEPAD_A = 0x1000,
+    MG_GAMEPAD_B = 0x2000,
+    MG_GAMEPAD_X = 0x4000,
+    MG_GAMEPAD_Y = 0x8000
+}
+mg_gamepad_buttons_t;
+
+typedef enum mg_gamepad_trigger
+{
+    MG_GAMEPAD_LEFT_TRIGGER,
+    MG_GAMEPAD_RIGHT_TRIGGER
+}
+mg_gamepad_trigger_t;*/
+
+void mg_input_process_key           (mg_keys key, bool pressed);
 void mg_input_process_char          (char ch);
-void mg_input_process_mouse_button  (mg_mouse_buttons_t button, bool pressed);
+
+void mg_input_process_mouse_button  (mg_mouse_buttons button, bool pressed);
 void mg_input_process_mouse_move    (int16_t x, int16_t y);
 void mg_input_process_mouse_wheel   (int8_t z_delta);
 
-MG_API bool     mg_input_is_key_down            (mg_keys_t key);
-MG_API bool     mg_input_is_mouse_button_down   (mg_mouse_buttons_t button);
+/*void mg_input_process_gamepad_buttons     (mg_gamepad_buttons_t button, bool pressed);
+void mg_input_process_gamepad_trigger       (mg_gamepad_trigger_t button, bool pressed);
+void mg_input_process_gamepad_right_thumb   (mg_gamepad_thumb_t, float x, float y);
+void mg_input_process_gamepad_left_thumb    (mg_gamepad_thumb_t, float x, float y);*/
+
+MG_API bool     mg_input_is_key_down            (mg_keys key);
+MG_API bool     mg_input_is_mouse_button_down   (mg_mouse_buttons button);
 
 MG_API int8_t   mg_input_get_mouse_delta        (void);
 MG_API void     mg_input_get_mouse_position     (int32_t *x, int32_t *y);

@@ -10,7 +10,7 @@ extern "C" {
 #endif
 
 #ifndef MG_CONFIG_PHYSICS_2D_BODIES
-    #define MG_CONFIG_PHYSICS_2D_BODIES 256
+    #define MG_CONFIG_PHYSICS_2D_BODIES 1024
 #endif
 
 typedef enum mg_physics_body_type_2d
@@ -25,18 +25,19 @@ typedef struct mg_physics_body_info_2d
     bool is_static;
 
     mg_physics_body_type_2d_t type;
-    mg_vec2_t position;
-    mg_vec2_t velocity;
-    mg_vec2_t fall_speed;
+    mg_vec2 position;
+    mg_vec2 velocity;
+    mg_vec2 fall_speed;
     float restitution;
     float mass;
 
     uint8_t layer;
     uint64_t collidable_layers;
+    uint64_t ground_layers;
 
     struct
     {
-        mg_vec4_t aabb;
+        mg_vec4 aabb;
     }
     aabb_info;
 
@@ -59,7 +60,7 @@ typedef struct mg_physics_body_2d
 }
 mg_physics_body_2d_t;
 
-MG_API void mg_physics_world_2d_initialize  (mg_vec2_t gravity);
+MG_API void mg_physics_world_2d_initialize  (mg_vec2 gravity);
 MG_API void mg_physics_world_2d_shutdown    (void);
 MG_API void mg_physics_world_2d_step        (float delta_time);
 

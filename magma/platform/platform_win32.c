@@ -1,23 +1,24 @@
 #include "platform/platform.h"
 
+#if MG_PLATFORM_WINDOWS
+
 #include "core/input.h"
 #include "core/event.h"
 #include "core/event_types.h"
 
-#if MG_PLATFORM_WINDOWS
-
 #include <windowsx.h>
 
 #include <stdio.h>
+#include <assert.h>
 
-typedef struct mg_win32_handle_info
+typedef struct mg_win32_platform
 {
     HINSTANCE h_instance;
     HWND hwnd;
 
     uint32_t window_width, window_height;
 }
-mg_win32_handle_info_t;
+mg_win32_platform;
 
 static double clock_frequency;
 static LARGE_INTEGER start_time;
@@ -48,25 +49,23 @@ WCHAR *mg_create_wide_string_from_utf8(const char* source)
     return target;
 }
 
-mg_platform_t *mg_platform_initialize(mg_platform_init_info_t *create_info)
+mg_platform *mg_platform_initialize(mg_platform_init_info *init_info)
 {
-    mg_platform_t *platform = (mg_platform_t*)malloc(sizeof(mg_platform_t));
-    platform->handle = (mg_win32_handle_info_t*)malloc(sizeof(mg_win32_handle_info_t));
-    mg_win32_handle_info_t *state = (mg_win32_handle_info_t*)platform->handle;
+    mg_win32_platform *platform = (mg_win32_platform*)malloc(sizeof(mg_win32_platform));
 
-    state->window_width = create_info->width;
-    state->window_height = create_info->height;
+    platform->window_width = init_info->width;
+    platform->window_height = init_info->height;
 
-    state->h_instance = GetModuleHandleA(0);
+    platform->h_instance = GetModuleHandleA(0);
 
-    HICON icon = LoadIcon(state->h_instance, IDI_APPLICATION);
+    HICON icon = LoadIcon(platform->h_instance, IDI_APPLICATION);
     WNDCLASSA wc;
     memset(&wc, 0, sizeof(wc));
     wc.style = 0;
     wc.lpfnWndProc = win32_process_message;
     wc.cbClsExtra = 0;
     wc.cbWndExtra = 0;
-    wc.hInstance = state->h_instance;
+    wc.hInstance = platform->h_instance;
     wc.hIcon = icon;
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
     wc.hbrBackground = NULL;
@@ -74,14 +73,14 @@ mg_platform_t *mg_platform_initialize(mg_platform_init_info_t *create_info)
 
     if (!RegisterClassA(&wc))
     {
-        MessageBox(0, "Window refistration failed", "Error", MB_ICONEXCLAMATION | MB_OK);
+        MessageBox(0, "Window registration failed", "Error", MB_ICONEXCLAMATION | MB_OK);
         return;
     }
 
-    uint32_t window_x = create_info->position_x;
-    uint32_t window_y = create_info->position_y;
-    uint32_t window_width = create_info->width;
-    uint32_t window_height = create_info->height;
+    uint32_t window_x = CW_USEDEFAULT;
+    uint32_t window_y = CW_USEDEFAULT;
+    uint32_t window_width = init_info->width;
+    uint32_t window_height = init_info->height;
 
     uint32_t window_style = WS_OVERLAPPED | WS_SYSMENU | WS_CAPTION;
     uint32_t window_ex_style = WS_EX_APPWINDOW;
@@ -93,26 +92,23 @@ mg_platform_t *mg_platform_initialize(mg_platform_init_info_t *create_info)
     RECT border_rect = {0, 0, 0, 0};
     AdjustWindowRectEx(&border_rect, window_style, 0, window_ex_style);
 
-    window_x += border_rect.left;
-    window_y += border_rect.top;
-
     window_width += border_rect.right - border_rect.left;
     window_height += border_rect.bottom - border_rect.top;
 
 #ifdef _MSC_VER
-    WCHAR *wide_title = mg_create_wide_string_from_utf8(create_info->title);
+    WCHAR *wide_title = mg_create_wide_string_from_utf8(init_info->title);
 
     HWND handle = CreateWindowExA(
         window_ex_style, "magma_window_class", wide_title,
         window_style, window_x, window_y, window_width, window_height,
-        0, 0, state->h_instance, platform);
+        0, 0, platform->h_instance, platform);
 
     free(wide_title);
 #else
     HWND handle = CreateWindowExA(
-        window_ex_style, "magma_window_class", create_info->title,
+        window_ex_style, "magma_window_class", init_info->title,
         window_style, window_x, window_y, window_width, window_height,
-        0, 0, state->h_instance, platform);
+        0, 0, platform->h_instance, platform);
 #endif
 
     if (handle == 0)
@@ -121,11 +117,11 @@ mg_platform_t *mg_platform_initialize(mg_platform_init_info_t *create_info)
         return;
     }
     else
-        state->hwnd = handle;
+        platform->hwnd = handle;
 
     uint32_t should_activate = 1;
     int32_t show_window_command_flags = should_activate ? SW_SHOW : SW_SHOWNOACTIVATE;
-    ShowWindow(state->hwnd, show_window_command_flags);
+    ShowWindow(platform->hwnd, show_window_command_flags);
 
     LARGE_INTEGER frequency;
     QueryPerformanceFrequency(&frequency);
@@ -135,23 +131,23 @@ mg_platform_t *mg_platform_initialize(mg_platform_init_info_t *create_info)
     return platform;
 }
 
-void mg_platform_shutdown(mg_platform_t *platform)
+void mg_platform_shutdown(mg_platform *platform)
 {
-    mg_win32_handle_info_t *handle = (mg_win32_handle_info_t*)platform->handle;
+    mg_win32_platform *handle = (mg_win32_platform*)platform;
 
-    if (handle->hwnd)
-    {
-        DestroyWindow(handle->hwnd);
-        handle->hwnd = 0;
-    }
+    assert(handle->hwnd != NULL);
 
-    free(handle);
+    DestroyWindow(handle->hwnd);
+    handle->hwnd = 0;
+
+    UnregisterClassA("magma_window_class", handle->h_instance);
+
     free(platform);
 }
 
-void mg_platform_poll_messages(mg_platform_t *platform)
+void mg_platform_poll_events(mg_platform *platform)
 {
-    mg_win32_handle_info_t *handle = (mg_win32_handle_info_t*)platform->handle;
+    mg_win32_platform *handle = (mg_win32_platform*)platform;
 
     MSG message;
     
@@ -164,7 +160,7 @@ void mg_platform_poll_messages(mg_platform_t *platform)
 
 LRESULT CALLBACK win32_process_message(HWND hwnd, uint32_t msg, WPARAM w_param, LPARAM l_param)
 {
-    static mg_platform_t *state = 0;
+    static mg_platform *platform = 0;
 
     switch (msg)
     {
@@ -173,13 +169,13 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, uint32_t msg, WPARAM w_param, 
         case WM_NCCREATE:
         {
             CREATESTRUCT *p = (CREATESTRUCT *)l_param;
-            state = (mg_platform_t*)p->lpCreateParams;
+            platform = (mg_platform*)p->lpCreateParams;
             DefWindowProc(hwnd, msg, w_param, l_param);
         }
         break;
         case WM_CLOSE:
         {
-            mg_application_quit_event_data_t data = {state};
+            mg_application_quit_event_data data = {platform};
             mg_event_call(MG_EVENT_CODE_APPLICATION_QUIT, (void*)&data);
         }
         break;
@@ -191,9 +187,9 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, uint32_t msg, WPARAM w_param, 
             RECT r;
             GetClientRect(hwnd, &r);
 
-            mg_resized_event_data_t data = {r.right - r.left, r.bottom - r.top};
+            mg_resized_event_data data = {r.right - r.left, r.bottom - r.top};
 
-            mg_win32_handle_info_t *handle = (mg_win32_handle_info_t*)state->handle;
+            mg_win32_platform *handle = (mg_win32_platform*)platform;
             handle->window_width = data.width; 
             handle->window_height = data.height; 
 
@@ -206,7 +202,7 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, uint32_t msg, WPARAM w_param, 
         case WM_SYSKEYUP:
         {
             bool pressed = (msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN);
-            mg_keys_t key = (uint16_t)w_param;
+            mg_keys key = (uint16_t)w_param;
 
             mg_input_process_key(key, pressed);
         }
@@ -216,10 +212,10 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, uint32_t msg, WPARAM w_param, 
         break;
         case WM_MOUSEMOVE:
         {
-            int32_t x_position = GET_X_LPARAM(l_param);
-            int32_t y_position = GET_Y_LPARAM(l_param);
+            int32_t x = GET_X_LPARAM(l_param);
+            int32_t y = GET_Y_LPARAM(l_param);
 
-            mg_input_process_mouse_move(x_position, y_position);
+            mg_input_process_mouse_move(x, y);
         }
         break;
         case WM_MOUSEWHEEL:
@@ -240,7 +236,7 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, uint32_t msg, WPARAM w_param, 
         case WM_RBUTTONUP:
         {
             bool pressed = msg == WM_LBUTTONDOWN || msg == WM_RBUTTONDOWN || msg == WM_MBUTTONDOWN;
-            mg_mouse_buttons_t mouse_button = MG_MOUSE_BUTTON_MAX_BUTTONS;
+            mg_mouse_buttons mouse_button = MG_MOUSE_BUTTON_MAX_BUTTONS;
             switch (msg)
             {
                 case WM_LBUTTONDOWN:
@@ -272,17 +268,33 @@ double mg_platform_get_time(void)
     return (double)now_time.QuadPart * clock_frequency;
 }
 
-void mg_platform_get_window_size(mg_platform_t *platform, uint32_t *width, uint32_t *height)
+void mg_platform_get_window_size(mg_platform *platform, uint32_t *width, uint32_t *height)
 {
-    mg_win32_handle_info_t *handle = (mg_win32_handle_info_t*)platform->handle;
+    mg_win32_platform *handle = (mg_win32_platform*)platform;
     *width = handle->window_width;
     *height = handle->window_height;
 }
 
-HWND mg_platform_win32_get_handler(mg_platform_t *platform)
+HWND mg_platform_win32_get_handler(mg_platform *platform)
 {
-    mg_win32_handle_info_t *handle = (mg_win32_handle_info_t*)platform->handle;
+    mg_win32_platform *handle = (mg_win32_platform*)platform;
     return handle->hwnd;
+}
+
+mg_dynamic_library *mg_platform_load_library(const char *library_name)
+{
+    return LoadLibraryA(library_name);
+}
+
+mg_proc_address *mg_platform_get_proc_address(mg_dynamic_library *library, const char *proc_name)
+{
+    return (mg_proc_address*)GetProcAddress(library, proc_name);
+}
+
+void mg_platform_unload_library(mg_dynamic_library *library)
+{
+    if (library)
+        FreeLibrary(library);
 }
 
 #endif

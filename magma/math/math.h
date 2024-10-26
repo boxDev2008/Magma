@@ -15,6 +15,9 @@ extern "C" {
 MG_API double mg_math_clamp(double d, double min, double max);
 MG_API float mg_math_clampf(float d, float min, float max);
 
+MG_API double mg_math_clamp01(double d);
+MG_API float mg_math_clamp01f(float d);
+
 MG_API double mg_math_lerp(double first, double second, double by);
 MG_API float mg_math_lerpf(float first, float second, float by);
 
