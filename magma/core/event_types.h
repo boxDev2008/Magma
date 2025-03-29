@@ -9,8 +9,8 @@
 extern "C" {
 #endif
 
-typedef struct mg_application_quit_event_data { mg_platform *platform; }
-mg_application_quit_event_data;
+typedef struct mg_quit_event_data { mg_platform *platform; }
+mg_quit_event_data;
 
 typedef struct mg_resized_event_data { uint32_t width, height; }
 mg_resized_event_data;
@@ -18,7 +18,7 @@ mg_resized_event_data;
 typedef struct mg_mouse_moved_event_data { int32_t x, y; }
 mg_mouse_moved_event_data;
 
-typedef struct mg_mouse_wheel_event_data { int8_t z_delta; }
+typedef struct mg_mouse_wheel_event_data { int8_t delta; }
 mg_mouse_wheel_event_data;
 
 typedef struct mg_keyevent_data { mg_keys key; }

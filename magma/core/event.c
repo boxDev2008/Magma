@@ -1,6 +1,6 @@
 #include "event.h"
 
-static mg_event registered_events[MG_MAX_EVENT_CODE];
+static mg_event registered_events[MG_MAX_EVENT_CODE] = { NULL };
 
 void mg_event_connect(mg_system_event_code code, mg_event on_event)
 {

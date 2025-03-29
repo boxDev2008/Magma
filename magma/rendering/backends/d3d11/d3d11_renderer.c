@@ -11,9 +11,9 @@
 #pragma comment (lib, "d3dcompiler")
 #pragma comment (lib, "dxguid.lib")
 
-mg_d3d11_context d3d11_context;
+mg_d3d11_context d3d11_ctx;
 
-void mg_d3d11_renderer_initialize(mg_lowl_renderer_init_info *init_info)
+void mg_d3d11_renderer_initialize(mgfx_init_info *init_info)
 {
     mg_swapchain_config_info *swapchain_info = init_info->swapchain_config_info;
     DXGI_SWAP_CHAIN_DESC sd = { 0 };
@@ -24,7 +24,7 @@ void mg_d3d11_renderer_initialize(mg_lowl_renderer_init_info *init_info)
     //sd.BufferDesc.RefreshRate.Numerator = 60;
     //sd.BufferDesc.RefreshRate.Denominator = 1;
     sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    sd.OutputWindow = mg_platform_win32_get_handler(init_info->platform);
+    sd.OutputWindow = ((mg_win32_platform*)init_info->platform)->hwnd;
     sd.SampleDesc.Count = 1;
     sd.SampleDesc.Quality = 0;
     sd.Windowed = TRUE;
@@ -38,50 +38,58 @@ void mg_d3d11_renderer_initialize(mg_lowl_renderer_init_info *init_info)
         0,
         D3D11_SDK_VERSION,
         &sd,
-        &d3d11_context.swapchain,
-        &d3d11_context.device,
+        &d3d11_ctx.swapchain,
+        &d3d11_ctx.device,
         NULL,
-        &d3d11_context.immediate_context);
+        &d3d11_ctx.immediate_context);
 
     ID3D11Texture2D* pBackBuffer = NULL;
-    IDXGISwapChain_GetBuffer(d3d11_context.swapchain, 0, &IID_ID3D11Texture2D, (void**)&pBackBuffer);
-    ID3D11Device_CreateRenderTargetView(d3d11_context.device, (ID3D11Resource*)pBackBuffer, NULL, &d3d11_context.target_view);
+    IDXGISwapChain_GetBuffer(d3d11_ctx.swapchain, 0, &IID_ID3D11Texture2D, (void**)&pBackBuffer);
+    ID3D11Device_CreateRenderTargetView(d3d11_ctx.device, (ID3D11Resource*)pBackBuffer, NULL, &d3d11_ctx.target_view);
     ID3D11Buffer_Release(pBackBuffer);
 
     switch (swapchain_info->present_mode)
     {
         case MG_PRESENT_MODE_IMMEDIATE:
         case MG_PRESENT_MODE_MAILBOX:
-            d3d11_context.vsync = false;
+            d3d11_ctx.vsync = false;
             break;
         default:
-            d3d11_context.vsync = true;
+            d3d11_ctx.vsync = true;
             break;
+    }
+
+    for (uint32_t i = 0; i < MG_CONFIG_MAX_BINDABLE_UNIFORMS; i++)
+    {
+        D3D11_BUFFER_DESC buffer_desc = { 0 };
+        buffer_desc.Usage = D3D11_USAGE_DYNAMIC;
+        buffer_desc.ByteWidth = MG_CONFIG_MAX_UNIFORM_UPDATE_SIZE;
+        buffer_desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+        buffer_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        ID3D11Device_CreateBuffer(d3d11_ctx.device, &buffer_desc, NULL, &d3d11_ctx.constant_buffers[i]);
     }
 }
 
 void mg_d3d11_renderer_shutdown(void)
 {
-    ID3D11DeviceContext_ClearState(d3d11_context.immediate_context);
-    ID3D11RenderTargetView_Release(d3d11_context.target_view);
-    IDXGISwapChain_Release(d3d11_context.swapchain);
-    ID3D11DeviceContext_Release(d3d11_context.immediate_context);
-    ID3D11Device_Release(d3d11_context.device);
+    for (uint32_t i = 0; i < MG_CONFIG_MAX_BINDABLE_UNIFORMS; i++)
+        ID3D11Buffer_Release(d3d11_ctx.constant_buffers[i]);
+    ID3D11DeviceContext_ClearState(d3d11_ctx.immediate_context);
+    ID3D11RenderTargetView_Release(d3d11_ctx.target_view);
+    IDXGISwapChain_Release(d3d11_ctx.swapchain);
+    ID3D11DeviceContext_Release(d3d11_ctx.immediate_context);
+    ID3D11Device_Release(d3d11_ctx.device);
 }
 
-void mg_d3d11_renderer_begin_frame(void)
+void mg_d3d11_renderer_begin(void)
 {
-
+    ID3D11DeviceContext_VSSetConstantBuffers(d3d11_ctx.immediate_context, 0, MG_CONFIG_MAX_BINDABLE_UNIFORMS, d3d11_ctx.constant_buffers);
+    ID3D11DeviceContext_PSSetConstantBuffers(d3d11_ctx.immediate_context, 0, MG_CONFIG_MAX_BINDABLE_UNIFORMS, d3d11_ctx.constant_buffers);
 }
 
-void mg_d3d11_renderer_end_frame(void)
+void mg_d3d11_renderer_end(void)
 {
-
-}
-
-void mg_d3d11_renderer_present_frame(void)
-{
-    IDXGISwapChain_Present(d3d11_context.swapchain, d3d11_context.vsync, 0);
+    IDXGISwapChain_Present(d3d11_ctx.swapchain, d3d11_ctx.vsync, 0);
 }
 
 void mg_d3d11_renderer_wait(void)
@@ -91,9 +99,9 @@ void mg_d3d11_renderer_wait(void)
 
 void mg_d3d11_renderer_configure_swapchain(mg_swapchain_config_info *config_info)
 {
-    ID3D11RenderTargetView_Release(d3d11_context.target_view);
+    ID3D11RenderTargetView_Release(d3d11_ctx.target_view);
     IDXGISwapChain_ResizeBuffers(
-        d3d11_context.swapchain,
+        d3d11_ctx.swapchain,
         0,
         config_info->width,
         config_info->height,
@@ -101,18 +109,18 @@ void mg_d3d11_renderer_configure_swapchain(mg_swapchain_config_info *config_info
         0
     );
     ID3D11Texture2D* pBackBuffer = NULL;
-    IDXGISwapChain_GetBuffer(d3d11_context.swapchain, 0, &IID_ID3D11Texture2D, (void**)&pBackBuffer);
-    ID3D11Device_CreateRenderTargetView(d3d11_context.device, (ID3D11Resource*)pBackBuffer, NULL, &d3d11_context.target_view);
+    IDXGISwapChain_GetBuffer(d3d11_ctx.swapchain, 0, &IID_ID3D11Texture2D, (void**)&pBackBuffer);
+    ID3D11Device_CreateRenderTargetView(d3d11_ctx.device, (ID3D11Resource*)pBackBuffer, NULL, &d3d11_ctx.target_view);
     ID3D11Buffer_Release(pBackBuffer);
 
     switch (config_info->present_mode)
     {
         case MG_PRESENT_MODE_IMMEDIATE:
         case MG_PRESENT_MODE_MAILBOX:
-            d3d11_context.vsync = false;
+            d3d11_ctx.vsync = false;
             break;
         default:
-            d3d11_context.vsync = true;
+            d3d11_ctx.vsync = true;
             break;
     }
 }
@@ -126,7 +134,7 @@ void mg_d3d11_renderer_viewport(int32_t x, int32_t y, uint32_t width, uint32_t h
     vp.MaxDepth = 1.0f;
     vp.TopLeftX = x;
     vp.TopLeftY = y;
-    ID3D11DeviceContext_RSSetViewports(d3d11_context.immediate_context, 1, &vp);
+    ID3D11DeviceContext_RSSetViewports(d3d11_ctx.immediate_context, 1, &vp);
 }
 
 void mg_d3d11_renderer_scissor(int32_t x, int32_t y, uint32_t width, uint32_t height)
@@ -136,23 +144,27 @@ void mg_d3d11_renderer_scissor(int32_t x, int32_t y, uint32_t width, uint32_t he
     rect.top = y;
     rect.right = x + width;
     rect.bottom = y + height;
-    ID3D11DeviceContext_RSSetScissorRects(d3d11_context.immediate_context, 1, &rect);
+    ID3D11DeviceContext_RSSetScissorRects(d3d11_ctx.immediate_context, 1, &rect);
 }
 
 void mg_d3d11_renderer_draw(uint32_t vertex_count, uint32_t first_vertex)
 {
-    ID3D11DeviceContext_Draw(d3d11_context.immediate_context, vertex_count, first_vertex);
+    ID3D11DeviceContext_Draw(d3d11_ctx.immediate_context, vertex_count, first_vertex);
 }
 
-void mg_d3d11_renderer_draw_indexed(uint32_t index_count, uint32_t first_index)
+void mg_d3d11_renderer_draw_indexed(uint32_t index_count, uint32_t first_index, int32_t first_vertex)
 {
-    ID3D11DeviceContext_DrawIndexed(d3d11_context.immediate_context, index_count, first_index, 0);
+    ID3D11DeviceContext_DrawIndexed(d3d11_ctx.immediate_context, index_count, first_index, first_vertex);
 }
 
-void mg_d3d11_renderer_push_constants(uint32_t size, void *data)
+void mg_d3d11_renderer_bind_uniforms(uint32_t binding, size_t size, void *data)
 {
-    ID3D11DeviceContext_UpdateSubresource(d3d11_context.immediate_context,
-        d3d11_context.binds.pipeline->push_constant_buffer, 0, NULL, data, 0, 0);
+    D3D11_MAPPED_SUBRESOURCE mapped_resource;
+    ID3D11DeviceContext_Map(d3d11_ctx.immediate_context, d3d11_ctx.constant_buffers[binding], 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
+    memcpy(mapped_resource.pData, data, size);
+    ID3D11DeviceContext_Unmap(d3d11_ctx.immediate_context, d3d11_ctx.constant_buffers[binding], 0);
+    //ID3D11DeviceContext_UpdateSubresource(d3d11_ctx.immediate_context,
+        //(ID3D11Resource*)d3d11_ctx.constant_buffers[binding], 0, NULL, data, 0, 0);
 }
 
 #endif

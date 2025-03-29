@@ -41,13 +41,14 @@ float mg_vec4_magnitude(mg_vec4 vec)
 
 mg_vec4 mg_vec4_normalize(mg_vec4 vec)
 {
-    float magnitude = mg_vec4_magnitude(vec);
+    const float magnitude = mg_vec4_magnitude(vec);
     if (magnitude != 0)
     {
-        vec.x /= magnitude;
-        vec.y /= magnitude;
-        vec.z /= magnitude;
-        vec.w /= magnitude;
+        const float inverse_magnitude = 1.0f / magnitude; 
+        vec.x *= inverse_magnitude;
+        vec.y *= inverse_magnitude;
+        vec.z *= inverse_magnitude;
+        vec.w *= inverse_magnitude;
     }
     return vec;
 }
@@ -56,6 +57,12 @@ float mg_vec4_distance(mg_vec4 a, mg_vec4 b)
 {
     mg_vec4 delta = mg_vec4_subtract(a, b);
     return mg_vec4_magnitude(delta);
+}
+
+bool mg_vec4_contains_vec2(mg_vec4 v4, mg_vec2 v2)
+{
+    return v4.x <= v2.x && v4.y <= v2.y && 
+           v4.z >= v2.x && v4.w >= v2.y;
 }
 
 mg_vec4i mg_vec4i_new(int x, int y, int z, int w)
@@ -81,4 +88,10 @@ mg_vec4i mg_vec4i_subtract(mg_vec4i a, mg_vec4i b)
 int mg_vec4i_dot(mg_vec4i a, mg_vec4i b)
 {
     return (a.x * b.x) + (a.y * b.y) + (a.z * b.z) + (a.w * b.w);
+}
+
+bool mg_vec4i_contains_vec2i(mg_vec4i v4, mg_vec2i v2)
+{
+    return v4.x <= v2.x && v4.y <= v2.y && 
+           v4.z >= v2.x && v4.w >= v2.y;
 }

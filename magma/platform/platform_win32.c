@@ -11,24 +11,14 @@
 #include <stdio.h>
 #include <assert.h>
 
-typedef struct mg_win32_platform
-{
-    HINSTANCE h_instance;
-    HWND hwnd;
-
-    uint32_t window_width, window_height;
-}
-mg_win32_platform;
-
 static double clock_frequency;
 static LARGE_INTEGER start_time;
 
 LRESULT CALLBACK win32_process_message(HWND hwnd, uint32_t msg, WPARAM w_param, LPARAM l_param);
 
-WCHAR *mg_create_wide_string_from_utf8(const char* source)
+void mg_create_wide_string_from_utf8(const char *source, WCHAR *target)
 {
-    WCHAR *target;
-    int count;
+    uint32_t count;
 
     count = MultiByteToWideChar(CP_UTF8, 0, source, -1, NULL, 0);
     if (!count)
@@ -37,24 +27,16 @@ WCHAR *mg_create_wide_string_from_utf8(const char* source)
         return NULL;
     }
 
-    target = (WCHAR*)malloc(count * sizeof(WCHAR));
-
     if (!MultiByteToWideChar(CP_UTF8, 0, source, -1, target, count))
     {
         MessageBoxA(NULL, "Failed to convert string from UTF-8", "Error!", MB_ICONEXCLAMATION | MB_OK);
-        free(target);
         return NULL;
     }
-
-    return target;
 }
 
 mg_platform *mg_platform_initialize(mg_platform_init_info *init_info)
 {
     mg_win32_platform *platform = (mg_win32_platform*)malloc(sizeof(mg_win32_platform));
-
-    platform->window_width = init_info->width;
-    platform->window_height = init_info->height;
 
     platform->h_instance = GetModuleHandleA(0);
 
@@ -96,14 +78,13 @@ mg_platform *mg_platform_initialize(mg_platform_init_info *init_info)
     window_height += border_rect.bottom - border_rect.top;
 
 #ifdef _MSC_VER
-    WCHAR *wide_title = mg_create_wide_string_from_utf8(init_info->title);
+    WCHAR wide_title[128];
+    mg_create_wide_string_from_utf8(init_info->title, wide_title);
 
     HWND handle = CreateWindowExA(
         window_ex_style, "magma_window_class", wide_title,
         window_style, window_x, window_y, window_width, window_height,
         0, 0, platform->h_instance, platform);
-
-    free(wide_title);
 #else
     HWND handle = CreateWindowExA(
         window_ex_style, "magma_window_class", init_info->title,
@@ -127,6 +108,9 @@ mg_platform *mg_platform_initialize(mg_platform_init_info *init_info)
     QueryPerformanceFrequency(&frequency);
     clock_frequency = 1.0 / (double)frequency.QuadPart;
     QueryPerformanceCounter(&start_time);
+
+    platform->window_width = init_info->width;
+    platform->window_height = init_info->height;
 
     return platform;
 }
@@ -175,7 +159,7 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, uint32_t msg, WPARAM w_param, 
         break;
         case WM_CLOSE:
         {
-            mg_application_quit_event_data data = {platform};
+            mg_quit_event_data data = {platform};
             mg_event_call(MG_EVENT_CODE_APPLICATION_QUIT, (void*)&data);
         }
         break;
@@ -220,11 +204,11 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, uint32_t msg, WPARAM w_param, 
         break;
         case WM_MOUSEWHEEL:
         {
-            int32_t z_delta = GET_WHEEL_DELTA_WPARAM(w_param);
-            if (z_delta != 0)
+            int32_t delta = GET_WHEEL_DELTA_WPARAM(w_param);
+            if (delta != 0)
             {
-                z_delta = (z_delta < 0) ? -1 : 1;
-                mg_input_process_mouse_wheel(z_delta);
+                delta = (delta < 0) ? -1 : 1;
+                mg_input_process_mouse_wheel(delta);
             }
         }
         break;
@@ -254,31 +238,18 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, uint32_t msg, WPARAM w_param, 
             }
 
             mg_input_process_mouse_button(mouse_button, pressed);
-        } 
+        }
         break;
         default:
             return DefWindowProc(hwnd, msg, w_param, l_param);
     }
 }
 
-double mg_platform_get_time(void)
+double mg_get_time(void)
 {
     LARGE_INTEGER now_time;
     QueryPerformanceCounter(&now_time);
     return (double)now_time.QuadPart * clock_frequency;
-}
-
-void mg_platform_get_window_size(mg_platform *platform, uint32_t *width, uint32_t *height)
-{
-    mg_win32_platform *handle = (mg_win32_platform*)platform;
-    *width = handle->window_width;
-    *height = handle->window_height;
-}
-
-HWND mg_platform_win32_get_handler(mg_platform *platform)
-{
-    mg_win32_platform *handle = (mg_win32_platform*)platform;
-    return handle->hwnd;
 }
 
 mg_dynamic_library *mg_platform_load_library(const char *library_name)

@@ -167,14 +167,6 @@ mg_opengl_pipeline *mg_opengl_create_pipeline(mg_pipeline_create_info *create_in
     pipeline->depth_stencil.depth_test_enable = create_info->depth_stencil.depth_test_enable;
     pipeline->depth_stencil.stencil_test_enable = create_info->depth_stencil.stencil_test_enable;
     pipeline->depth_stencil.depth_compare_op = mg_opengl_get_compare_op(create_info->depth_stencil.depth_compare_op);
-    
-    pipeline->has_push_constants = create_info->push_constants_size > 0;
-    if (pipeline->has_push_constants)
-    {
-        glGenBuffers(1, &pipeline->push_constant_buffer);
-        glBindBuffer(GL_UNIFORM_BUFFER, pipeline->push_constant_buffer);
-        glBufferData(GL_UNIFORM_BUFFER, create_info->push_constants_size, NULL, GL_STATIC_DRAW);
-    }
 
     return pipeline;
 }
@@ -182,17 +174,13 @@ mg_opengl_pipeline *mg_opengl_create_pipeline(mg_pipeline_create_info *create_in
 void mg_opengl_destroy_pipeline(mg_opengl_pipeline *pipeline)
 {
     glDeleteProgram(pipeline->program_id);
-
-    if (pipeline->has_push_constants)
-        glDeleteBuffers(1, &pipeline->push_constant_buffer);
-
     free(pipeline);
 }
 
 void mg_opengl_bind_pipeline(mg_opengl_pipeline *pipeline)
 {
-    opengl_context.primitive_topology = pipeline->primitive_topology;
-    opengl_context.current_pipeline = pipeline;
+    gl_ctx.primitive_topology = pipeline->primitive_topology;
+    gl_ctx.current_pipeline = pipeline;
 
     if (pipeline->color_blend.blend_enabled)
     {

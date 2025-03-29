@@ -2,7 +2,12 @@
 
 #include "base.h"
 
-#include "../../lowl_renderer.h"
+#include "../../renderer.h"
+
+#if MG_PLATFORM_WINDOWS
+#define VK_USE_PLATFORM_WIN32_KHR
+#endif
+
 #include <vulkan/vulkan.h>
 
 typedef struct mg_vulkan_sampler
@@ -38,17 +43,6 @@ typedef struct mg_vulkan_dynamic_buffer
 }
 mg_vulkan_dynamic_buffer,
 mg_vulkan_dynamic_vertex_buffer, mg_vulkan_dynamic_index_buffer;
-
-typedef struct mg_vulkan_uniform_buffer
-{
-    VkBuffer buffer;
-    VkDeviceMemory memory;
-
-    VkDescriptorSet descriptor_set;
-
-    void *data;
-}
-mg_vulkan_uniform_buffer;
 
 typedef struct mg_vulkan_pipeline
 {
@@ -110,7 +104,7 @@ typedef struct mg_vulkan_context
 
     struct
     {
-        VkDescriptorSetLayout uniform_buffer_layout;
+        VkDescriptorSetLayout scratch_buffer_layout;
         VkDescriptorSetLayout image_sampler_layout;
     }
     layouts;
@@ -120,6 +114,19 @@ typedef struct mg_vulkan_context
         mg_vulkan_pipeline *pipeline;
     }
     binds;
+
+    struct
+    {
+        VkBuffer buffer;
+        VkDeviceMemory memory;
+        uint8_t *data;
+
+        uint32_t bind_offsets[MG_CONFIG_MAX_BINDABLE_UNIFORMS];
+        uint32_t offset;
+
+        VkDescriptorSet ub_set;
+    }
+    scratch_buffer;
 
     int32_t image_index;
 }

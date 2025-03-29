@@ -3,7 +3,6 @@
 #include "vulkan_types.h"
 
 VkCommandBuffer mg_vulkan_create_command_buffer         (void);
-void            mg_vulkan_submit_command_buffer         (VkCommandBuffer buffer);
 
 VkCommandBuffer mg_vulkan_begin_single_time_commands    (void);
 void            mg_vulkan_end_single_time_commands      (VkCommandBuffer commandBuffer);

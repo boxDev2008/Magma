@@ -21,7 +21,7 @@ void mg_opengl_begin_render_pass(mg_opengl_render_pass *render_pass, mg_opengl_f
 
 void mg_opengl_begin_default_render_pass(mg_render_pass_begin_info *begin_info)
 {
-    glBindFramebuffer(GL_FRAMEBUFFER, opengl_context.back_buffer.framebuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, gl_ctx.back_buffer.framebuffer);
     glScissor(begin_info->render_area.x, begin_info->render_area.y, begin_info->render_area.z, begin_info->render_area.w);
     glClearColor(begin_info->clear_value.r, begin_info->clear_value.g, begin_info->clear_value.b, begin_info->clear_value.a);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

@@ -47,12 +47,13 @@ float mg_vec3_magnitude(mg_vec3 vec)
 
 mg_vec3 mg_vec3_normalize(mg_vec3 vec)
 {
-    float magnitude = mg_vec3_magnitude(vec);
+    const float magnitude = mg_vec3_magnitude(vec);
     if (magnitude != 0)
     {
-        vec.x /= magnitude;
-        vec.y /= magnitude;
-        vec.z /= magnitude;
+        const float inverse_magnitude = 1.0f / magnitude; 
+        vec.x *= inverse_magnitude;
+        vec.y *= inverse_magnitude;
+        vec.z *= inverse_magnitude;
     }
     return vec;
 }

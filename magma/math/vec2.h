@@ -48,6 +48,7 @@ MG_API float    mg_vec2_dot         (mg_vec2 a, mg_vec2 b);
 MG_API float    mg_vec2_magnitude   (mg_vec2 vec);
 MG_API mg_vec2  mg_vec2_normalize   (mg_vec2 vec);
 MG_API float    mg_vec2_distance    (mg_vec2 a, mg_vec2 b);
+MG_API mg_vec2  mg_vec2_from_angle  (float angle);
 
 MG_API mg_vec2i mg_vec2i_new        (int x, int y);
 MG_API mg_vec2i mg_vec2i_add        (mg_vec2i a, mg_vec2i b);

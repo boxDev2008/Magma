@@ -179,17 +179,21 @@ DXGI_FORMAT mg_d3d11_get_vertex_format(mg_vertex_format format)
         case MG_VERTEX_FORMAT_INT3: return DXGI_FORMAT_R32G32B32_SINT; break;
         case MG_VERTEX_FORMAT_INT4: return DXGI_FORMAT_R32G32B32A32_SINT; break;
 
+        case MG_VERTEX_FORMAT_UBYTE4: return DXGI_FORMAT_R8G8B8A8_UINT; break;
+        case MG_VERTEX_FORMAT_BYTE4: return DXGI_FORMAT_R8G8B8A8_SINT; break;
+
+        case MG_VERTEX_FORMAT_UBYTE4N: return DXGI_FORMAT_R8G8B8A8_UNORM; break;
+        case MG_VERTEX_FORMAT_BYTE4N: return DXGI_FORMAT_R8G8B8A8_SNORM; break;
+
         default: return DXGI_FORMAT_UNKNOWN;
     }
 }
 
 DXGI_FORMAT mg_d3d11_get_index_type(mg_index_type index_type)
 {
-    switch (index_type)
-    {
-        case MG_INDEX_TYPE_UINT16: return DXGI_FORMAT_R16_UINT; break;
-        case MG_INDEX_TYPE_UINT32: return DXGI_FORMAT_R32_UINT; break;
-    }
+    if (index_type == MG_INDEX_TYPE_UINT16)
+        return DXGI_FORMAT_R16_UINT;
+    return DXGI_FORMAT_R32_UINT;
 }
 
 D3D11_CULL_MODE mg_d3d11_get_cull_mode(mg_cull_mode mode)

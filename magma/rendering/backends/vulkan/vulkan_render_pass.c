@@ -79,7 +79,7 @@ VkRenderPass mg_vulkan_create_render_pass(mg_render_pass_create_info *create_inf
 
     VkRenderPass render_pass;
 
-    VkResult result = vkCreateRenderPass(vk_context.device.handle, &render_pass_info, NULL, &render_pass);
+    VkResult result = vkCreateRenderPass(vk_ctx.device.handle, &render_pass_info, NULL, &render_pass);
     assert(result == VK_SUCCESS);
 
     return render_pass;
@@ -87,7 +87,7 @@ VkRenderPass mg_vulkan_create_render_pass(mg_render_pass_create_info *create_inf
 
 void mg_vulkan_destroy_render_pass(VkRenderPass render_pass)
 {
-    vkDestroyRenderPass(vk_context.device.handle, render_pass, NULL);
+    vkDestroyRenderPass(vk_ctx.device.handle, render_pass, NULL);
 }
 
 void mg_vulkan_begin_render_pass(VkRenderPass render_pass, VkFramebuffer framebuffer, mg_render_pass_begin_info *begin_info)
@@ -106,16 +106,16 @@ void mg_vulkan_begin_render_pass(VkRenderPass render_pass, VkFramebuffer framebu
     render_pass_info.clearValueCount = 2;
     render_pass_info.pClearValues = clear_values;
 
-    vkCmdBeginRenderPass(vk_context.command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBeginRenderPass(vk_ctx.command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
 }
 
 void mg_vulkan_begin_default_render_pass(mg_render_pass_begin_info *begin_info)
 {
-    mg_vulkan_begin_render_pass(vk_context.render_pass,
-        vk_context.swapchain.framebuffers[vk_context.image_index], begin_info);
+    mg_vulkan_begin_render_pass(vk_ctx.render_pass,
+        vk_ctx.swapchain.framebuffers[vk_ctx.image_index], begin_info);
 }
 
 void mg_vulkan_end_render_pass(void)
 {
-    vkCmdEndRenderPass(vk_context.command_buffer);
+    vkCmdEndRenderPass(vk_ctx.command_buffer);
 }

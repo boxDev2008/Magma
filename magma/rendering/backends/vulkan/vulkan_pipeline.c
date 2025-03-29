@@ -11,7 +11,7 @@ VkShaderModule mg_vulkan_create_shader(const uint32_t *code, size_t size)
     create_info.pCode = code;
 
     VkShaderModule shader_module;
-    VkResult result = vkCreateShaderModule(vk_context.device.handle, &create_info, NULL, &shader_module);
+    VkResult result = vkCreateShaderModule(vk_ctx.device.handle, &create_info, NULL, &shader_module);
     assert(result == VK_SUCCESS);
 
     return shader_module;
@@ -36,7 +36,7 @@ mg_vulkan_pipeline *mg_vulkan_create_pipeline(mg_pipeline_create_info *create_in
 
     VkPipelineShaderStageCreateInfo shader_stages[] = {vert_shader_stage_info, frag_shader_stage_info};
 
-    const VkDynamicState dynamic_states[] = {
+    static const VkDynamicState dynamic_states[] = {
         VK_DYNAMIC_STATE_VIEWPORT,
         VK_DYNAMIC_STATE_SCISSOR
     };
@@ -115,26 +115,15 @@ mg_vulkan_pipeline *mg_vulkan_create_pipeline(mg_pipeline_create_info *create_in
 
     VkPipelineLayoutCreateInfo pipeline_layout_info = {VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
 
-    VkDescriptorSetLayout set_layouts[] = {
-        vk_context.layouts.uniform_buffer_layout,
-        vk_context.layouts.image_sampler_layout
+    const VkDescriptorSetLayout set_layouts[] = {
+        vk_ctx.layouts.scratch_buffer_layout,
+        vk_ctx.layouts.image_sampler_layout
     };
 
     pipeline_layout_info.pSetLayouts = set_layouts;
     pipeline_layout_info.setLayoutCount = 2;
 
-    if (create_info->push_constants_size > 0)
-    {
-        VkPushConstantRange push_constant = { 0 };
-        push_constant.offset = 0;
-        push_constant.size = create_info->push_constants_size;
-        push_constant.stageFlags = VK_SHADER_STAGE_ALL;
-
-        pipeline_layout_info.pushConstantRangeCount = 1;
-        pipeline_layout_info.pPushConstantRanges = &push_constant;
-    }
-
-    VkResult result = vkCreatePipelineLayout(vk_context.device.handle, &pipeline_layout_info, NULL, &pipeline->pipeline_layout);
+    VkResult result = vkCreatePipelineLayout(vk_ctx.device.handle, &pipeline_layout_info, NULL, &pipeline->pipeline_layout);
     assert(result == VK_SUCCESS);
 
     VkGraphicsPipelineCreateInfo pipeline_info = {VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
@@ -152,27 +141,27 @@ mg_vulkan_pipeline *mg_vulkan_create_pipeline(mg_pipeline_create_info *create_in
 
     pipeline_info.layout = pipeline->pipeline_layout;
     pipeline_info.renderPass = create_info->render_pass ?
-        create_info->render_pass : vk_context.render_pass;
+        create_info->render_pass : vk_ctx.render_pass;
     pipeline_info.subpass = 0;
 
-    result = vkCreateGraphicsPipelines(vk_context.device.handle, VK_NULL_HANDLE, 1, &pipeline_info, NULL, &pipeline->pipeline);
+    result = vkCreateGraphicsPipelines(vk_ctx.device.handle, VK_NULL_HANDLE, 1, &pipeline_info, NULL, &pipeline->pipeline);
     assert(result == VK_SUCCESS);
 
-    vkDestroyShaderModule(vk_context.device.handle, vertex_shader_module, NULL);
-    vkDestroyShaderModule(vk_context.device.handle, fragment_shader_module, NULL);
+    vkDestroyShaderModule(vk_ctx.device.handle, vertex_shader_module, NULL);
+    vkDestroyShaderModule(vk_ctx.device.handle, fragment_shader_module, NULL);
 
     return pipeline;
 }
 
 void mg_vulkan_destroy_pipeline(mg_vulkan_pipeline *pipeline)
 {
-    vkDestroyPipeline(vk_context.device.handle, pipeline->pipeline, NULL);
-    vkDestroyPipelineLayout(vk_context.device.handle, pipeline->pipeline_layout, NULL);
+    vkDestroyPipeline(vk_ctx.device.handle, pipeline->pipeline, NULL);
+    vkDestroyPipelineLayout(vk_ctx.device.handle, pipeline->pipeline_layout, NULL);
     free(pipeline);
 }
 
 void mg_vulkan_bind_pipeline(mg_vulkan_pipeline *pipeline)
 {
-    vkCmdBindPipeline(vk_context.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipeline);
-    vk_context.binds.pipeline = pipeline;
+    vkCmdBindPipeline(vk_ctx.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipeline);
+    vk_ctx.binds.pipeline = pipeline;
 }

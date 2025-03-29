@@ -43,11 +43,12 @@ float mg_vec2_magnitude(mg_vec2 vec)
 
 mg_vec2 mg_vec2_normalize(mg_vec2 vec)
 {
-    float magnitude = mg_vec2_magnitude(vec);
+    const float magnitude = mg_vec2_magnitude(vec);
     if (magnitude != 0)
     {
-        vec.x /= magnitude;
-        vec.y /= magnitude;
+        const float inverse_magnitude = 1.0f / magnitude; 
+        vec.x *= inverse_magnitude;
+        vec.y *= inverse_magnitude;
     }
     return vec;
 }
@@ -56,6 +57,13 @@ float mg_vec2_distance(mg_vec2 a, mg_vec2 b)
 {
     mg_vec2 delta = mg_vec2_subtract(a, b);
     return mg_vec2_magnitude(delta);
+}
+
+mg_vec2 mg_vec2_from_angle(float angle)
+{
+    float x = cosf(angle);
+    float y = sinf(angle);
+    return mg_vec2_new(x - y, y + x);
 }
 
 mg_vec2i mg_vec2i_new(int x, int y)

@@ -21,11 +21,11 @@ mg_d3d11_pipeline *mg_d3d11_create_pipeline(mg_pipeline_create_info *create_info
     mg_shader_source *fg = &create_info->shader.fragment;
 
     D3DCompile(vs->code, vs->size, NULL, NULL, NULL,
-        "VSMain", "vs_5_0", 0, 0, &vs_blob, &error_blob
+        "main", "vs_5_0", 0, 0, &vs_blob, &error_blob
     );
 
     D3DCompile(fg->code, fg->size, NULL, NULL, NULL,
-        "PSMain", "ps_5_0", 0, 0, &ps_blob, &error_blob
+        "main", "ps_5_0", 0, 0, &ps_blob, &error_blob
     );
 
     if (error_blob)
@@ -37,7 +37,7 @@ mg_d3d11_pipeline *mg_d3d11_create_pipeline(mg_pipeline_create_info *create_info
     void *vs_buffer_ptr = ID3D10Blob_GetBufferPointer(vs_blob);
     size_t vs_buffer_size = ID3D10Blob_GetBufferSize(vs_blob);
     ID3D11Device_CreateVertexShader(
-        d3d11_context.device,
+        d3d11_ctx.device,
         vs_buffer_ptr,
         vs_buffer_size,
         NULL,
@@ -45,22 +45,22 @@ mg_d3d11_pipeline *mg_d3d11_create_pipeline(mg_pipeline_create_info *create_info
     );
 
     ID3D11Device_CreatePixelShader(
-        d3d11_context.device,
+        d3d11_ctx.device,
         ID3D10Blob_GetBufferPointer(ps_blob),
         ID3D10Blob_GetBufferSize(ps_blob),
         NULL,
         &pipeline->pixel_shader
     );
 
-    D3D11_INPUT_ELEMENT_DESC layout[MG_CONFIG_MAX_VERTEX_ATTRIBUTES];
     const uint32_t attribute_count = create_info->vertex_layout.attribute_count;
 
 	if (attribute_count)
 	{
+        D3D11_INPUT_ELEMENT_DESC layout[MG_CONFIG_MAX_VERTEX_ATTRIBUTES];
 		for (uint32_t i = 0; i < attribute_count; i++)
 		{
 			mg_vertex_attribute_info *attribute = &create_info->vertex_layout.attributes[i];
-			layout[i].SemanticName = "INDEX";
+			layout[i].SemanticName = "TEXCOORD";
 			layout[i].SemanticIndex = attribute->location;
 			layout[i].Format = mg_d3d11_get_vertex_format(attribute->format); 
 			layout[i].AlignedByteOffset = attribute->offset;
@@ -70,7 +70,7 @@ mg_d3d11_pipeline *mg_d3d11_create_pipeline(mg_pipeline_create_info *create_info
 		}
 
 		ID3D11Device_CreateInputLayout(
-			d3d11_context.device,
+			d3d11_ctx.device,
 			layout,
 			attribute_count,
 			vs_buffer_ptr,
@@ -86,14 +86,15 @@ mg_d3d11_pipeline *mg_d3d11_create_pipeline(mg_pipeline_create_info *create_info
     rasterDesc.CullMode = mg_d3d11_get_cull_mode(create_info->cull_mode);
     rasterDesc.FrontCounterClockwise = create_info->front_face == MG_FRONT_FACE_CCW;
     rasterDesc.DepthClipEnable = TRUE;
-    ID3D11Device_CreateRasterizerState(d3d11_context.device, &rasterDesc, &pipeline->raster_state);
+    rasterDesc.ScissorEnable = TRUE;
+    ID3D11Device_CreateRasterizerState(d3d11_ctx.device, &rasterDesc, &pipeline->raster_state);
 
     D3D11_DEPTH_STENCIL_DESC depthStencilStateDesc = { 0 };
     depthStencilStateDesc.DepthEnable = create_info->depth_stencil.depth_test_enable;
     depthStencilStateDesc.StencilEnable = create_info->depth_stencil.stencil_test_enable;
     depthStencilStateDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
     depthStencilStateDesc.DepthFunc = mg_d3d11_get_comparison_func(create_info->depth_stencil.depth_compare_op);
-    ID3D11Device_CreateDepthStencilState(d3d11_context.device, &depthStencilStateDesc, &pipeline->depth_stencil_state);
+    ID3D11Device_CreateDepthStencilState(d3d11_ctx.device, &depthStencilStateDesc, &pipeline->depth_stencil_state);
 
     D3D11_BLEND_DESC blendDesc = { 0 };
     blendDesc.RenderTarget[0].BlendEnable = create_info->color_blend.blend_enabled;
@@ -107,11 +108,7 @@ mg_d3d11_pipeline *mg_d3d11_create_pipeline(mg_pipeline_create_info *create_info
         blendDesc.RenderTarget[0].DestBlendAlpha = mg_d3d11_get_blend_factor(create_info->color_blend.dst_alpha_blend_factor);
         blendDesc.RenderTarget[0].BlendOpAlpha = mg_d3d11_get_blend_op(create_info->color_blend.alpha_blend_op);;
     }
-    ID3D11Device_CreateBlendState(d3d11_context.device, &blendDesc, &pipeline->blend_state);
-
-    pipeline->push_constant_buffer = create_info->push_constants_size > 0 ? 
-        mg_d3d11_create_uniform_buffer(create_info->push_constants_size) :
-        NULL;
+    ID3D11Device_CreateBlendState(d3d11_ctx.device, &blendDesc, &pipeline->blend_state);
 
     pipeline->layout_stride = create_info->vertex_layout.stride;
     pipeline->primitive_topology = mg_d3d11_get_primitive_topology(create_info->primitive_topology);
@@ -131,14 +128,12 @@ void mg_d3d11_destroy_pipeline(mg_d3d11_pipeline *pipeline)
     ID3D11BlendState_Release(pipeline->blend_state);
 	if (pipeline->vertex_layout)
     	ID3D11InputLayout_Release(pipeline->vertex_layout);
-    if (pipeline->push_constant_buffer)
-        ID3D11Buffer_Release(pipeline->push_constant_buffer);
     free(pipeline);
 }
 
 void mg_d3d11_bind_pipeline(mg_d3d11_pipeline *pipeline)
 {
-    ID3D11DeviceContext *context = d3d11_context.immediate_context;
+    ID3D11DeviceContext *context = d3d11_ctx.immediate_context;
     ID3D11DeviceContext_VSSetShader(context, pipeline->vertex_shader, NULL, 0);
     ID3D11DeviceContext_PSSetShader(context, pipeline->pixel_shader, NULL, 0);
 
@@ -148,13 +143,10 @@ void mg_d3d11_bind_pipeline(mg_d3d11_pipeline *pipeline)
     ID3D11DeviceContext_RSSetState(context, pipeline->raster_state);
     ID3D11DeviceContext_OMSetDepthStencilState(context, pipeline->depth_stencil_state, 0);
 
-    const float blendFactor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-    ID3D11DeviceContext_OMSetBlendState(context, pipeline->blend_state, blendFactor, 0xffffffff);
+    const float blend_factor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    ID3D11DeviceContext_OMSetBlendState(context, pipeline->blend_state, blend_factor, 0xffffffff);
 
-    if (pipeline->push_constant_buffer)
-        ID3D11DeviceContext_VSSetConstantBuffers(context, 1, 1, &pipeline->push_constant_buffer);
-
-    d3d11_context.binds.pipeline = pipeline;
+    d3d11_ctx.binds.pipeline = pipeline;
 }
 
 #endif

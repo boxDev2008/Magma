@@ -295,7 +295,7 @@ void mg_opengl_destroy_image_array(mg_opengl_image_array *array)
 
 void mg_opengl_update_image_array(mg_opengl_image_array *array, mg_opengl_image **images, mg_opengl_sampler **samplers, uint32_t count)
 {
-    assert(count < MG_CONFIG_MAX_BINDABLE_TEXTURES);
+    assert(count < MG_CONFIG_MAX_BINDABLE_IMAGES);
     array->images = images;
     array->samplers = samplers;
     array->count = count;

@@ -241,3 +241,15 @@ mg_mat4 mg_mat4_rotate(mg_mat4 matrix, float angle, mg_vec3 axis)
 
     return mg_mat4_multiply(matrix, rotation);
 }
+
+mg_vec4 mg_mat4_multiply_vec4(mg_mat4 mat, mg_vec4 vec)
+{
+    mg_vec4 result;
+
+    result.x = mat.m11 * vec.x + mat.m12 * vec.y + mat.m13 * vec.z + mat.m14 * vec.w;
+    result.y = mat.m21 * vec.x + mat.m22 * vec.y + mat.m23 * vec.z + mat.m24 * vec.w;
+    result.z = mat.m31 * vec.x + mat.m32 * vec.y + mat.m33 * vec.z + mat.m34 * vec.w;
+    result.w = mat.m41 * vec.x + mat.m42 * vec.y + mat.m43 * vec.z + mat.m44 * vec.w;
+
+    return result;
+}

@@ -35,25 +35,20 @@ void mg_audio_shutdown(void)
     ma_resource_manager_uninit(&audio_data.resource_manager);
 }
 
-void mg_audio_set_music_volume(float volume)
-{
-    
-}
-
 mg_sound_resource *mg_audio_create_sound_resource_from_file(const char *file_name)
 {
-    mg_sound_resource *sound = (mg_sound_resource*)malloc(sizeof(mg_sound_resource));
-    ma_sound_init_from_file(&audio_data.sfx_engine, file_name, MA_SOUND_FLAG_ASYNC | MA_SOUND_FLAG_NO_DEFAULT_ATTACHMENT | MA_SOUND_FLAG_NO_SPATIALIZATION, NULL, NULL, &sound->internal_data);
-    return sound;
+    mg_sound_resource *resource = (mg_sound_resource*)malloc(sizeof(mg_sound_resource));
+    ma_sound_init_from_file(&audio_data.sfx_engine, file_name, MA_SOUND_FLAG_ASYNC | MA_SOUND_FLAG_NO_DEFAULT_ATTACHMENT | MA_SOUND_FLAG_NO_SPATIALIZATION, NULL, NULL, resource);
+    return resource;
 }
 
-void mg_audio_destroy_sound_resource(mg_sound_resource *sound)
+void mg_audio_destroy_sound_resource(mg_sound_resource *resource)
 {
-    ma_sound_uninit(&sound->internal_data);
-    free(sound);
+    ma_sound_uninit(resource);
+    free(resource);
 }
 
-mg_sound *mg_audio_play_sound(mg_sound_resource *resource)
+mg_sound *mg_audio_play_sound_internal(mg_sound_resource *resource)
 {
     ma_result result = MA_SUCCESS;
     ma_sound_inlined* p_sound = NULL;
@@ -97,7 +92,7 @@ mg_sound *mg_audio_play_sound(mg_sound_resource *resource)
             //sound_flags |= MA_SOUND_FLAG_NO_PITCH;
             sound_flags |= MA_SOUND_FLAG_NO_SPATIALIZATION;
 
-            result = ma_sound_init_copy(&audio_data.sfx_engine, &resource->internal_data, sound_flags, NULL, &p_sound->sound);
+            result = ma_sound_init_copy(&audio_data.sfx_engine, resource, sound_flags, NULL, &p_sound->sound);
             if (result == MA_SUCCESS)
             {
                 result = ma_node_attach_output_bus(p_sound, 0, p_node, 0);
@@ -128,17 +123,9 @@ mg_sound *mg_audio_play_sound(mg_sound_resource *resource)
     return &p_sound->sound;
 }
 
-void mg_audio_set_sound_volume(mg_sound *sound, float volume)
+void mg_audio_play_sound(mg_sound_resource *resource, float volume, float pitch)
 {
+    mg_sound *sound = mg_audio_play_sound_internal(resource);
     ma_sound_set_volume(sound, volume);
-}
-
-void mg_audio_set_sound_pitch(mg_sound *sound, float pitch)
-{
     ma_sound_set_pitch(sound, pitch);
-}
-
-void mg_audio_set_sound_position(mg_sound *sound, float x, float y, float z)
-{
-    ma_sound_set_position(sound, x, y, z);
 }

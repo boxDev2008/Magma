@@ -170,49 +170,56 @@ typedef enum mg_keys
 }
 mg_keys;
 
-/*typedef enum mg_gamepad_buttons
+typedef enum mg_gamepad_buttons
 {
-    MG_GAMEPAD_DPAD_UP = 0x0001,
-    MG_GAMEPAD_DPAD_DOWN = 0x0002,
-    MG_GAMEPAD_DPAD_LEFT = 0x0004,
-    MG_GAMEPAD_DPAD_RIGHT = 0x0008,
-    MG_GAMEPAD_START = 0x0010,
-    MG_GAMEPAD_BACK = 0x0020,
-    MG_GAMEPAD_LEFT_THUMB = 0x0040,
-    MG_GAMEPAD_RIGHT_THUMB = 0x0080,
-    MG_GAMEPAD_LEFT_SHOULDER = 0x0100,
-    MG_GAMEPAD_RIGHT_SHOULDER = 0x0200,
-    MG_GAMEPAD_A = 0x1000,
-    MG_GAMEPAD_B = 0x2000,
-    MG_GAMEPAD_X = 0x4000,
-    MG_GAMEPAD_Y = 0x8000
+    MG_GAMEPAD_BUTTON_DPAD_UP,
+    MG_GAMEPAD_BUTTON_DPAD_DOWN,
+    MG_GAMEPAD_BUTTON_DPAD_LEFT,
+    MG_GAMEPAD_BUTTON_DPAD_RIGHT,
+    MG_GAMEPAD_BUTTON_START,
+    MG_GAMEPAD_BUTTON_BACK,
+    MG_GAMEPAD_BUTTON_LEFT_THUMB,
+    MG_GAMEPAD_BUTTON_RIGHT_THUMB,
+    MG_GAMEPAD_BUTTON_LEFT_SHOULDER,
+    MG_GAMEPAD_BUTTON_RIGHT_SHOULDER,
+    MG_GAMEPAD_BUTTON_A,
+    MG_GAMEPAD_BUTTON_B,
+    MG_GAMEPAD_BUTTON_X,
+    MG_GAMEPAD_BUTTON_Y
 }
-mg_gamepad_buttons_t;
+mg_gamepad_buttons;
 
-typedef enum mg_gamepad_trigger
+typedef enum mg_gamepad_triggers
 {
     MG_GAMEPAD_LEFT_TRIGGER,
     MG_GAMEPAD_RIGHT_TRIGGER
 }
-mg_gamepad_trigger_t;*/
+mg_gamepad_triggers;
+
+typedef struct mg_gamepad_state
+{
+    float left_thumbstick_x, left_thumbstick_y;
+    float right_thumbstick_x, right_thumbstick_y;
+    float left_trigger;
+    float right_trigger;
+    bool buttons[14];
+}
+mg_gamepad_state;
 
 void mg_input_process_key           (mg_keys key, bool pressed);
 void mg_input_process_char          (char ch);
 
 void mg_input_process_mouse_button  (mg_mouse_buttons button, bool pressed);
-void mg_input_process_mouse_move    (int16_t x, int16_t y);
+void mg_input_process_mouse_move    (int32_t x, int32_t y);
 void mg_input_process_mouse_wheel   (int8_t z_delta);
-
-/*void mg_input_process_gamepad_buttons     (mg_gamepad_buttons_t button, bool pressed);
-void mg_input_process_gamepad_trigger       (mg_gamepad_trigger_t button, bool pressed);
-void mg_input_process_gamepad_right_thumb   (mg_gamepad_thumb_t, float x, float y);
-void mg_input_process_gamepad_left_thumb    (mg_gamepad_thumb_t, float x, float y);*/
 
 MG_API bool     mg_input_is_key_down            (mg_keys key);
 MG_API bool     mg_input_is_mouse_button_down   (mg_mouse_buttons button);
 
 MG_API int8_t   mg_input_get_mouse_delta        (void);
 MG_API void     mg_input_get_mouse_position     (int32_t *x, int32_t *y);
+
+MG_API mg_gamepad_state mg_input_get_gamepad_state  (uint8_t index);
 
 #ifdef __cplusplus
 }

@@ -2,7 +2,8 @@
 
 #include "base.h"
 
-#include "../../lowl_renderer.h"
+#include "../../renderer.h"
+
 #include <glad/glad.h>
 
 typedef struct mg_opengl_buffer
@@ -17,8 +18,7 @@ typedef struct mg_opengl_dynamic_buffer
     GLuint id;
 }
 mg_opengl_dynamic_buffer,
-mg_opengl_dynamic_vertex_buffer, mg_opengl_dynamic_index_buffer,
-mg_opengl_uniform_buffer;
+mg_opengl_dynamic_vertex_buffer, mg_opengl_dynamic_index_buffer;
 
 typedef struct mg_opengl_pipeline
 {
@@ -46,9 +46,6 @@ typedef struct mg_opengl_pipeline
         GLenum depth_compare_op;
     }
     depth_stencil;
-
-    bool has_push_constants;
-    GLuint push_constant_buffer;
 }
 mg_opengl_pipeline;
 
@@ -89,6 +86,8 @@ typedef struct mg_opengl_render_pass mg_opengl_render_pass;
 typedef struct mg_opengl_context
 {
     GLuint vao;
+    GLuint uniform_buffers[MG_CONFIG_MAX_BINDABLE_UNIFORMS];
+
     GLenum index_type;
     //GLenum polygon_mode;
     GLenum primitive_topology;

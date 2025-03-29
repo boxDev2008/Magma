@@ -10,7 +10,14 @@
 #include <stdlib.h>
 #include <assert.h>
 
-mg_vulkan_context vk_context = { 0 };
+#pragma comment (lib, "vulkan-1")
+
+mg_vulkan_context vk_ctx = { 0 };
+
+static inline uint32_t mg_stride_align(uint32_t size, uint32_t alignment)
+{
+    return (size+(alignment-1)) & ~(alignment-1);
+}
 
 void mg_vulkan_create_instance(void)
 {
@@ -34,18 +41,18 @@ void mg_vulkan_create_instance(void)
     create_info.enabledLayerCount = 0;
     create_info.ppEnabledLayerNames = 0;
 
-    VkResult result = vkCreateInstance(&create_info, NULL, &vk_context.instance);
+    VkResult result = vkCreateInstance(&create_info, NULL, &vk_ctx.instance);
     assert(result == VK_SUCCESS);
 }
 
 void mg_vulkan_get_physical_device(void)
 {
     uint32_t device_count = 0;
-    vkEnumeratePhysicalDevices(vk_context.instance, &device_count, NULL);
+    vkEnumeratePhysicalDevices(vk_ctx.instance, &device_count, NULL);
     assert(device_count != 0);
 
     VkPhysicalDevice *devices = (VkPhysicalDevice*)malloc(device_count * sizeof(VkPhysicalDevice));
-    vkEnumeratePhysicalDevices(vk_context.instance, &device_count, devices);
+    vkEnumeratePhysicalDevices(vk_ctx.instance, &device_count, devices);
 
     for (uint32_t i = 0; i < device_count; i++)
     {
@@ -57,9 +64,9 @@ void mg_vulkan_get_physical_device(void)
         if (device_properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU ||
             device_properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
         {
-            vk_context.physical_device.handle = devices[i];
-            vk_context.physical_device.properties = device_properties;
-            vk_context.physical_device.features = device_features;
+            vk_ctx.physical_device.handle = devices[i];
+            vk_ctx.physical_device.properties = device_properties;
+            vk_ctx.physical_device.features = device_features;
             break;
         }
     }
@@ -67,14 +74,14 @@ void mg_vulkan_get_physical_device(void)
     free(devices);
 
     uint32_t queue_family_count = 0;
-    vkGetPhysicalDeviceQueueFamilyProperties(vk_context.physical_device.handle, &queue_family_count, NULL);
+    vkGetPhysicalDeviceQueueFamilyProperties(vk_ctx.physical_device.handle, &queue_family_count, NULL);
 
     VkQueueFamilyProperties *queue_families = (VkQueueFamilyProperties*)malloc(queue_family_count * sizeof(VkQueueFamilyProperties));
-    vkGetPhysicalDeviceQueueFamilyProperties(vk_context.physical_device.handle, &queue_family_count, queue_families);
+    vkGetPhysicalDeviceQueueFamilyProperties(vk_ctx.physical_device.handle, &queue_family_count, queue_families);
 
     for (uint32_t i = 0; i < queue_family_count; i++)
         if (queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
-            vk_context.physical_device.graphics_family = i;
+            vk_ctx.physical_device.graphics_family = i;
     
     free(queue_families);
 }
@@ -82,7 +89,7 @@ void mg_vulkan_get_physical_device(void)
 void mg_vulkan_create_device(void)
 {
     VkDeviceQueueCreateInfo queueCreateInfo = {VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};
-    queueCreateInfo.queueFamilyIndex = vk_context.physical_device.graphics_family;
+    queueCreateInfo.queueFamilyIndex = vk_ctx.physical_device.graphics_family;
     queueCreateInfo.queueCount = 1;
 
     float queuePriority = 1.0f;
@@ -106,19 +113,19 @@ void mg_vulkan_create_device(void)
     create_info.enabledExtensionCount = 1;
     create_info.ppEnabledExtensionNames = device_extensions;
 
-    VkResult result = vkCreateDevice(vk_context.physical_device.handle, &create_info, NULL, &vk_context.device.handle);
+    VkResult result = vkCreateDevice(vk_ctx.physical_device.handle, &create_info, NULL, &vk_ctx.device.handle);
     assert(result == VK_SUCCESS);
 
-    vkGetDeviceQueue(vk_context.device.handle, vk_context.physical_device.graphics_family, 0, &vk_context.device.graphics_queue);
+    vkGetDeviceQueue(vk_ctx.device.handle, vk_ctx.physical_device.graphics_family, 0, &vk_ctx.device.graphics_queue);
 }
 
 void mg_vulkan_create_command_pool(void)
 {
     VkCommandPoolCreateInfo pool_info = {VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
     pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    pool_info.queueFamilyIndex = vk_context.physical_device.graphics_family;
+    pool_info.queueFamilyIndex = vk_ctx.physical_device.graphics_family;
 
-    VkResult result = vkCreateCommandPool(vk_context.device.handle, &pool_info, NULL, &vk_context.command_pool);
+    VkResult result = vkCreateCommandPool(vk_ctx.device.handle, &pool_info, NULL, &vk_ctx.command_pool);
     assert(result == VK_SUCCESS);
 }
 
@@ -129,30 +136,30 @@ void mg_vulkan_create_sync_objects(void)
     VkFenceCreateInfo fenceInfo = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
     fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-    VkResult result = vkCreateSemaphore(vk_context.device.handle, &semaphoreInfo, NULL, &vk_context.sync_objects.image_available_semaphore);
+    VkResult result = vkCreateSemaphore(vk_ctx.device.handle, &semaphoreInfo, NULL, &vk_ctx.sync_objects.image_available_semaphore);
     assert(result == VK_SUCCESS);
 
-    result = vkCreateSemaphore(vk_context.device.handle, &semaphoreInfo, NULL, &vk_context.sync_objects.image_rendered_semaphore);
+    result = vkCreateSemaphore(vk_ctx.device.handle, &semaphoreInfo, NULL, &vk_ctx.sync_objects.image_rendered_semaphore);
     assert(result == VK_SUCCESS);
 
-    result = vkCreateFence(vk_context.device.handle, &fenceInfo, NULL, &vk_context.sync_objects.fence);
+    result = vkCreateFence(vk_ctx.device.handle, &fenceInfo, NULL, &vk_ctx.sync_objects.fence);
     assert(result == VK_SUCCESS);
 }
 
 void mg_vulkan_create_descriptor_pool(void)
 {
     VkDescriptorPoolSize pool_sizes[] = {
-        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, MG_CONFIG_MAX_UNIFORM_BUFFERS},
-        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MG_CONFIG_MAX_TEXTURES},
+        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1},
+        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MG_CONFIG_MAX_IMAGES_ARRAYS},
     };
 
     VkDescriptorPoolCreateInfo pool_info = {VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
     pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
     pool_info.poolSizeCount = 2;
     pool_info.pPoolSizes = pool_sizes;
-    pool_info.maxSets = MG_CONFIG_MAX_UNIFORM_BUFFERS + MG_CONFIG_MAX_TEXTURES;
+    pool_info.maxSets = 1 + MG_CONFIG_MAX_IMAGES_ARRAYS;
 
-    VkResult result = vkCreateDescriptorPool(vk_context.device.handle, &pool_info, NULL, &vk_context.descriptor_pool);
+    VkResult result = vkCreateDescriptorPool(vk_ctx.device.handle, &pool_info, NULL, &vk_ctx.descriptor_pool);
     assert(result == VK_SUCCESS);
 }
 
@@ -160,33 +167,80 @@ void mg_vulkan_create_descriptor_set_layouts(void)
 {
     VkDescriptorSetLayoutCreateInfo layout_info = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
 
-    VkDescriptorSetLayoutBinding uniform_buffer_layout_binding = (VkDescriptorSetLayoutBinding) {
-        .binding = 0,
-        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-        .descriptorCount = 1,
-        .stageFlags = VK_SHADER_STAGE_ALL
-    };
+    VkDescriptorSetLayoutBinding scratch_buffer_layout_bindings[MG_CONFIG_MAX_BINDABLE_UNIFORMS];
 
-    layout_info.bindingCount = 1;
-    layout_info.pBindings = &uniform_buffer_layout_binding;
+    for (uint32_t i = 0; i < MG_CONFIG_MAX_BINDABLE_UNIFORMS; i++)
+    {
+        scratch_buffer_layout_bindings[i] = (VkDescriptorSetLayoutBinding) {
+            .binding = i,
+            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
+            .descriptorCount = 1,
+            .stageFlags = VK_SHADER_STAGE_ALL
+        };
+    }
 
-    VkResult result = vkCreateDescriptorSetLayout(vk_context.device.handle, &layout_info, NULL, &vk_context.layouts.uniform_buffer_layout);
+    layout_info.bindingCount = MG_CONFIG_MAX_BINDABLE_UNIFORMS;
+    layout_info.pBindings = scratch_buffer_layout_bindings;
+
+    VkResult result = vkCreateDescriptorSetLayout(vk_ctx.device.handle, &layout_info, NULL, &vk_ctx.layouts.scratch_buffer_layout);
     assert(result == VK_SUCCESS);
 
     VkDescriptorSetLayoutBinding image_sampler_layout_binding = (VkDescriptorSetLayoutBinding) {
         .binding = 0,
         .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-        .descriptorCount = MG_CONFIG_MAX_BINDABLE_TEXTURES,
+        .descriptorCount = MG_CONFIG_MAX_BINDABLE_IMAGES,
         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT
     };
 
+    layout_info.bindingCount = 1;
     layout_info.pBindings = &image_sampler_layout_binding;
 
-    result = vkCreateDescriptorSetLayout(vk_context.device.handle, &layout_info, NULL, &vk_context.layouts.image_sampler_layout);
+    result = vkCreateDescriptorSetLayout(vk_ctx.device.handle, &layout_info, NULL, &vk_ctx.layouts.image_sampler_layout);
     assert(result == VK_SUCCESS);
 }
 
-void mg_vulkan_renderer_initialize(mg_lowl_renderer_init_info *init_info)
+void mg_vulkan_create_scratch_buffer(void)
+{
+    mg_vulkan_allocate_buffer(MG_CONFIG_MAX_SCRATCH_BUFFER_SIZE, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+    &vk_ctx.scratch_buffer.buffer, &vk_ctx.scratch_buffer.memory);
+    vkMapMemory(vk_ctx.device.handle, vk_ctx.scratch_buffer.memory, 0, MG_CONFIG_MAX_SCRATCH_BUFFER_SIZE, 0, &vk_ctx.scratch_buffer.data);
+
+    VkDescriptorSetAllocateInfo alloc_info = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+    alloc_info.descriptorPool = vk_ctx.descriptor_pool;
+    alloc_info.descriptorSetCount = 1;
+    alloc_info.pSetLayouts = &vk_ctx.layouts.scratch_buffer_layout;
+
+    VkResult result = vkAllocateDescriptorSets(vk_ctx.device.handle, &alloc_info, &vk_ctx.scratch_buffer.ub_set);
+    assert(result == VK_SUCCESS);
+
+    VkWriteDescriptorSet writes[MG_CONFIG_MAX_BINDABLE_UNIFORMS] = { 0 };
+    VkDescriptorBufferInfo buffer_infos[MG_CONFIG_MAX_BINDABLE_UNIFORMS] = { 0 };
+
+    for (uint32_t i = 0; i < MG_CONFIG_MAX_BINDABLE_UNIFORMS; i++)
+    {
+        VkWriteDescriptorSet *write = &writes[i];
+        VkDescriptorBufferInfo *buffer_info = &buffer_infos[i];
+
+        write->sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        write->dstSet = vk_ctx.scratch_buffer.ub_set;
+        write->dstBinding = i;
+        write->dstArrayElement = 0;
+    
+        write->descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+        write->descriptorCount = 1;
+
+        buffer_info->buffer = vk_ctx.scratch_buffer.buffer;
+        buffer_info->offset = 0;
+        buffer_info->range = MG_CONFIG_MAX_UNIFORM_UPDATE_SIZE;
+    
+        write->pBufferInfo = buffer_info;
+    }
+
+    vkUpdateDescriptorSets(vk_ctx.device.handle, MG_CONFIG_MAX_BINDABLE_UNIFORMS, writes, 0, NULL);
+}
+
+void mg_vulkan_renderer_initialize(mgfx_init_info *init_info)
 {
     mg_vulkan_create_instance();
 
@@ -196,7 +250,7 @@ void mg_vulkan_renderer_initialize(mg_lowl_renderer_init_info *init_info)
     mg_vulkan_create_device();
 
     mg_vulkan_create_command_pool();
-    vk_context.command_buffer = mg_vulkan_create_command_buffer();
+    vk_ctx.command_buffer = mg_vulkan_create_command_buffer();
 
     mg_vulkan_create_sync_objects();
 
@@ -205,136 +259,150 @@ void mg_vulkan_renderer_initialize(mg_lowl_renderer_init_info *init_info)
 	render_pass_info.depth_stencil_attachment.format = MG_PIXEL_FORMAT_D32_SFLOAT;
 	render_pass_info.has_depth_stencil_attachment = true;
 
-    vk_context.render_pass = mg_vulkan_create_render_pass(&render_pass_info);
+    vk_ctx.render_pass = mg_vulkan_create_render_pass(&render_pass_info);
     mg_vulkan_create_swapchain(init_info->swapchain_config_info);
 
     mg_vulkan_create_descriptor_set_layouts();
     mg_vulkan_create_descriptor_pool();
+
+    mg_vulkan_create_scratch_buffer();
 }
 
 void mg_vulkan_renderer_shutdown(void)
 {
-    vkDeviceWaitIdle(vk_context.device.handle);
+    vkDeviceWaitIdle(vk_ctx.device.handle);
 
-    vkDestroyDescriptorPool(vk_context.device.handle, vk_context.descriptor_pool, NULL);
+    vkDestroyDescriptorPool(vk_ctx.device.handle, vk_ctx.descriptor_pool, NULL);
 
-    vkDestroyDescriptorSetLayout(vk_context.device.handle, vk_context.layouts.image_sampler_layout, NULL);
-    vkDestroyDescriptorSetLayout(vk_context.device.handle, vk_context.layouts.uniform_buffer_layout, NULL);
+    vkDestroyDescriptorSetLayout(vk_ctx.device.handle, vk_ctx.layouts.image_sampler_layout, NULL);
+    vkDestroyDescriptorSetLayout(vk_ctx.device.handle, vk_ctx.layouts.scratch_buffer_layout, NULL);
+
+    vkDestroyBuffer(vk_ctx.device.handle, vk_ctx.scratch_buffer.buffer, NULL);
+    vkFreeMemory(vk_ctx.device.handle, vk_ctx.scratch_buffer.memory, NULL);
+    vkFreeDescriptorSets(vk_ctx.device.handle, vk_ctx.descriptor_pool, 1, &vk_ctx.scratch_buffer.ub_set);
 
     mg_vulkan_cleanup_swapchain();
 
-    mg_vulkan_destroy_render_pass(vk_context.render_pass);
+    mg_vulkan_destroy_render_pass(vk_ctx.render_pass);
 
-    vkDestroySemaphore(vk_context.device.handle, vk_context.sync_objects.image_available_semaphore, NULL);
-    vkDestroySemaphore(vk_context.device.handle, vk_context.sync_objects.image_rendered_semaphore, NULL);
-    vkDestroyFence(vk_context.device.handle, vk_context.sync_objects.fence, NULL);
+    vkDestroySemaphore(vk_ctx.device.handle, vk_ctx.sync_objects.image_available_semaphore, NULL);
+    vkDestroySemaphore(vk_ctx.device.handle, vk_ctx.sync_objects.image_rendered_semaphore, NULL);
+    vkDestroyFence(vk_ctx.device.handle, vk_ctx.sync_objects.fence, NULL);
 
-    mg_vulkan_free_command_buffer(vk_context.command_buffer);
-    vkDestroyCommandPool(vk_context.device.handle, vk_context.command_pool, NULL);
+    mg_vulkan_free_command_buffer(vk_ctx.command_buffer);
+    vkDestroyCommandPool(vk_ctx.device.handle, vk_ctx.command_pool, NULL);
 
-    vkDestroyDevice(vk_context.device.handle, NULL);
-    vkDestroySurfaceKHR(vk_context.instance, vk_context.surface, NULL);
-    vkDestroyInstance(vk_context.instance, NULL);
+    vkDestroyDevice(vk_ctx.device.handle, NULL);
+    vkDestroySurfaceKHR(vk_ctx.instance, vk_ctx.surface, NULL);
+    vkDestroyInstance(vk_ctx.instance, NULL);
 }
 
-void mg_vulkan_renderer_begin_frame(void)
+void mg_vulkan_renderer_begin(void)
 {
-    vkWaitForFences(vk_context.device.handle, 1, &vk_context.sync_objects.fence, VK_TRUE, UINT64_MAX);
-    vkAcquireNextImageKHR(vk_context.device.handle, vk_context.swapchain.handle, UINT64_MAX, vk_context.sync_objects.image_available_semaphore, VK_NULL_HANDLE, &vk_context.image_index);
+    vkWaitForFences(vk_ctx.device.handle, 1, &vk_ctx.sync_objects.fence, VK_TRUE, UINT64_MAX);
+    vkAcquireNextImageKHR(vk_ctx.device.handle, vk_ctx.swapchain.handle, UINT64_MAX, vk_ctx.sync_objects.image_available_semaphore, VK_NULL_HANDLE, &vk_ctx.image_index);
    
-    vkResetFences(vk_context.device.handle, 1, &vk_context.sync_objects.fence);
+    vkResetFences(vk_ctx.device.handle, 1, &vk_ctx.sync_objects.fence);
 
     VkFenceCreateInfo fence_info = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
     fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-    vkResetCommandBuffer(vk_context.command_buffer, 0);
+    vkResetCommandBuffer(vk_ctx.command_buffer, 0);
     
-    mg_vulkan_begin_command_buffer(vk_context.command_buffer);
+    mg_vulkan_begin_command_buffer(vk_ctx.command_buffer);
+
+    vk_ctx.scratch_buffer.offset = 0;
 }
 
-void mg_vulkan_renderer_end_frame(void)
+void mg_vulkan_renderer_end(void)
 {
-    mg_vulkan_end_command_buffer(vk_context.command_buffer);
-    mg_vulkan_submit_command_buffer(vk_context.command_buffer);
+    mg_vulkan_end_command_buffer(vk_ctx.command_buffer);
 
     VkSubmitInfo submit_info = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
 
-    VkSemaphore wait_semaphores[] = {vk_context.sync_objects.image_available_semaphore};
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers = &vk_ctx.command_buffer;
+
+    VkSemaphore wait_semaphores[] = {vk_ctx.sync_objects.image_available_semaphore};
     VkPipelineStageFlags wait_stages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     submit_info.waitSemaphoreCount = 1;
     submit_info.pWaitSemaphores = wait_semaphores;
     submit_info.pWaitDstStageMask = wait_stages;
 
-    submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &vk_context.command_buffer;
-
-    VkSemaphore signal_semaphores[] = {vk_context.sync_objects.image_rendered_semaphore};
+    VkSemaphore signal_semaphores[] = {vk_ctx.sync_objects.image_rendered_semaphore};
     submit_info.signalSemaphoreCount = 1;
     submit_info.pSignalSemaphores = signal_semaphores;
     
-    vkQueueSubmit(vk_context.device.graphics_queue, 1, &submit_info, vk_context.sync_objects.fence);
-}
-
-void mg_vulkan_renderer_present_frame(void)
-{
-    VkSemaphore signal_semaphores[] = {vk_context.sync_objects.image_rendered_semaphore};
+    vkQueueSubmit(vk_ctx.device.graphics_queue, 1, &submit_info, vk_ctx.sync_objects.fence);
 
     VkPresentInfoKHR present_info = {VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
     present_info.waitSemaphoreCount = 1;
     present_info.pWaitSemaphores = signal_semaphores;
 
-    VkSwapchainKHR swapchains[] = {vk_context.swapchain.handle};
+    VkSwapchainKHR swapchains[] = {vk_ctx.swapchain.handle};
     present_info.swapchainCount = 1;
     present_info.pSwapchains = swapchains;
-    present_info.pImageIndices = &vk_context.image_index;
+    present_info.pImageIndices = &vk_ctx.image_index;
 
-    vkQueuePresentKHR(vk_context.device.graphics_queue, &present_info);
+    vkQueuePresentKHR(vk_ctx.device.graphics_queue, &present_info);
 }
 
 void mg_vulkan_renderer_wait(void)
 {
-    vkDeviceWaitIdle(vk_context.device.handle);
+    vkDeviceWaitIdle(vk_ctx.device.handle);
 }
 
 void mg_vulkan_renderer_viewport(int32_t x, int32_t y, uint32_t width, uint32_t height)
 {
-    mg_vulkan_command_buffer_set_viewport(vk_context.command_buffer, x, y, width, height);
+    mg_vulkan_command_buffer_set_viewport(vk_ctx.command_buffer, x, y, width, height);
 }
 
 void mg_vulkan_renderer_scissor(int32_t x, int32_t y, uint32_t width, uint32_t height)
 {
-    mg_vulkan_command_buffer_set_scissor(vk_context.command_buffer, x, y, width, height);
+    mg_vulkan_command_buffer_set_scissor(vk_ctx.command_buffer, x, y, width, height);
 }
 
 /*void mg_vulkan_renderer_bind_descriptors(void)
 {
-    if (vk_context.update_image_array)
+    if (vk_ctx.update_image_array)
     {
         VkWriteDescriptorSet write = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
         write.dstBinding = 0;
         write.dstArrayElement = 0;
         write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        write.descriptorCount = MG_CONFIG_MAX_BINDABLE_TEXTURES;
+        write.descriptorCount = MG_CONFIG_MAX_BINDABLE_IMAGES;
         write.pBufferInfo = 0;
-        write.pImageInfo = vk_context.image_sampler_infos;
-        vk_context.extensions.vkCmdPushDescriptorSetKHR(vk_context.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_context.binds.pipeline->pipeline_layout, 1, 1, &write);
-        vk_context.update_image_array = false;
+        write.pImageInfo = vk_ctx.image_sampler_infos;
+        vk_ctx.extensions.vkCmdPushDescriptorSetKHR(vk_ctx.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_ctx.binds.pipeline->pipeline_layout, 1, 1, &write);
+        vk_ctx.update_image_array = false;
     }
 }*/
 
 void mg_vulkan_renderer_draw(uint32_t vertex_count, uint32_t first_vertex)
 {
-    //mg_vulkan_renderer_bind_descriptors();
-    vkCmdDraw(vk_context.command_buffer, vertex_count, 1, first_vertex, 0);
+    vkCmdDraw(vk_ctx.command_buffer, vertex_count, 1, first_vertex, 0);
 }
 
-void mg_vulkan_renderer_draw_indexed(uint32_t index_count, uint32_t first_index)
+void mg_vulkan_renderer_draw_indexed(uint32_t index_count, uint32_t first_index, int32_t first_vertex)
 {
-    //mg_vulkan_renderer_bind_descriptors();
-    vkCmdDrawIndexed(vk_context.command_buffer, index_count, 1, first_index, 0, 0);
+    vkCmdDrawIndexed(vk_ctx.command_buffer, index_count, 1, first_index, first_vertex, 0);
 }
 
-void mg_vulkan_renderer_push_constants(uint32_t size, void *data)
+void mg_vulkan_renderer_bind_uniforms(uint32_t binding, size_t size, void *data)
 {
-    vkCmdPushConstants(vk_context.command_buffer, vk_context.binds.pipeline->pipeline_layout, VK_SHADER_STAGE_ALL, 0, size, data);
+    const uint32_t alignment = vk_ctx.physical_device.properties.limits.minUniformBufferOffsetAlignment;
+    memcpy(vk_ctx.scratch_buffer.data + vk_ctx.scratch_buffer.offset, data, size);
+    vk_ctx.scratch_buffer.bind_offsets[binding] = vk_ctx.scratch_buffer.offset;
+    vk_ctx.scratch_buffer.offset = mg_stride_align(vk_ctx.scratch_buffer.offset + (uint32_t)size, alignment);
+
+    vkCmdBindDescriptorSets(
+        vk_ctx.command_buffer,
+        VK_PIPELINE_BIND_POINT_GRAPHICS,
+        vk_ctx.binds.pipeline->pipeline_layout,
+        0,
+        1,
+        &vk_ctx.scratch_buffer.ub_set,
+        MG_CONFIG_MAX_BINDABLE_UNIFORMS,
+        vk_ctx.scratch_buffer.bind_offsets
+    );
 }

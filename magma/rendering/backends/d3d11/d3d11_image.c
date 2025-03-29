@@ -31,7 +31,7 @@ mg_d3d11_image *mg_d3d11_create_image(mg_image_create_info *create_info)
         break;
     }
 
-    ID3D11Device_CreateTexture2D(d3d11_context.device, &texture_desc, NULL, &image->texture);
+    ID3D11Device_CreateTexture2D(d3d11_ctx.device, &texture_desc, NULL, &image->texture);
 
     if (create_info->usage != MG_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT)
     {
@@ -39,7 +39,7 @@ mg_d3d11_image *mg_d3d11_create_image(mg_image_create_info *create_info)
         view_desc.Format = texture_desc.Format;
         view_desc.ViewDimension = mg_d3d11_get_srv_dimension(create_info->type);
         view_desc.Texture2D.MipLevels = 1;
-        ID3D11Device_CreateShaderResourceView(d3d11_context.device, image->texture, &view_desc, &image->view);
+        ID3D11Device_CreateShaderResourceView(d3d11_ctx.device, image->texture, &view_desc, &image->view);
     }
     else image->view = NULL;
 
@@ -58,7 +58,7 @@ void mg_d3d11_update_image(mg_d3d11_image *image, mg_image_write_info *write_inf
 {
     const uint32_t row_pitch = write_info->width * 4;
     ID3D11DeviceContext_UpdateSubresource(
-        d3d11_context.immediate_context,
+        d3d11_ctx.immediate_context,
         image->texture,
         0,
         NULL,
@@ -80,7 +80,7 @@ ID3D11SamplerState *mg_d3d11_create_sampler(mg_sampler_create_info *create_info)
     samp_desc.MinLOD = 0;
     samp_desc.MaxLOD = D3D11_FLOAT32_MAX;
 
-    ID3D11Device_CreateSamplerState(d3d11_context.device, &samp_desc, &sampler);
+    ID3D11Device_CreateSamplerState(d3d11_ctx.device, &samp_desc, &sampler);
     return sampler;
 }
 
@@ -111,8 +111,8 @@ void mg_d3d11_update_image_array(mg_d3d11_image_array *array, mg_d3d11_image **i
 
 void mg_d3d11_bind_image_array(mg_d3d11_image_array *array)
 {
-    ID3D11DeviceContext_PSSetShaderResources(d3d11_context.immediate_context, 0, array->count, array->views);
-    ID3D11DeviceContext_PSSetSamplers(d3d11_context.immediate_context, 0, array->count, array->samplers);
+    ID3D11DeviceContext_PSSetShaderResources(d3d11_ctx.immediate_context, 0, array->count, array->views);
+    ID3D11DeviceContext_PSSetSamplers(d3d11_ctx.immediate_context, 0, array->count, array->samplers);
 }
 
 mg_d3d11_framebuffer *mg_d3d11_create_framebuffer(mg_framebuffer_create_info *create_info)
@@ -120,12 +120,12 @@ mg_d3d11_framebuffer *mg_d3d11_create_framebuffer(mg_framebuffer_create_info *cr
     mg_d3d11_framebuffer *framebuffer = (mg_d3d11_framebuffer*)malloc(sizeof(mg_d3d11_framebuffer));
 
     mg_d3d11_image *color_attachment = (mg_d3d11_image*)create_info->color_attachment;
-    ID3D11Device_CreateRenderTargetView(d3d11_context.device, (ID3D11Resource*)color_attachment->texture, NULL, &framebuffer->color_attachment);
+    ID3D11Device_CreateRenderTargetView(d3d11_ctx.device, (ID3D11Resource*)color_attachment->texture, NULL, &framebuffer->color_attachment);
 
     if (create_info->depth_stencil_attachment)
     {
         mg_d3d11_image *depth_stencil_attachment = (mg_d3d11_image*)create_info->depth_stencil_attachment;
-        ID3D11Device_CreateDepthStencilView(d3d11_context.device, (ID3D11Resource*)depth_stencil_attachment->texture, NULL, &framebuffer->depth_stencil_attachment);
+        ID3D11Device_CreateDepthStencilView(d3d11_ctx.device, (ID3D11Resource*)depth_stencil_attachment->texture, NULL, &framebuffer->depth_stencil_attachment);
     }
     else
         framebuffer->depth_stencil_attachment = NULL;

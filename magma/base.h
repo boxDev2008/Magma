@@ -4,7 +4,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__)
+#if defined(__EMSCRIPTEN__)
+#define MG_PLATFORM_EMSCRIPTEN 1
+#elif defined(WIN32) || defined(_WIN32) || defined(__WIN32__)
 #define MG_PLATFORM_WINDOWS 1
 #elif defined(__linux__) || defined(__gnu_linux__)
 #define MG_PLATFORM_LINUX 1
