@@ -10,7 +10,6 @@ project "Magma"
 	architecture "x64"
 
 	files { "magma/**.h", "magma/**.c" }
-	includedirs { "magma" }
 
 	optimize "On"
 
@@ -19,13 +18,14 @@ project "Magma"
 		if VULKAN_SDK then
 			includedirs { ".", "magma", "magma/vendor", VULKAN_SDK.."\\Include" }
 			libdirs { VULKAN_SDK.."\\Lib" }
+			defines { "NDEBUG" }
 		end
 		defines { "NDEBUG" }
 
 	filter { "system:linux" }
 		includedirs { ".", "magma", "magma/vendor" }
 		links { "vulkan", "X11", "Xcursor" }
-		defines { "NDEBUG", "VK_USE_PLATFORM_XCB_KHR" }
+		defines { "NDEBUG" }
 		buildoptions { "-fpermissive" }
 
 project "Magma-shdc"
@@ -78,7 +78,8 @@ project "Sandbox"
 
 	includedirs {
 		".",
-		"magma"
+		"magma",
+		"magma/vendor"
 	}
 
 	links { "Magma" }

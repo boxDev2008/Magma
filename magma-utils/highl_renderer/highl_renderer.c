@@ -375,7 +375,8 @@ void mg_hlgfx_submit_sprite_batch(void)
     mgfx_bind_pipeline(rdata->sprite_batch.pipeline);
     mgfx_bind_dynamic_vertex_buffer(rdata->sprite_batch.vb);
     mgfx_bind_index_buffer(rdata->sprite_batch.ib, MG_INDEX_TYPE_UINT32);
-    mgfx_bind_image_array(rdata->sprite_batch.image_array);
+	if (rdata->sprite_batch.image_array)
+    	mgfx_bind_image_array(rdata->sprite_batch.image_array);
     mgfx_bind_uniforms(0, sizeof(rdata->global_ubo), &rdata->global_ubo);
 
     uint32_t offset = rdata->sprite_batch.quad_count * 6;
@@ -511,8 +512,6 @@ void mg_hlgfx_initialize(mg_hlgfx_init_info *info)
         }
         rdata->sprite_batch.ib =
             mgfx_create_index_buffer(sizeof(indices), indices);
-
-        rdata->sprite_batch.image_array = mgfx_create_image_array();
     }
 #pragma endregion
 }
@@ -525,7 +524,9 @@ void mg_hlgfx_shutdown(void)
     mgfx_destroy_dynamic_vertex_buffer(rdata->sprite_batch.vb);
     mgfx_destroy_index_buffer(rdata->sprite_batch.ib);
     mgfx_destroy_pipeline(rdata->sprite_batch.pipeline);
-    mgfx_destroy_image_array(rdata->sprite_batch.image_array);
+
+	if (rdata->sprite_batch.image_array)
+    	mgfx_destroy_image_array(rdata->sprite_batch.image_array);
 
     mgfx_destroy_sampler(rdata->screen_sampler);
     mgfx_destroy_vertex_buffer(rdata->screen_vertex_buffer);
@@ -791,6 +792,13 @@ mg_texture mg_hlgfx_add_texture_from_file(const char *file_name, mg_sampler_filt
 
 void mg_hlgfx_build_textures(void)
 {
+	static bool built = false;
+	if (!built)
+	{
+		rdata->sprite_batch.image_array = mgfx_create_image_array();
+		built = true;
+	}
+
     mgfx_update_image_array(rdata->sprite_batch.image_array, rdata->sprite_batch.images, rdata->sprite_batch.samplers, rdata->sprite_batch.image_count);
 }
 
