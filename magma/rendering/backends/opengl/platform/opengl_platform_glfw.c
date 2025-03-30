@@ -1,6 +1,9 @@
 #include "opengl_platform.h"
 
 #include <glad/glad.h>
+
+#if MG_PLATFORM_LINUX
+
 #include <GLFW/glfw3.h>
 
 typedef struct mg_opengl_glfw_platform_context
@@ -36,3 +39,5 @@ void mg_opengl_platform_set_vsync(bool enabled)
 {
     glfwSwapInterval(enabled);
 }
+
+#endif
