@@ -249,7 +249,7 @@ double mg_get_time(void)
 {
     LARGE_INTEGER now_time;
     QueryPerformanceCounter(&now_time);
-    return (double)now_time.QuadPart * clock_frequency;
+    return (double)(now_time.QuadPart - start_time.QuadPart) * clock_frequency;
 }
 
 mg_dynamic_library *mg_platform_load_library(const char *library_name)
