@@ -19,19 +19,6 @@ void on_resize(mg_resized_event_data *data)
     mgfx_configure_swapchain(&config_info);
 }
 
-/**
- * @brief Initializes the rendering system and event handling.
- *
- * This function registers the window resize event handler, configures the swapchain with the
- * given width and height, and initializes the renderer using the OpenGL API with the provided
- * platform.
- *
- * @param argc The number of command-line arguments.
- * @param argv Array of command-line argument strings.
- * @param width Initial width for the swapchain configuration.
- * @param height Initial height for the swapchain configuration.
- * @param platform Pointer to the Magma platform used for renderer initialization.
- */
 void on_initialize(int32_t argc, char* const* argv, uint32_t width, uint32_t height, mg_platform *platform)
 {
     mg_event_connect(MG_EVENT_CODE_RESIZED, (mg_event)on_resize);
