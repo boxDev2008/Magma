@@ -32,7 +32,7 @@ void on_initialize(int32_t argc, char* const* argv, uint32_t width, uint32_t hei
 
     mgfx_init_info renderer_init_info = {
         .platform = platform,
-        .type = MG_RENDERER_TYPE_OPENGL,
+        .type = MG_RENDERER_TYPE_VULKAN,
         .swapchain_config_info = &swapchain_config
     };
 

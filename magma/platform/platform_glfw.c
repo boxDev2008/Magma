@@ -1,5 +1,7 @@
 #include "platform/platform.h"
 
+#if MG_PLATFORM_LINUX
+
 #include "core/input.h"
 #include "core/event.h"
 #include "core/event_types.h"
@@ -98,3 +100,5 @@ double mg_get_time(void)
 {
     return glfwGetTime();
 }
+
+#endif
