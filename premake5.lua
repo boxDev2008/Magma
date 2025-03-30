@@ -1,3 +1,5 @@
+local VULKAN_SDK = "."
+
 workspace "Magma"
 	configurations { "Release" }
 	startproject "Sandbox"
@@ -10,24 +12,25 @@ project "Magma"
 	architecture "x64"
 
 	files { "magma/**.h", "magma/**.c" }
+	includedirs { "magma" }
 
 	optimize "On"
 
 	filter { "system:windows" }
-		local VULKAN_SDK = os.getenv("VULKAN_SDK")
+	 	VULKAN_SDK = os.getenv("VULKAN_SDK")
 		if VULKAN_SDK then
 			includedirs { ".", "magma", "magma/vendor", VULKAN_SDK.."\\Include" }
 			libdirs { VULKAN_SDK.."\\Lib" }
-			defines { "NDEBUG" }
 		end
 		defines { "NDEBUG" }
-
+		
 	filter { "system:linux" }
+		VULKAN_SDK = "."
 		includedirs { ".", "magma", "magma/vendor" }
-		links { "vulkan", "X11", "Xcursor" }
+		links { "vulkan", "glfw" }
 		defines { "NDEBUG" }
 		buildoptions { "-fpermissive" }
-
+		
 project "Magma-shdc"
 	kind "ConsoleApp"
 	language "C++"
@@ -74,16 +77,15 @@ project "Sandbox"
 
 	architecture "x64"
 
-	files { "sandbox/*.c" }
+	files { "magma-utils/**.h", "magma-utils/**.c", "sandbox/*.c" }
 
 	includedirs {
 		".",
-		"magma",
-		"magma/vendor"
+		"magma"
 	}
 
-	links { "Magma" }
 	libdirs { "bin/%{cfg.buildcfg}" }
+	links { "Magma", "m" }
 
 	optimize "On"
 
