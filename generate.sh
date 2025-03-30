@@ -1,1 +1,0 @@
-VULKAN_SDK="." premake5 gmake2

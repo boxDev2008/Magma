@@ -1,3 +1,10 @@
+local host = os.host()
+if host == "windows" then
+	VULKAN_SDK = os.getenv("VULKAN_SDK")
+else
+	VULKAN_SDK = "."
+end
+
 workspace "Magma"
 	configurations { "Release" }
 	startproject "Sandbox"
@@ -14,11 +21,8 @@ project "Magma"
 	optimize "On"
 
 	filter { "system:windows" }
-		local VULKAN_SDK = os.getenv("VULKAN_SDK")
-		if VULKAN_SDK then
-			includedirs { ".", "magma", "magma/vendor", VULKAN_SDK.."\\Include" }
-			libdirs { VULKAN_SDK.."\\Lib" }
-		end
+		includedirs { ".", "magma", "magma/vendor", VULKAN_SDK.."\\Include" }
+		libdirs { VULKAN_SDK.."\\Lib" }
 		defines { "NDEBUG" }
 
 	filter { "system:linux" }
