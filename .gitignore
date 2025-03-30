@@ -6,3 +6,4 @@ obj
 makefile
 Makefile
 GNUmakefile
+*.make

@@ -24,7 +24,7 @@ MSBuild Magma.sln
 ### Running the sandbox:
 Magma comes with a simple example to make sure it's working, if compilation was successful, you will find the output executable as `bin/Release/sandbox.exe`. You can execute this from CLI using:
 ```bash
-.\bin\Release\sandbox.exe
+.\bin\Release\Sandbox.exe
 ```
 
 ## Linux:
@@ -39,7 +39,7 @@ yay -S spirv-cross # or paru
 ### Generating the project files:
 We will generate the project files as Makefiles.
 ```bash
-premake5 gmake2
+./generate.sh
 ```
 
 ### Building the project:
@@ -51,5 +51,5 @@ make
 ### Running the sandbox:
 If compilation was successful, you can find the sandbox executable at `bin/Release/sandbox`. Run using:
 ```bash
-./bin/Release/sandbox
+./bin/Release/Sandbox
 ```

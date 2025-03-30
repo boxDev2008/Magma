@@ -23,7 +23,7 @@ project "Magma"
 
 	filter { "system:linux" }
 		includedirs { ".", "magma", "magma/vendor" }
-		links { "vulkan", "X11", "Xcursor" }
+		links { "vulkan",  }
 		defines { "NDEBUG" }
 		buildoptions { "-fpermissive" }
 
