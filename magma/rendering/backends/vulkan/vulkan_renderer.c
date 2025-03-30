@@ -38,7 +38,7 @@ void mg_vulkan_create_instance(void)
     };
     create_info.enabledExtensionCount = 2;
 #elif MG_PLATFORM_LINUX
-	const char **instance_extensions = glfwGetRequiredInstanceExtensions(&createInfo.enabledExtensionCount);
+	const char **instance_extensions = glfwGetRequiredInstanceExtensions(&create_info.enabledExtensionCount);
 #endif
     create_info.ppEnabledExtensionNames = instance_extensions;
 
