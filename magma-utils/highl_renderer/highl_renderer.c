@@ -783,7 +783,7 @@ mg_texture mg_hlgfx_add_texture_from_file(const char *file_name, mg_sampler_filt
 	if (!data)
 	{
 		printf("Failed to load texture from file %s\n", file_name);
-		return;
+		//return;
 	}
     mg_texture texture = mg_hlgfx_add_texture(width, height, filter, format, data);
     stbi_image_free(data);
