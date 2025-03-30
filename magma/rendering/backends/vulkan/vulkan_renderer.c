@@ -19,6 +19,16 @@ static inline uint32_t mg_stride_align(uint32_t size, uint32_t alignment)
     return (size+(alignment-1)) & ~(alignment-1);
 }
 
+/**
+ * @brief Creates a Vulkan instance.
+ *
+ * Initializes Vulkan by configuring application-specific information and determining
+ * the required instance extensions based on the operating system. On Windows, it enables
+ * the surface and Win32 surface extensions; on Linux, it retrieves the necessary extensions
+ * via GLFW. The created instance is stored in the global Vulkan context.
+ *
+ * An assertion is triggered if instance creation fails.
+ */
 void mg_vulkan_create_instance(void)
 {
     VkApplicationInfo app_info = {VK_STRUCTURE_TYPE_APPLICATION_INFO};
