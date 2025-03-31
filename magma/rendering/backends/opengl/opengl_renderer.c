@@ -42,8 +42,6 @@ void mg_opengl_renderer_initialize(mgfx_init_info *init_info)
 {
     mg_opengl_platform_initialize(init_info->platform);
 
-    glEnable(GL_SCISSOR_TEST);
-
     glGenVertexArrays(1, &gl_ctx.vao);
 
     uint32_t vertex = glCreateShader(GL_VERTEX_SHADER);
@@ -118,6 +116,7 @@ void mg_opengl_renderer_shutdown(void)
 
 void mg_opengl_renderer_begin(void)
 {
+	glEnable(GL_SCISSOR_TEST);
     glBindVertexArray(gl_ctx.vao);
     glActiveTexture(0);
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -127,6 +126,7 @@ void mg_opengl_renderer_begin(void)
 void mg_opengl_renderer_end(void)
 {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glDisable(GL_SCISSOR_TEST);
 
     glEnable(GL_BLEND);
     glClear(GL_COLOR_BUFFER_BIT);

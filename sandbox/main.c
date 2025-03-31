@@ -23,19 +23,19 @@ void on_initialize(int32_t argc, char* const* argv, uint32_t width, uint32_t hei
 {
     mg_event_connect(MG_EVENT_CODE_RESIZED, (mg_event)on_resize);
 
-    mg_swapchain_config_info swapchain_config = {
-        .format = MG_PIXEL_FORMAT_R8G8B8A8_SRGB,
+	mg_swapchain_config_info swapchain_config = {
+        .format = MG_PIXEL_FORMAT_B8G8R8A8_SRGB,
         .present_mode = MG_PRESENT_MODE_FIFO,
         .width = width,
         .height = height
     };
-
+    
     mgfx_init_info renderer_init_info = {
         .platform = platform,
         .type = MG_RENDERER_TYPE_OPENGL,
         .swapchain_config_info = &swapchain_config
     };
-
+    
     mgfx_initialize(&renderer_init_info);
 }
 
@@ -46,12 +46,12 @@ void on_shutdown(void)
 
 void on_update(float delta_time)
 {
-	mgfx_begin();
+    mgfx_begin();
 	mgfx_end();
 }
 
-MG_APP_DEFINE_ENTRY((mg_app_init_info){
-    .name = "Magma Sandbox",
+MG_APP_DEFINE_ENTRY({
+    .name = "Sandbox",
     .width = 1280,
     .height = 720,
     .events = {

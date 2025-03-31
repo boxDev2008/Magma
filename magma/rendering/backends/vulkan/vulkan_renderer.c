@@ -267,7 +267,7 @@ void mg_vulkan_renderer_initialize(mgfx_init_info *init_info)
     mg_vulkan_create_swapchain(init_info->swapchain_config_info);
 
     mg_vulkan_create_descriptor_set_layouts();
-    mg_vulkan_create_descriptor_pool();
+	mg_vulkan_create_descriptor_pool();
 
     mg_vulkan_create_scratch_buffer();
 }
@@ -276,14 +276,14 @@ void mg_vulkan_renderer_shutdown(void)
 {
     vkDeviceWaitIdle(vk_ctx.device.handle);
 
-    vkDestroyDescriptorPool(vk_ctx.device.handle, vk_ctx.descriptor_pool, NULL);
-
     vkDestroyDescriptorSetLayout(vk_ctx.device.handle, vk_ctx.layouts.image_sampler_layout, NULL);
     vkDestroyDescriptorSetLayout(vk_ctx.device.handle, vk_ctx.layouts.scratch_buffer_layout, NULL);
 
     vkDestroyBuffer(vk_ctx.device.handle, vk_ctx.scratch_buffer.buffer, NULL);
     vkFreeMemory(vk_ctx.device.handle, vk_ctx.scratch_buffer.memory, NULL);
     vkFreeDescriptorSets(vk_ctx.device.handle, vk_ctx.descriptor_pool, 1, &vk_ctx.scratch_buffer.ub_set);
+
+	vkDestroyDescriptorPool(vk_ctx.device.handle, vk_ctx.descriptor_pool, NULL);
 
     mg_vulkan_cleanup_swapchain();
 

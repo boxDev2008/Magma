@@ -241,6 +241,7 @@ void mg_imgui_initialize(void)
 
 void mg_imgui_shutdown(void)
 {
+	mgfx_wait();
     mgfx_destroy_pipeline(imgui_data->pipeline);
     mgfx_destroy_image_array(imgui_data->img_array);
     mgfx_destroy_sampler(imgui_data->smp);
@@ -262,6 +263,7 @@ void mg_imgui_draw(ImDrawData* draw_data)
 	ImGuiIO &io = ImGui::GetIO();
 
     mgfx_bind_pipeline(imgui_data->pipeline);
+
     struct 
     {
         ImVec2 disp_size;
