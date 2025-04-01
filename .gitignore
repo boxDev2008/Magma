@@ -2,6 +2,7 @@
 *.vcxproj.filters
 *.vcxproj.user
 *.sln
+.vs
 bin
 obj
 makefile
