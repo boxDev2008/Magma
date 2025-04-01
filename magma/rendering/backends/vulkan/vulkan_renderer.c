@@ -153,7 +153,7 @@ void mg_vulkan_create_sync_objects(void)
 void mg_vulkan_create_descriptor_pool(void)
 {
     VkDescriptorPoolSize pool_sizes[] = {
-        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1},
+        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, MG_CONFIG_MAX_BINDABLE_UNIFORMS},
         {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MG_CONFIG_MAX_IMAGE_ARRAYS},
     };
 
@@ -161,7 +161,7 @@ void mg_vulkan_create_descriptor_pool(void)
     pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
     pool_info.poolSizeCount = 2;
     pool_info.pPoolSizes = pool_sizes;
-    pool_info.maxSets = 1 + MG_CONFIG_MAX_IMAGE_ARRAYS;
+    pool_info.maxSets = MG_CONFIG_MAX_BINDABLE_UNIFORMS + MG_CONFIG_MAX_IMAGE_ARRAYS;
 
     VkResult result = vkCreateDescriptorPool(vk_ctx.device.handle, &pool_info, NULL, &vk_ctx.descriptor_pool);
     assert(result == VK_SUCCESS);
