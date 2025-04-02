@@ -99,6 +99,8 @@ void mg_platform_poll_events(mg_platform *platform)
             case KeyPress:
             case KeyRelease:
             {
+				if (event.xkey.keycode > 255)
+					break;
                 KeySym key = XLookupKeysym(&event.xkey, 0);
                 bool pressed = (event.type == KeyPress);
                 mg_keys mg_key = (mg_keys)key;

@@ -117,6 +117,7 @@
 		"span": "c",
 		"app.h": "c",
 		"vulkan_types.h": "c",
-		"xlocale": "c"
+		"xlocale": "c",
+		"filesystem": "c"
 	}
 }

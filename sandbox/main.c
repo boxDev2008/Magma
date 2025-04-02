@@ -32,7 +32,7 @@ void on_initialize(int32_t argc, char* const* argv, uint32_t width, uint32_t hei
     
     mgfx_init_info renderer_init_info = {
         .platform = platform,
-        .type = MG_RENDERER_TYPE_OPENGL,
+        .type = MG_RENDERER_TYPE_VULKAN,
         .swapchain_config_info = &swapchain_config
     };
     
@@ -47,6 +47,11 @@ void on_shutdown(void)
 void on_update(float delta_time)
 {
     mgfx_begin();
+	mgfx_begin_default_render_pass(&(mg_render_pass_begin_info){
+		.clear_value = (mg_vec4){0.0f, 0.0f, 1.0f, 1.0f},
+		.render_area = (mg_vec4){0.0f, 0.0f, 1280.0f, 720.0f}
+	});
+	mgfx_end_render_pass();
 	mgfx_end();
 }
 
