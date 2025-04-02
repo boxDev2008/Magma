@@ -13,7 +13,7 @@
 #include <stdio.h>
 #include <assert.h>
 
-static double clock_frequency;
+static double clock_frequency = 0.000000001;
 static struct timespec start_time;
 
 mg_platform *mg_platform_initialize(mg_platform_init_info *init_info)
@@ -52,8 +52,7 @@ mg_platform *mg_platform_initialize(mg_platform_init_info *init_info)
 
     XStoreName(platform->display, platform->window, init_info->title);
     XMapWindow(platform->display, platform->window);
-
-    clock_frequency = 1.0 / 1000000000.0;  // Nanosecond granularity for clock
+	
     clock_gettime(CLOCK_MONOTONIC, &start_time);
 
     platform->window_width = init_info->width;
