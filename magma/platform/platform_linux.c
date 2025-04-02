@@ -6,12 +6,13 @@
 #include "core/event.h"
 #include "core/event_types.h"
 
-#include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/keysym.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
+#include <time.h>
+#include <dlfcn.h>
 
 static double clock_frequency = 0.000000001;
 static struct timespec start_time;

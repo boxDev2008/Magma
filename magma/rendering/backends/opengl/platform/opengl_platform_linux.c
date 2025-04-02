@@ -19,7 +19,6 @@ mg_opengl_x11_platform_context;
 
 static mg_opengl_x11_platform_context ctx;
 
-typedef int (*PFNGLXSWAPINTERVALEXTPROC)(Display*, GLXDrawable, int);
 static PFNGLXSWAPINTERVALEXTPROC glXSwapIntervalEXT = NULL;
 
 void mg_opengl_platform_initialize(mg_platform *platform)
