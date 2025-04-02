@@ -35,7 +35,7 @@ mg_platform *mg_platform_initialize(mg_platform_init_info *init_info)
 
     XSetWindowAttributes attributes;
     attributes.event_mask = ExposureMask | KeyPressMask | KeyReleaseMask |
-                            ButtonPressMask | ButtonReleaseMask | PointerMotionMask | StructureNotifyMask;
+		ButtonPressMask | ButtonReleaseMask | PointerMotionMask | StructureNotifyMask;
 
     platform->window = XCreateWindow(
         platform->display, platform->root_window,

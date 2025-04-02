@@ -2,65 +2,71 @@
 
 #if MG_PLATFORM_LINUX
 
-#include <glad/glad.h>
-#include <X11/Xlib.h>
-#include <GL/glx.h>
-#include <assert.h>
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
+#include <glad/gl.h>
 
-typedef struct mg_opengl_x11_platform_context
+typedef struct mg_opengl_egl_platform_context
 {
-    Display *display;
-    Window window;
-    GLXContext glx_context;
-    GLXFBConfig fb_config;
-    GLXDrawable drawable;
+    EGLDisplay display;
+    EGLSurface surface;
+    EGLContext context;
 }
-mg_opengl_x11_platform_context;
+mg_opengl_egl_platform_context;
 
-static mg_opengl_x11_platform_context ctx;
-
-static PFNGLXSWAPINTERVALEXTPROC glXSwapIntervalEXT = NULL;
+static mg_opengl_egl_platform_context ctx;
 
 void mg_opengl_platform_initialize(mg_platform *platform)
 {
     mg_x11_platform *handle = (mg_x11_platform*)platform;
-    ctx.display = handle->display;
-    ctx.window = handle->window;
+    ctx.display = eglGetDisplay((EGLNativeDisplayType)handle->display);
+    eglInitialize(ctx.display, NULL, NULL);
 
-    static int visual_attribs[] = { GLX_X_RENDERABLE, True,
-                                    GLX_DRAWABLE_TYPE, GLX_WINDOW,
-                                    GLX_RENDER_TYPE, GLX_RGBA_BIT,
-                                    GLX_DOUBLEBUFFER, True,
-                                    None };
-    int fb_count;
-    GLXFBConfig *fb_config = glXChooseFBConfig(ctx.display, DefaultScreen(ctx.display), visual_attribs, &fb_count);
-    assert(fb_count > 0 && "No suitable framebuffer config found");
+    EGLint configAttribs[] = {
+        EGL_RENDERABLE_TYPE, EGL_OPENGL_BIT,
+        EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+        EGL_RED_SIZE, 8,
+        EGL_GREEN_SIZE, 8,
+        EGL_BLUE_SIZE, 8,
+        EGL_ALPHA_SIZE, 8,
+        EGL_DEPTH_SIZE, 24,
+        EGL_NONE
+    };
 
-    ctx.glx_context = glXCreateNewContext(ctx.display, fb_config[0], GLX_RGBA_TYPE, NULL, True);
-    assert(ctx.glx_context != NULL && "Failed to create OpenGL context");
+    EGLConfig config;
+    EGLint numConfigs;
+    eglChooseConfig(ctx.display, configAttribs, &config, 1, &numConfigs);
 
-    ctx.drawable = ctx.window;
-    glXMakeCurrent(ctx.display, ctx.drawable, ctx.glx_context);
+    ctx.surface = eglCreateWindowSurface(ctx.display, config, (EGLNativeWindowType)handle->window, NULL);
+    
+    EGLint contextAttribs[] = {
+        EGL_CONTEXT_CLIENT_VERSION, 3, // Request OpenGL 3.0+
+        EGL_NONE
+    };
 
-    gladLoadGL();
+    eglBindAPI(EGL_OPENGL_API);
+    ctx.context = eglCreateContext(ctx.display, config, EGL_NO_CONTEXT, contextAttribs);
+    eglMakeCurrent(ctx.display, ctx.surface, ctx.surface, ctx.context);
 
-	glXSwapIntervalEXT = (PFNGLXSWAPINTERVALEXTPROC)glXGetProcAddress((const GLubyte*)"glXSwapIntervalEXT");
+    gladLoadGL((GLADloadfunc)eglGetProcAddress);
 }
 
 void mg_opengl_platform_shutdown(void)
 {
-    glXMakeCurrent(ctx.display, None, NULL);
-    glXDestroyContext(ctx.display, ctx.glx_context);
+    eglMakeCurrent(ctx.display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+    eglDestroyContext(ctx.display, ctx.context);
+    eglDestroySurface(ctx.display, ctx.surface);
+    eglTerminate(ctx.display);
 }
 
 void mg_opengl_platform_swapbuffers(void)
 {
-    glXSwapBuffers(ctx.display, ctx.drawable);
+    eglSwapBuffers(ctx.display, ctx.surface);
 }
 
 void mg_opengl_platform_set_vsync(bool enabled)
 {
-	glXSwapIntervalEXT(ctx.display, ctx.drawable, enabled ? 1 : 0);
+    eglSwapInterval(ctx.display, enabled ? 1 : 0);
 }
 
 #endif
