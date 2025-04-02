@@ -115,6 +115,8 @@
 		"glad_wgl.h": "c",
 		"wgl.h": "c",
 		"span": "c",
-		"app.h": "c"
+		"app.h": "c",
+		"vulkan_types.h": "c",
+		"xlocale": "c"
 	}
 }

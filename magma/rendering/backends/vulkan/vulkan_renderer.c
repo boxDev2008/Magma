@@ -31,15 +31,12 @@ void mg_vulkan_create_instance(void)
     VkInstanceCreateInfo create_info = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
     create_info.pApplicationInfo = &app_info;
 
-#if MG_PLATFORM_WINDOWS
     const char *instance_extensions[] = {
         VK_KHR_SURFACE_EXTENSION_NAME,
-        VK_KHR_WIN32_SURFACE_EXTENSION_NAME
+        MG_VULKAN_SURFACE_EXTENSION_NAME
     };
+
     create_info.enabledExtensionCount = 2;
-#elif MG_PLATFORM_LINUX
-	const char **instance_extensions = glfwGetRequiredInstanceExtensions(&create_info.enabledExtensionCount);
-#endif
     create_info.ppEnabledExtensionNames = instance_extensions;
 
     create_info.enabledLayerCount = 0;

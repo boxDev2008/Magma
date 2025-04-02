@@ -27,12 +27,16 @@ typedef struct mg_win32_platform
 }
 mg_win32_platform;
 #elif MG_PLATFORM_LINUX
-typedef struct mg_glfw_platform
+typedef struct mg_x11_platform
 {
-    void *gwin;
-    uint32_t window_width, window_height;
+    Display *display;
+    Window window;
+    int screen;
+    Window root_window;
+    int window_width;
+    int window_height;
 }
-mg_glfw_platform;
+mg_x11_platform;
 #endif
 
 MG_API mg_platform         *mg_platform_initialize              (mg_platform_init_info *init_info);
