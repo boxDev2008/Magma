@@ -28,7 +28,6 @@ typedef struct mg_win32_platform
 mg_win32_platform;
 #elif MG_PLATFORM_LINUX
 #include <X11/Xlib.h>
-#pragma comment(lib, "GL")
 typedef struct mg_x11_platform
 {
     Display *display;

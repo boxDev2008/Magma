@@ -6,6 +6,7 @@
 #include "core/event.h"
 #include "core/event_types.h"
 
+#include <X11/XKBlib.h>
 #include <X11/Xutil.h>
 #include <X11/keysym.h>
 #include <stdlib.h>
@@ -99,9 +100,7 @@ void mg_platform_poll_events(mg_platform *platform)
             case KeyPress:
             case KeyRelease:
             {
-				if (event.xkey.keycode > 255)
-					break;
-                KeySym key = XLookupKeysym(&event.xkey, 0);
+                KeySym key = XkbKeycodeToKeysym(handle->display, event.xkey.keycode, 0, 0);
                 bool pressed = (event.type == KeyPress);
                 mg_keys mg_key = (mg_keys)key;
                 mg_input_process_key(mg_key, pressed);
