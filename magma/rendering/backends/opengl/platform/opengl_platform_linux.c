@@ -5,6 +5,7 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <glad/glad.h>
+#include <assert.h>
 
 typedef struct mg_opengl_egl_platform_context
 {
@@ -49,7 +50,7 @@ void mg_opengl_platform_initialize(mg_platform *platform)
     ctx.context = eglCreateContext(ctx.display, config, EGL_NO_CONTEXT, contextAttribs);
     eglMakeCurrent(ctx.display, ctx.surface, ctx.surface, ctx.context);
 
-    gladLoadGLLoader((GLADloadproc)eglGetProcAddress);
+	assert(gladLoadGL());
 }
 
 void mg_opengl_platform_shutdown(void)

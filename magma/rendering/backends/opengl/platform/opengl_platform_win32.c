@@ -4,6 +4,7 @@
 
 #include <glad/glad.h>
 #include <dwmapi.h>
+#include <assert.h>
 
 #pragma comment(lib, "dwmapi.lib")
 
@@ -33,7 +34,7 @@ void mg_opengl_platform_initialize(mg_platform *platform)
     ctx.hrc = wglCreateContext(ctx.hdc);
     wglMakeCurrent(ctx.hdc, ctx.hrc);
 
-    gladLoadGL();
+    assert(gladLoadGL());
 
     wglSwapIntervalEXT = (PFNWGLSWAPINTERVALEXTPROC)wglGetProcAddress("wglSwapIntervalEXT");
 }
