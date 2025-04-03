@@ -85,7 +85,10 @@ project "Sandbox"
 		"magma/vendor"
 	}
 
-	links { "Magma" }
+	filter { "system:windows" }
+		links { "Magma" }
+	filter { "system:linux" }
+		links { "Magma", "EGL" }
 
 	libdirs { "bin/%{cfg.buildcfg}" }
 

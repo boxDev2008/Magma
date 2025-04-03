@@ -1,4 +1,4 @@
-#include "highl_renderer.h"
+#include "hlrenderer.h"
 
 #include <magma/math/mat4.h>
 #include <magma/math/math.h>
@@ -15,13 +15,13 @@
 #include <stdlib.h>
 #include <math.h>
 
-#define MG_HIGHL_RENDERER_2D_MAX_GEOMETRY_COUNT (1 << 14)
-#define MG_HIGHL_RENDERER_2D_MAX_LIGHT_COUNT 16
+#define MG_HLGFX_2D_MAX_GEOMETRY_COUNT (1 << 14)
+#define MG_HLGFX_2D_MAX_LIGHT_COUNT 16
 
 typedef struct mg_world_ubo_2d
 {
-    mg_vec4 light_transform[MG_HIGHL_RENDERER_2D_MAX_LIGHT_COUNT];
-    mg_vec4 light_colors[MG_HIGHL_RENDERER_2D_MAX_LIGHT_COUNT];
+    mg_vec4 light_transform[MG_HLGFX_2D_MAX_LIGHT_COUNT];
+    mg_vec4 light_colors[MG_HLGFX_2D_MAX_LIGHT_COUNT];
     mg_vec4 global_light_data;
     //mg_vec4 shadow_data;
     mg_vec4 resolution;
@@ -71,7 +71,7 @@ typedef struct mg_hlgfx_data
         mg_dynamic_vertex_buffer vb;
         mg_index_buffer ib;
         
-        mg_batch_quad quads[MG_HIGHL_RENDERER_2D_MAX_GEOMETRY_COUNT];
+        mg_batch_quad quads[MG_HLGFX_2D_MAX_GEOMETRY_COUNT];
         uint32_t quad_count;
         uint32_t current_offset;
 
@@ -497,11 +497,11 @@ void mg_hlgfx_initialize(mg_hlgfx_init_info *info)
             mgfx_create_pipeline(&pipeline_create_info);
 
         rdata->sprite_batch.vb =
-            mgfx_create_dynamic_vertex_buffer(MG_HIGHL_RENDERER_2D_MAX_GEOMETRY_COUNT * sizeof(mg_batch_quad));
+            mgfx_create_dynamic_vertex_buffer(MG_HLGFX_2D_MAX_GEOMETRY_COUNT * sizeof(mg_batch_quad));
         
-        uint32_t indices[MG_HIGHL_RENDERER_2D_MAX_GEOMETRY_COUNT * 6];
+        uint32_t indices[MG_HLGFX_2D_MAX_GEOMETRY_COUNT * 6];
         
-        for (uint32_t i = 0; i < MG_HIGHL_RENDERER_2D_MAX_GEOMETRY_COUNT; i++)
+        for (uint32_t i = 0; i < MG_HLGFX_2D_MAX_GEOMETRY_COUNT; i++)
         {
             indices[i * 6 ] = i * 4;
             indices[i * 6 + 1] = i * 4 + 1;
@@ -696,7 +696,7 @@ void mg_hlgfx_draw_rotated_sprite_2d(mg_vec2 position, mg_vec2 scale, mg_vec2 pi
 
 void mg_hlgfx_draw_point_light_2d(mg_vec2 position, float scale, float intensity, mg_vec3 color)
 {
-    if (rdata->world_ubo_2d.light_count >= MG_HIGHL_RENDERER_2D_MAX_LIGHT_COUNT)
+    if (rdata->world_ubo_2d.light_count >= MG_HLGFX_2D_MAX_LIGHT_COUNT)
         rdata->world_ubo_2d.light_count = 0;
     
     if (rdata->renderer_type == MG_RENDERER_TYPE_DIRECT3D11)

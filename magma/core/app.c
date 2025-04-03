@@ -16,7 +16,7 @@ void mg_app_run(mg_app_init_info *info, int32_t argc, char* const* argv)
     init_info.height = info->height;
     mg_platform *platform = mg_platform_initialize(&init_info);
 
-    mg_event_connect(MG_EVENT_CODE_APPLICATION_QUIT, mg_platform_on_quit);
+    mg_event_connect(MG_EVENT_CODE_QUIT, mg_platform_on_quit);
 
     info->events.initialize(argc, argv, init_info.width, init_info.height, platform);
 

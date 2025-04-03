@@ -10,7 +10,7 @@ typedef void (*mg_event)(void *data);
 
 typedef enum mg_system_event_code
 {
-    MG_EVENT_CODE_APPLICATION_QUIT,
+    MG_EVENT_CODE_QUIT,
     MG_EVENT_CODE_KEY_PRESSED,
     MG_EVENT_CODE_KEY_RELEASED,
     MG_EVENT_CODE_CHAR,

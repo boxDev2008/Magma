@@ -4,7 +4,7 @@
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
-#include <glad/gl.h>
+#include <glad/glad.h>
 
 typedef struct mg_opengl_egl_platform_context
 {
@@ -40,7 +40,8 @@ void mg_opengl_platform_initialize(mg_platform *platform)
     ctx.surface = eglCreateWindowSurface(ctx.display, config, (EGLNativeWindowType)handle->window, NULL);
     
     EGLint contextAttribs[] = {
-        EGL_CONTEXT_CLIENT_VERSION, 3, // Request OpenGL 3.0+
+        EGL_CONTEXT_CLIENT_VERSION, 4,
+		EGL_CONTEXT_MINOR_VERSION, 5,
         EGL_NONE
     };
 
@@ -48,7 +49,7 @@ void mg_opengl_platform_initialize(mg_platform *platform)
     ctx.context = eglCreateContext(ctx.display, config, EGL_NO_CONTEXT, contextAttribs);
     eglMakeCurrent(ctx.display, ctx.surface, ctx.surface, ctx.context);
 
-    gladLoadGL((GLADloadfunc)eglGetProcAddress);
+    gladLoadGLLoader((GLADloadfunc)eglGetProcAddress);
 }
 
 void mg_opengl_platform_shutdown(void)

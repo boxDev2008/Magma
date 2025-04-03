@@ -160,7 +160,7 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, uint32_t msg, WPARAM w_param, 
         case WM_CLOSE:
         {
             mg_quit_event_data data = {platform};
-            mg_event_call(MG_EVENT_CODE_APPLICATION_QUIT, (void*)&data);
+            mg_event_call(MG_EVENT_CODE_QUIT, (void*)&data);
         }
         break;
         case WM_DESTROY:

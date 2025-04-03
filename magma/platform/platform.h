@@ -32,10 +32,11 @@ typedef struct mg_x11_platform
 {
     Display *display;
     Window window;
-    int screen;
+    int32_t screen;
     Window root_window;
-    int window_width;
-    int window_height;
+    int32_t window_width;
+    int32_t window_height;
+	Atom wm_delete_window;
 }
 mg_x11_platform;
 #endif
