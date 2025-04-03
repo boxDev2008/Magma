@@ -108,11 +108,7 @@ mg_gamepad_state mg_input_get_gamepad_state(uint8_t index)
 #if MG_PLATFORM_WINDOWS
     XINPUT_STATE xstate = { 0 };
     DWORD dwResult = XInputGetState(index, &xstate);
-    
-    if( dwResult == ERROR_SUCCESS )
-    {
-        printf("e");
-    }
+
     state.buttons[MG_GAMEPAD_BUTTON_DPAD_UP] = xstate.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_UP;
     state.buttons[MG_GAMEPAD_BUTTON_DPAD_DOWN] = xstate.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_DOWN;
     state.buttons[MG_GAMEPAD_BUTTON_DPAD_LEFT] = xstate.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_LEFT;

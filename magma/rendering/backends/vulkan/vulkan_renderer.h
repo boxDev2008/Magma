@@ -8,7 +8,6 @@
 #elif MG_PLATFORM_LINUX
 	#include <vulkan/vulkan_xlib.h>
     #define VK_USE_PLATFORM_XLIB_KHR
-    #define VK_USE_PLATFORM_XCB_KHR
     #define MG_VULKAN_SURFACE_EXTENSION_NAME VK_KHR_XLIB_SURFACE_EXTENSION_NAME
 #endif
 

@@ -4,6 +4,8 @@
 #include <magma/core/app.h>
 #include <magma/rendering/renderer.h>
 
+#include <magma/core/log.h>
+
 void on_resize(mg_resized_event_data *data)
 {
     if (data->width == 0 || data->height == 0)
@@ -17,6 +19,7 @@ void on_resize(mg_resized_event_data *data)
     };
 
     mgfx_configure_swapchain(&config_info);
+	MG_LOG_WARNING("Window resized to %d x %d", data->width, data->height);
 }
 
 void on_initialize(int32_t argc, char* const* argv, uint32_t width, uint32_t height, mg_platform *platform)
@@ -32,7 +35,7 @@ void on_initialize(int32_t argc, char* const* argv, uint32_t width, uint32_t hei
     
     mgfx_init_info renderer_init_info = {
         .platform = platform,
-        .type = MG_RENDERER_TYPE_VULKAN,
+        .type = MG_RENDERER_TYPE_OPENGL,
         .swapchain_config_info = &swapchain_config
     };
     
