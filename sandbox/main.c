@@ -51,12 +51,12 @@ void on_update(float delta_time)
 }
 
 MG_APP_DEFINE_ENTRY({
-                        .name = "Sandbox",
-                        .width = 1280,
-                        .height = 720,
-                        .events = {
-                            .initialize = on_initialize,
-                            .shutdown = on_shutdown,
-                            .update = on_update
-                        }
-                    });
+	.name = "Sandbox",
+	.width = 1280,
+	.height = 720,
+	.events = {
+		.initialize = on_initialize,
+		.shutdown = on_shutdown,
+		.update = on_update
+	}
+});
