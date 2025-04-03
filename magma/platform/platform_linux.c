@@ -43,9 +43,9 @@ static mg_keys mg_translate_keycode(uint32_t keycode)
     case XK_space:
         return MG_KEY_SPACE;
     case XK_Prior:
-        return MG_KEY_PAGEUP;
+        return MG_KEY_PAGE_UP;
     case XK_Next:
-        return MG_KEY_PAGEDOWN;
+        return MG_KEY_PAGE_DOWN;
     case XK_End:
         return MG_KEY_END;
     case XK_Home:
@@ -430,7 +430,7 @@ void mg_platform_poll_events(mg_platform *platform)
             break;
 			case ClientMessage:
 			{
-				if (event.xclient.message_type == handle->wm_delete_window)
+				if ((Atom)event.xclient.data.l[0] == handle->wm_delete_window)
 				{
 					mg_quit_event_data data = {platform};
 					mg_event_call(MG_EVENT_CODE_QUIT, (void*)&data);

@@ -49,7 +49,7 @@ void mg_opengl_platform_initialize(mg_platform *platform)
     ctx.context = eglCreateContext(ctx.display, config, EGL_NO_CONTEXT, contextAttribs);
     eglMakeCurrent(ctx.display, ctx.surface, ctx.surface, ctx.context);
 
-    gladLoadGLLoader((GLADloadfunc)eglGetProcAddress);
+    gladLoadGLLoader((GLADloadproc)eglGetProcAddress);
 }
 
 void mg_opengl_platform_shutdown(void)
