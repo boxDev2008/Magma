@@ -25,7 +25,7 @@ VkRenderPass mg_vulkan_create_render_pass(mg_render_pass_create_info *create_inf
     depth_attachment_ref.attachment = 1;
     depth_attachment_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-    VkSubpassDescription subpass = { 0 };
+	VkSubpassDescription subpass = { 0 };
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.pColorAttachments = &color_attachment_ref;
     subpass.colorAttachmentCount = 1;
