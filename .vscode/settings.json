@@ -123,6 +123,11 @@
 		"time.h": "c",
 		"varargs.h": "c",
 		"post_process.h": "c",
-		"hlrenderer.h": "c"
+		"hlrenderer.h": "c",
+		"list": "cpp",
+		"xhash": "cpp",
+		"xstring": "cpp",
+		"xtree": "cpp",
+		"xutility": "cpp"
 	}
 }
