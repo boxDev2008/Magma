@@ -51,7 +51,7 @@ void on_update(float delta_time)
 }
 
 MG_APP_DEFINE_ENTRY({
-    .name = "Hello, Magma!",
+    .name = "Sandbox",
     .width = 1280,
     .height = 720,
     .events = {

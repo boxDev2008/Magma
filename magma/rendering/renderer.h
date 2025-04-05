@@ -536,8 +536,8 @@ mgfx_init_info;
 MG_API inline void                     mgfx_initialize                      (mgfx_init_info *init_info);
 MG_API inline void                     mgfx_shutdown                        (void);
 
-MG_API inline void                     mgfx_begin                     (void);
-MG_API inline void                     mgfx_end                       (void);
+MG_API inline void                     mgfx_begin                     		(void);
+MG_API inline void                     mgfx_end                       		(void);
 
 MG_API inline void                     mgfx_wait                            (void);
 
