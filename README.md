@@ -28,13 +28,21 @@ Magma comes with a simple example to make sure it's working, if compilation was 
 ```
 
 ## Linux:
-> NOTE: This has been tested on Arch Linux only, please report any bugs if you encounter any on other linux distrobutions.<br>
+> NOTE: This has been tested on very few linux distrobutions, please report bugs if any were encountered.<br>
 > Another NOTE: Please make sure you have Xorg installed, if you're on Wayland you can use Xwayland.
 
 #### Arch Linux:
 ```bash
 sudo pacman -Sy base-devel premake vulkan-devel libegl xorg-server
+# optional (for Magma-shdc):
 yay -S spirv-cross # or paru
+```
+
+### Debian or Ubuntu based:
+```bash
+sudo apt update
+sudo apt install libx11-dev libvulkan-dev libegl-dev
+# instructions on spirv-cross are a WIP
 ```
 
 ### Generating the project files:
