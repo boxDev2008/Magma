@@ -33,7 +33,7 @@ Magma comes with a simple example to make sure it's working, if compilation was 
 
 #### Arch Linux:
 ```bash
-sudo pacman -Sy base-devel premake vulkan-devel libegl xorg-server
+sudo pacman -Sy base-devel vulkan-devel libegl xorg-server
 # optional (for Magma-shdc):
 yay -S spirv-cross # or paru
 ```
@@ -41,7 +41,7 @@ yay -S spirv-cross # or paru
 ### Debian or Ubuntu based:
 ```bash
 sudo apt update
-sudo apt install libx11-dev libvulkan-dev libegl-dev
+sudo apt install build-essential libx11-dev libvulkan-dev libegl-dev
 # instructions on spirv-cross are a WIP
 ```
 
