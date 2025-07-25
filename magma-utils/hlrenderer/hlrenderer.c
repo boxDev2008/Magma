@@ -5,6 +5,7 @@
 
 #include "shaders/post_process.h"
 #include "shaders/sprite.h"
+#include "shaders/lit_sprite.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -14,9 +15,9 @@
 #include <math.h>
 
 #define MG_HLGFX_2D_MAX_GEOMETRY_COUNT (1 << 14)
-#define MG_HLGFX_2D_MAX_LIGHT_COUNT 16
+#define MG_HLGFX_2D_MAX_LIGHT_COUNT 128
 
-typedef struct mg_world_ubo_2d
+/*typedef struct mg_world_ubo_2d
 {
     mg_vec4 light_transform[MG_HLGFX_2D_MAX_LIGHT_COUNT];
     mg_vec4 light_colors[MG_HLGFX_2D_MAX_LIGHT_COUNT];
@@ -28,7 +29,7 @@ typedef struct mg_world_ubo_2d
     int32_t flag_enable_lights;
     int32_t flag_enable_shadows;
 }
-mg_world_ubo_2d;
+mg_world_ubo_2d;*/
 
 typedef struct mg_batch_vertex
 {
@@ -58,10 +59,29 @@ typedef struct mg_hlgfx_data
 		mg_pipeline pip;
 	}
 	screen_data;
+
+    struct
+	{
+        mg_vec4 light_transform[MG_HLGFX_2D_MAX_LIGHT_COUNT];
+        mg_vec4 light_colors[MG_HLGFX_2D_MAX_LIGHT_COUNT];
+        mg_vec4 global_light_data;
+        mg_vec4 resolution;
+        int32_t light_count;
+	}
+	lit_ub_data;
+
+    struct
+    {
+        mg_vec4 vignette_data;
+        int32_t enable_vignette;
+    }
+    post_process_ub_data;
     
     struct
     {
         mg_pipeline pipeline;
+        mg_pipeline lit_pipeline;
+
         mg_dynamic_vertex_buffer vb;
         mg_index_buffer ib;
         
@@ -98,7 +118,7 @@ void mg_hlgfx_submit_sprite_batch(void)
     rdata->sprite_batch.current_offset = offset;
 }
 
-void mg_hlgfx_begin_scene_2d(mg_camera_info_2d *camera_info)
+void mg_hlgfx_begin_scene_2d(const mg_camera_info_2d *camera_info)
 {
 	const int32_t width = rdata->width;
     const int32_t height = rdata->height;
@@ -121,7 +141,40 @@ void mg_hlgfx_end_scene_2d(void)
 	mg_hlgfx_submit_sprite_batch();
 }
 
-void mg_hlgfx_initialize(mg_hlgfx_init_info *info)
+void mg_hlgfx_begin_lit_scene_2d(const mg_camera_info_2d *camera_info, mg_lit_scene_info_2d *lit_scene_info)
+{
+	const int32_t width = rdata->width;
+    const int32_t height = rdata->height;
+
+	struct
+	{
+		mg_mat4 vp;
+	}
+	vs_ub_data;
+    
+    vs_ub_data.vp = mg_mat4_ortho(height * 0.5f, -height * 0.5f, -width * 0.5f, width * 0.5f, -1.0f, 1.0f);
+	vs_ub_data.vp = mg_mat4_translate(vs_ub_data.vp, (mg_vec3) { -camera_info->position.x, -camera_info->position.y, 0.0f });
+	vs_ub_data.vp = mg_mat4_scale(vs_ub_data.vp, (mg_vec3) { camera_info->zoom.x, camera_info->zoom.y, 1.0f });
+	mgfx_bind_pipeline(rdata->sprite_batch.lit_pipeline);
+	mgfx_bind_uniforms(0, sizeof(vs_ub_data), &vs_ub_data);
+
+    rdata->lit_ub_data.light_count = 0;
+    rdata->lit_ub_data.resolution = (mg_vec4) { width, height, 0.0f, 0.0f };
+    rdata->lit_ub_data.global_light_data = (mg_vec4) {
+        lit_scene_info->global_light_color.r,
+        lit_scene_info->global_light_color.g,
+        lit_scene_info->global_light_color.b,
+        lit_scene_info->global_light_intensity
+    };
+}
+
+void mg_hlgfx_end_lit_scene_2d(void)
+{
+    mgfx_bind_uniforms(1, sizeof(rdata->lit_ub_data), &rdata->lit_ub_data);
+    mg_hlgfx_submit_sprite_batch();
+}
+
+void mg_hlgfx_initialize(const mg_hlgfx_init_info *info)
 {
     rdata = (mg_hlgfx_data*)calloc(1, sizeof(mg_hlgfx_data));
 
@@ -145,8 +198,8 @@ void mg_hlgfx_initialize(mg_hlgfx_init_info *info)
 #pragma region SCREEN_DATA
     {
         mg_sampler_create_info sampler_create_info = {
-            .mag_filter = MG_SAMPLER_FILTER_NEAREST,
-            .min_filter = MG_SAMPLER_FILTER_NEAREST,
+            .mag_filter = MG_SAMPLER_FILTER_LINEAR,
+            .min_filter = MG_SAMPLER_FILTER_LINEAR,
             .address_mode_u = MG_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
             .address_mode_v = MG_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
             .address_mode_w = MG_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE
@@ -291,6 +344,10 @@ void mg_hlgfx_initialize(mg_hlgfx_init_info *info)
         rdata->sprite_batch.pipeline =
             mgfx_create_pipeline(&pipeline_create_info);
 
+        pipeline_create_info.shader = get_lit_sprite_shader(rdata->renderer_type);
+        rdata->sprite_batch.lit_pipeline =
+            mgfx_create_pipeline(&pipeline_create_info);
+
         rdata->sprite_batch.vb =
             mgfx_create_dynamic_vertex_buffer(MG_HLGFX_2D_MAX_GEOMETRY_COUNT * sizeof(mg_batch_quad));
         
@@ -318,6 +375,7 @@ void mg_hlgfx_shutdown(void)
     mgfx_destroy_dynamic_vertex_buffer(rdata->sprite_batch.vb);
     mgfx_destroy_index_buffer(rdata->sprite_batch.ib);
     mgfx_destroy_pipeline(rdata->sprite_batch.pipeline);
+    mgfx_destroy_pipeline(rdata->sprite_batch.lit_pipeline);
 
 	if (rdata->sprite_batch.image_array)
     	mgfx_destroy_image_array(rdata->sprite_batch.image_array);
@@ -339,6 +397,8 @@ void mg_hlgfx_resize(int32_t width, int32_t height)
 {
     rdata->width = width;
     rdata->height = height;
+
+    mgfx_wait();
 
     mg_swapchain_config_info config_info;
 	config_info.format = MG_PIXEL_FORMAT_B8G8R8A8_SRGB;
@@ -387,7 +447,7 @@ void mg_hlgfx_resize(int32_t width, int32_t height)
     mgfx_configure_swapchain(&config_info);        
 }
 
-void mg_hlgfx_begin(void)
+void mg_hlgfx_begin(const mg_post_process_info *post_process_info)
 {
     rdata->sprite_batch.quad_count = 0;
     rdata->sprite_batch.current_offset = 0;
@@ -396,10 +456,18 @@ void mg_hlgfx_begin(void)
 
 	mg_render_pass_begin_info rp_info = {
         .render_area = (mg_vec4) {0.0f, 0.0f, rdata->width, rdata->height},
-        .clear_value = (mg_vec4) {0.0f, 0.0f, 0.0f, 1.0f}
+        .clear_value = (mg_vec4) {0.01f, 0.01f, 0.01f, 1.0f}
     };
 	mgfx_begin_render_pass(rdata->screen_data.rp, rdata->screen_data.fb, &rp_info);
 	mgfx_viewport(0, 0, rdata->width, rdata->height);
+
+    rdata->post_process_ub_data.vignette_data = (mg_vec4) {
+        post_process_info->vignette_color.x,
+        post_process_info->vignette_color.y,
+        post_process_info->vignette_color.z,
+        post_process_info->vignette_strength
+    };
+    rdata->post_process_ub_data.enable_vignette = post_process_info->flags & MG_POST_PROCESS_FLAG_VIGNETTE;
 }
 
 void mg_hlgfx_end(void)
@@ -416,6 +484,7 @@ void mg_hlgfx_end(void)
 
 	mgfx_bind_pipeline(rdata->screen_data.pip);
 	mgfx_bind_image_array(rdata->screen_data.img_array);
+    mgfx_bind_uniforms(0, sizeof(rdata->post_process_ub_data), &rdata->post_process_ub_data);
 	mgfx_draw(4, 0);
     
     mgfx_end_render_pass();
@@ -437,7 +506,7 @@ void mg_hlgfx_draw_rect_2d_internal(mg_mat4 model, mg_vec4 color)
     }};
 }
 
-void mg_hlgfx_draw_sprite_2d_internal(mg_mat4 model, mg_vec4 color, mg_sprite *sprite)
+void mg_hlgfx_draw_sprite_2d_internal(mg_mat4 model, mg_vec4 color, const mg_sprite *sprite)
 {
     const uint8_t tex_id = sprite->texture->id;
 
@@ -465,7 +534,7 @@ void mg_hlgfx_draw_rect_2d(mg_vec2 position, mg_vec2 scale, mg_vec2 pivot, mg_ve
     }};
 }
 
-void mg_hlgfx_draw_sprite_2d(mg_vec2 position, mg_vec2 scale, mg_vec2 pivot, mg_vec4 color, mg_sprite *sprite)
+void mg_hlgfx_draw_sprite_2d(mg_vec2 position, mg_vec2 scale, mg_vec2 pivot, mg_vec4 color, const mg_sprite *sprite)
 {
     const mg_vec2 pivot_offset = (mg_vec2) { pivot.x * scale.x, pivot.y * scale.y };
     const uint8_t tex_id = sprite->texture->id;
@@ -474,6 +543,18 @@ void mg_hlgfx_draw_sprite_2d(mg_vec2 position, mg_vec2 scale, mg_vec2 pivot, mg_
         {position.x + scale.x - pivot_offset.x, position.y - pivot_offset.y, sprite->x + sprite->width, sprite->y, color.r, color.g, color.b, color.a, tex_id},
         {position.x + scale.x - pivot_offset.x, position.y + scale.y - pivot_offset.y, sprite->x + sprite->width, sprite->y + sprite->height, color.r, color.g, color.b, color.a, tex_id},
         {position.x - pivot_offset.x, position.y + scale.y - pivot_offset.y, sprite->x, sprite->y + sprite->height, color.r, color.g, color.b, color.a, tex_id}
+    }};
+}
+
+void mg_hlgfx_draw_vertex_colored_sprite_2d(mg_vec2 position, mg_vec2 scale, mg_vec2 pivot, mg_vec4 c0 , mg_vec4 c1 , mg_vec4 c2 , mg_vec4 c3, const mg_sprite *sprite)
+{
+    const mg_vec2 pivot_offset = (mg_vec2) { pivot.x * scale.x, pivot.y * scale.y };
+    const uint8_t tex_id = sprite->texture->id;
+    rdata->sprite_batch.quads[rdata->sprite_batch.quad_count++] = (mg_batch_quad){{
+        {position.x - pivot_offset.x, position.y - pivot_offset.y, sprite->x, sprite->y, c0.r, c0.g, c0.b, c0.a, tex_id},
+        {position.x + scale.x - pivot_offset.x, position.y - pivot_offset.y, sprite->x + sprite->width, sprite->y, c1.r, c1.g, c1.b, c1.a, tex_id},
+        {position.x + scale.x - pivot_offset.x, position.y + scale.y - pivot_offset.y, sprite->x + sprite->width, sprite->y + sprite->height, c3.r, c3.g, c3.b, c3.a, tex_id},
+        {position.x - pivot_offset.x, position.y + scale.y - pivot_offset.y, sprite->x, sprite->y + sprite->height, c3.r, c3.g, c3.b, c3.a, tex_id}
     }};
 }
 
@@ -487,7 +568,7 @@ void mg_hlgfx_draw_rotated_rect_2d(mg_vec2 position, mg_vec2 scale, mg_vec2 pivo
     mg_hlgfx_draw_rect_2d_internal(model, color);
 }
 
-void mg_hlgfx_draw_rotated_sprite_2d(mg_vec2 position, mg_vec2 scale, mg_vec2 pivot, float rotation, mg_vec4 color, mg_sprite *sprite)
+void mg_hlgfx_draw_rotated_sprite_2d(mg_vec2 position, mg_vec2 scale, mg_vec2 pivot, float rotation, mg_vec4 color, const mg_sprite *sprite)
 {
     mg_mat4 model = mg_mat4_identity();
     model = mg_mat4_translate(model, (mg_vec3) { -pivot.x, -pivot.y, 0.0f });
@@ -495,6 +576,29 @@ void mg_hlgfx_draw_rotated_sprite_2d(mg_vec2 position, mg_vec2 scale, mg_vec2 pi
     model = mg_mat4_rotate_z(model, rotation);
     model = mg_mat4_translate(model, (mg_vec3) { position.x, position.y, 0.0f });
     mg_hlgfx_draw_sprite_2d_internal(model, color, sprite);
+}
+
+void mg_hlgfx_draw_rotated_vertex_colored_sprite_2d(mg_vec2 position, mg_vec2 scale, mg_vec2 pivot, float rotation, mg_vec4 c0, mg_vec4 c1, mg_vec4 c2, mg_vec4 c3, const mg_sprite *sprite)
+{
+    const uint8_t tex_id = sprite->texture->id;
+
+    mg_mat4 model = mg_mat4_identity();
+    model = mg_mat4_translate(model, (mg_vec3) { -pivot.x, -pivot.y, 0.0f });
+    model = mg_mat4_scale(model, (mg_vec3) { scale.x, scale.y, 1.0f });
+    model = mg_mat4_rotate_z(model, rotation);
+    model = mg_mat4_translate(model, (mg_vec3) { position.x, position.y, 0.0f });
+
+    const mg_vec4 v1 = mg_mat4_multiply_vec4(model, (mg_vec4){ 0.0f, 0.0f, 0.0f, 1.0f });
+    const mg_vec4 v2 = mg_mat4_multiply_vec4(model, (mg_vec4){ 1.0f, 0.0f, 0.0f, 1.0f });
+    const mg_vec4 v3 = mg_mat4_multiply_vec4(model, (mg_vec4){ 1.0f, 1.0f, 0.0f, 1.0f });
+    const mg_vec4 v4 = mg_mat4_multiply_vec4(model, (mg_vec4){ 0.0f, 1.0f, 0.0f, 1.0f });
+
+    rdata->sprite_batch.quads[rdata->sprite_batch.quad_count++] = (mg_batch_quad){{
+        {v1.x, v1.y, sprite->x, sprite->y, c0.r, c0.g, c0.b, c0.a, tex_id},
+        {v2.x, v2.y, sprite->x + sprite->width, sprite->y, c1.r, c1.g, c1.b, c1.a, tex_id},
+        {v3.x, v3.y, sprite->x + sprite->width, sprite->y + sprite->height, c2.r, c2.g, c2.b, c2.a, tex_id},
+        {v4.x, v4.y, sprite->x, sprite->y + sprite->height, c3.r, c3.g, c3.b, c3.a, tex_id}
+    }};
 }
 
 // TODO (box): Fix this
@@ -523,21 +627,21 @@ void mg_hlgfx_draw_rotated_sprite_2d(mg_vec2 position, mg_vec2 scale, mg_vec2 pi
     mgfx_draw_indexed(6, 0);
 }*/
 
-/*void mg_hlgfx_draw_point_light_2d(mg_vec2 position, float scale, float intensity, mg_vec3 color)
+void mg_hlgfx_draw_point_light_2d(mg_vec2 position, float scale, float intensity, mg_vec3 color)
 {
-    if (rdata->world_ubo_2d.light_count >= MG_HLGFX_2D_MAX_LIGHT_COUNT)
-        rdata->world_ubo_2d.light_count = 0;
+    if (rdata->lit_ub_data.light_count >= MG_HLGFX_2D_MAX_LIGHT_COUNT)
+        return;
     
-    if (rdata->renderer_type == MG_RENDERER_TYPE_DIRECT3D11)
-        position.y = position.y * -1.0f + 1.0f;
+    //if (rdata->renderer_type == MG_RENDERER_TYPE_DIRECT3D11)
+        //position.y = position.y * -1.0f + 1.0f;
     
-    rdata->world_ubo_2d.light_transform[rdata->world_ubo_2d.light_count] =
+    rdata->lit_ub_data.light_transform[rdata->lit_ub_data.light_count] =
     (mg_vec4) { position.x, position.y, scale, intensity };
-    rdata->world_ubo_2d.light_colors[rdata->world_ubo_2d.light_count] =
+    rdata->lit_ub_data.light_colors[rdata->lit_ub_data.light_count] =
     (mg_vec4) { color.r, color.g, color.b, 1.0f };
     
-    rdata->world_ubo_2d.light_count++;
-}*/
+    rdata->lit_ub_data.light_count++;
+}
 
 /*void mg_hlgfx_draw_mesh(mg_mat4 model, mg_mesh *mesh, mg_texture *texture)
 {

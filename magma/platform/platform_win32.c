@@ -24,13 +24,13 @@ void mg_create_wide_string_from_utf8(const char *source, WCHAR *target)
     if (!count)
     {
         MessageBox(0, "Failed to convert string from UTF-8", "Error", MB_ICONEXCLAMATION | MB_OK);
-        return NULL;
+        return;
     }
 
     if (!MultiByteToWideChar(CP_UTF8, 0, source, -1, target, count))
     {
         MessageBoxA(NULL, "Failed to convert string from UTF-8", "Error!", MB_ICONEXCLAMATION | MB_OK);
-        return NULL;
+        return;
     }
 }
 

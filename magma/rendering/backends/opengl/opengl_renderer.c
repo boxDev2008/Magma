@@ -87,8 +87,8 @@ void mg_opengl_renderer_initialize(mgfx_init_info *init_info)
     glGenTextures(1, &gl_ctx.back_buffer.color_attachment);
     glBindTexture(GL_TEXTURE_2D, gl_ctx.back_buffer.color_attachment);
     
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
@@ -118,7 +118,7 @@ void mg_opengl_renderer_begin(void)
 {
 	glEnable(GL_SCISSOR_TEST);
     glBindVertexArray(gl_ctx.vao);
-    glActiveTexture(0);
+    glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, 0);
     glBindFramebuffer(GL_FRAMEBUFFER, gl_ctx.back_buffer.framebuffer);
 }
@@ -131,7 +131,7 @@ void mg_opengl_renderer_end(void)
     glEnable(GL_BLEND);
     glClear(GL_COLOR_BUFFER_BIT);
     glUseProgram(gl_ctx.back_buffer.program);
-    glActiveTexture(0);
+    glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, gl_ctx.back_buffer.color_attachment);
     glBindBuffer(GL_ARRAY_BUFFER, gl_ctx.back_buffer.vertex_buffer);
         glVertexAttribPointer(0, 2,

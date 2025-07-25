@@ -26,9 +26,10 @@ struct ShaderSource
 enum ShaderLangFlags
 {
     GLSL = 1 << 1,
-    HLSL = 1 << 2,
-    MSL = 1 << 3,
-    SPIRV = 1 << 4
+    GLSLES = 1 << 2,
+    HLSL = 1 << 3,
+    MSL = 1 << 4,
+    SPIRV = 1 << 5
 };
 
 void parse_shader(const std::string &file, ShaderSource &out_source)
@@ -74,8 +75,8 @@ void compile_shader_to_spirv(std::string &source, EShLanguage stage, std::vector
     glslang::InitializeProcess();
 
     // Dirty fix for descriptor set index on samplers
-    std::regex sampler_regex(R"(\buniform\s+(sampler2D|sampler2DArray)\b)");
-    source = std::regex_replace(source, sampler_regex, "layout(set = 1) uniform $1");
+    //std::regex sampler_regex(R"(\buniform\s+(sampler2D|sampler2DArray)\b)");
+    //source = std::regex_replace(source, sampler_regex, "layout(set = 1) uniform $1");
 
     const char* sources[1] = { source.c_str() };
     glslang::TShader shader(stage);
@@ -85,7 +86,7 @@ void compile_shader_to_spirv(std::string &source, EShLanguage stage, std::vector
     shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_0);
     shader.setEnvTarget(glslang::EshTargetSpv, glslang::EShTargetSpv_1_0);
     shader.setAutoMapLocations(true);
-    shader.setAutoMapBindings(true);
+    //shader.setAutoMapBindings(true);
 
     //if (stage == EShLanguage::EShLangFragment)
         //shader.setShiftUboBinding(1);
@@ -130,7 +131,18 @@ void compile_spirv_to_glsl(const std::vector<uint32_t> &spirv, std::string &outp
 	options.version = 450;
     options.vulkan_semantics = false;
 	options.es = false;
-    options.emit_push_constant_as_uniform_buffer = true;
+    //options.emit_push_constant_as_uniform_buffer = true;
+	glsl.set_common_options(options);
+	output_source = glsl.compile();
+}
+
+void compile_spirv_to_glsles(const std::vector<uint32_t> &spirv, std::string &output_source)
+{
+	spirv_cross::CompilerGLSL glsl(spirv);
+	spirv_cross::CompilerGLSL::Options options;
+	options.version = 300;
+    options.vulkan_semantics = false;
+	options.es = true;
 	glsl.set_common_options(options);
 	output_source = glsl.compile();
 }
@@ -228,6 +240,8 @@ void write_get_shader_function(const std::string& name, std::ofstream& output, u
         write_shader_case("spirv", "MG_RENDERER_TYPE_VULKAN");
     if (lang_flags & ShaderLangFlags::GLSL)
         write_shader_case("glsl", "MG_RENDERER_TYPE_OPENGL");
+    if (lang_flags & ShaderLangFlags::GLSLES)
+        write_shader_case("glsles", "MG_RENDERER_TYPE_OPENGLES");
     if (lang_flags & ShaderLangFlags::HLSL)
         write_shader_case("hlsl", "MG_RENDERER_TYPE_DIRECT3D11");
 
@@ -297,6 +311,7 @@ int main(int argc, char **argv)
     {
         if      (token == "spirv")  lang_flags |= ShaderLangFlags::SPIRV;
         else if (token == "glsl")   lang_flags |= ShaderLangFlags::GLSL;
+        else if (token == "glsles") lang_flags |= ShaderLangFlags::GLSLES;
         else if (token == "hlsl")   lang_flags |= ShaderLangFlags::HLSL;
         else if (token == "msl")    lang_flags |= ShaderLangFlags::MSL;
         else
@@ -321,6 +336,13 @@ int main(int argc, char **argv)
         compile_spirv_to_glsl(spirv_frag, source.fragment);
         write_shader_source_to_header(source.vertex, name, "glsl", "vert", header_file);
         write_shader_source_to_header(source.fragment, name, "glsl", "frag", header_file);
+    }
+    if (lang_flags & ShaderLangFlags::GLSLES)
+    {
+        compile_spirv_to_glsles(spirv_vert, source.vertex);
+        compile_spirv_to_glsles(spirv_frag, source.fragment);
+        write_shader_source_to_header(source.vertex, name, "glsles", "vert", header_file);
+        write_shader_source_to_header(source.fragment, name, "glsles", "frag", header_file);
     }
     if (lang_flags & ShaderLangFlags::HLSL)
     {

@@ -1,3 +1,4 @@
+#include "vec3.h"
 #include "math.h"
 
 #include <math.h>
@@ -19,6 +20,11 @@ mg_vec3 mg_vec3_add(mg_vec3 a, mg_vec3 b)
 mg_vec3 mg_vec3_subtract(mg_vec3 a, mg_vec3 b)
 {
     return mg_vec3_new(a.x - b.x, a.y - b.y, a.z - b.z);
+}
+
+mg_vec3 mg_vec3_multiply(mg_vec3 a, mg_vec3 b)
+{
+    return mg_vec3_new(a.x * b.x, a.y * b.y, a.z * b.z);
 }
 
 mg_vec3 mg_vec3_lerp(mg_vec3 a, mg_vec3 b, float by)

@@ -24,7 +24,13 @@ void main()
 
 @stage fragment
 
-uniform sampler2D tex_sampler;
+layout(set = 1, binding = 0) uniform sampler2D tex_sampler;
+
+layout(binding = 0) uniform PostProcessData
+{
+    vec4 vignette_data;
+    bool enable_vignette;
+};
 
 in vec2 frag_tex_coord;
 out vec4 out_color;
@@ -32,6 +38,16 @@ out vec4 out_color;
 void main()
 {
     vec2 uv = frag_tex_coord.xy;
+    vec3 color = texture(tex_sampler, uv).rgb;
 
-    out_color = texture(tex_sampler, uv);
+    if (enable_vignette)
+    {
+        vec2 centered_uv = uv - vec2(0.5);
+        float dist = length(centered_uv);
+        float vignette = smoothstep(0.7, 0.5, dist);
+        float factor = mix(1.0, vignette, vignette_data.a);
+        color = mix(vignette_data.rgb, color, factor);
+    }
+
+    out_color = vec4(color, 1.0);
 }

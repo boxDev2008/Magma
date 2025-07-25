@@ -23,6 +23,11 @@ mg_vec4 mg_vec4_subtract(mg_vec4 a, mg_vec4 b)
     return mg_vec4_new(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w);
 }
 
+mg_vec4 mg_vec4_multiply(mg_vec4 a, mg_vec4 b)
+{
+    return mg_vec4_new(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w);
+}
+
 mg_vec4 mg_vec4_lerp(mg_vec4 a, mg_vec4 b, float by)
 {
     return mg_vec4_new(mg_math_lerpf(a.x, b.x, by), mg_math_lerpf(a.y, b.y, by),
