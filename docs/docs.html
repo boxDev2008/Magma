@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Magma Engine Documentation</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+  <style>
+    body, html {
+      background: #18181b !important;
+      color: #f4f4f5 !important;
+      scroll-behavior: smooth;
+    }
+    .bg-white, .bg-gray-50, .bg-gray-100, .bg-gray-200 {
+      background-color: #23232a !important;
+    }
+    .text-gray-900, .text-gray-800, .text-gray-700, .text-gray-600 {
+      color: #e5e7eb !important;
+    }
+    .text-gray-500 { color: #a1a1aa !important; }
+    .shadow { box-shadow: 0 2px 8px 0 #0006 !important; }
+    .border, .border-r { border-color: #27272a !important; }
+    a { color: #60a5fa; }
+    a:hover { color: #f87171; }
+    .bg-red-500, .bg-red-600, .bg-red-700 { background-color: #b91c1c !important; }
+    .text-red-500, .text-red-600 { color: #f87171 !important; }
+    .text-blue-600 { color: #60a5fa !important; }
+    .bg-gray-100 { background-color: #23232a !important; }
+    .bg-gray-300 { background-color: #27272a !important; }
+    .bg-gray-800 { background-color: #18181b !important; }
+    .hover\:bg-gray-300:hover { background-color: #27272a !important; }
+    .hover\:bg-red-600:hover { background-color: #991b1b !important; }
+    .hover\:bg-gray-700:hover { background-color: #23232a !important; }
+  </style>
+</head>
+<body class="bg-gray-900 text-gray-100">
+  <div class="flex min-h-screen">
+    <!-- Sidebar -->
+    <aside class="w-64 bg-gray-800 border-r p-6 flex flex-col space-y-4">
+      <nav class="fixed flex flex-col space-y-2">
+        <a href="index.html" class="text-2xl font-extrabold text-red-400 mb-8">
+          <img src="logo.svg" alt="Magma Engine Logo" class="w-48 h-16 object-contain">
+        </a>
+        <a href="#core" class="hover:text-red-400 font-semibold">Core</a>
+        <a href="#math" class="hover:text-red-400 font-semibold">Math</a>
+        <a href="#audio" class="hover:text-red-400 font-semibold">Audio</a>
+        <a href="#rendering" class="hover:text-red-400 font-semibold">Rendering</a>
+        <a href="#platform" class="hover:text-red-400 font-semibold">Platform</a>
+      </nav>
+    </aside>
+    <!-- Main Content -->
+    <main class="flex-1 p-8 overflow-y-auto">
+      <section id="core" class="mb-12">
+        <h2 class="text-3xl font-bold mb-4">Core</h2>
+        <p class="mb-2">Application and event management, input handling, and main entry point macros.</p>
+        <h3 class="text-xl font-semibold mt-4 mb-2">API Reference</h3>
+        <table class="min-w-full text-sm bg-gray-800 rounded shadow overflow-hidden">
+          <thead class="bg-gray-900">
+            <tr><th class="bg-gray-200 p-2 text-left">Function</th><th class="bg-gray-200 p-2 text-left">Description</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="p-2 font-mono"><a href="#mg_app_run" class="text-red-400 hover:underline">mg_app_run</a></td><td class="p-2">Run the main application loop.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mg_event_connect" class="text-red-400 hover:underline">mg_event_connect</a></td><td class="p-2">Connect a callback to a system event.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mg_event_call" class="text-red-400 hover:underline">mg_event_call</a></td><td class="p-2">Trigger a system event.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mg_input_is_key_down" class="text-red-400 hover:underline">mg_input_is_key_down</a></td><td class="p-2">Check if a key is pressed.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mg_input_is_mouse_button_down" class="text-red-400 hover:underline">mg_input_is_mouse_button_down</a></td><td class="p-2">Check if a mouse button is pressed.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mg_input_get_mouse_position" class="text-red-400 hover:underline">mg_input_get_mouse_position</a></td><td class="p-2">Get the current mouse position.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mg_input_get_gamepad_state" class="text-red-400 hover:underline">mg_input_get_gamepad_state</a></td><td class="p-2">Get the state of a gamepad.</td></tr>
+          </tbody>
+        </table>
+        <div class="space-y-12 mt-8">
+          <!-- mg_app_run -->
+          <div id="mg_app_run">
+            <h4 class="text-lg font-bold mb-1">mg_app_run</h4>
+            <p class="mb-2">Runs the main application loop. Typically called from your entry point.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">void initialize(int argc, char* const* argv, uint32_t w, uint32_t h, mg_platform* platform) {
+  // Setup resources
+}
+void shutdown(void) {
+  // Cleanup
+}
+void update(float dt) {
+  // Game or app logic
+}
+mg_app_init_info info = {
+  .name = "My App",
+  .width = 1280,
+  .height = 720,
+  .events = { initialize, shutdown, update }
+};
+mg_app_run(&info, argc, argv);</code></pre>
+          </div>
+          <!-- mg_event_connect -->
+          <div id="mg_event_connect">
+            <h4 class="text-lg font-bold mb-1">mg_event_connect</h4>
+            <p class="mb-2">Connects a callback function to a system event code.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">void on_quit(void* data) {
+  // Handle quit event
+}
+mg_event_connect(MG_EVENT_CODE_QUIT, on_quit);</code></pre>
+          </div>
+          <!-- mg_event_call -->
+          <div id="mg_event_call">
+            <h4 class="text-lg font-bold mb-1">mg_event_call</h4>
+            <p class="mb-2">Manually triggers a system event, passing event data.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mg_key_event_data key_data = { .key = MG_KEY_SPACE };
+mg_event_call(MG_EVENT_CODE_KEY_PRESSED, &key_data);</code></pre>
+          </div>
+          <!-- mg_input_is_key_down -->
+          <div id="mg_input_is_key_down">
+            <h4 class="text-lg font-bold mb-1">mg_input_is_key_down</h4>
+            <p class="mb-2">Checks if a specific key is currently pressed.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">if (mg_input_is_key_down(MG_KEY_W)) {
+  // Move forward
+}</code></pre>
+          </div>
+          <!-- mg_input_is_mouse_button_down -->
+          <div id="mg_input_is_mouse_button_down">
+            <h4 class="text-lg font-bold mb-1">mg_input_is_mouse_button_down</h4>
+            <p class="mb-2">Checks if a mouse button is currently pressed.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">if (mg_input_is_mouse_button_down(MG_MOUSE_BUTTON_LEFT)) {
+  // Handle left click
+}</code></pre>
+          </div>
+          <!-- mg_input_get_mouse_position -->
+          <div id="mg_input_get_mouse_position">
+            <h4 class="text-lg font-bold mb-1">mg_input_get_mouse_position</h4>
+            <p class="mb-2">Retrieves the current mouse cursor position.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">int x, y;
+mg_input_get_mouse_position(&x, &y);
+// Use x, y
+</code></pre>
+          </div>
+          <!-- mg_input_get_gamepad_state -->
+          <div id="mg_input_get_gamepad_state">
+            <h4 class="text-lg font-bold mb-1">mg_input_get_gamepad_state</h4>
+            <p class="mb-2">Gets the state of a gamepad at the given index.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mg_gamepad_state state = mg_input_get_gamepad_state(0);
+if (state.buttons[MG_GAMEPAD_BUTTON_A]) {
+  // A button pressed
+}
+</code></pre>
+          </div>
+        </div>
+      </section>
+      <section id="math" class="mb-12">
+        <h2 class="text-3xl font-bold mb-4">Math</h2>
+        <p class="mb-2">Vector, matrix, and math utility functions for 2D/3D operations.</p>
+        <h3 class="text-xl font-semibold mt-4 mb-2">API Reference</h3>
+        <table class="min-w-full text-sm bg-gray-800 rounded shadow overflow-hidden">
+          <thead class="bg-gray-900">
+            <tr><th class="bg-gray-200 p-2 text-left">Function</th><th class="bg-gray-200 p-2 text-left">Description</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="p-2 font-mono">mg_vec2_new, mg_vec3_new, mg_vec4_new</td><td class="p-2">Create new vectors.</td></tr>
+            <tr><td class="p-2 font-mono">mg_vec2_add, mg_vec3_add, mg_vec4_add</td><td class="p-2">Add two vectors.</td></tr>
+            <tr><td class="p-2 font-mono">mg_vec2_dot, mg_vec3_dot, mg_vec4_dot</td><td class="p-2">Dot product of vectors.</td></tr>
+            <tr><td class="p-2 font-mono">mg_vec3_cross</td><td class="p-2">Cross product (3D).</td></tr>
+            <tr><td class="p-2 font-mono">mg_mat4_identity</td><td class="p-2">4x4 identity matrix.</td></tr>
+            <tr><td class="p-2 font-mono">mg_mat4_multiply</td><td class="p-2">Matrix multiplication.</td></tr>
+            <tr><td class="p-2 font-mono">mg_math_clamp, mg_math_lerp</td><td class="p-2">Clamp and linear interpolation utilities.</td></tr>
+          </tbody>
+        </table>
+      </section>
+      <section id="audio" class="mb-12">
+        <h2 class="text-3xl font-bold mb-4">Audio</h2>
+        <p class="mb-2">Audio initialization, sound resource management, and playback.</p>
+        <h3 class="text-xl font-semibold mt-4 mb-2">API Reference</h3>
+        <table class="min-w-full text-sm bg-gray-800 rounded shadow overflow-hidden">
+          <thead class="bg-gray-900">
+            <tr><th class="bg-gray-200 p-2 text-left">Function</th><th class="bg-gray-200 p-2 text-left">Description</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="p-2 font-mono">mg_audio_initialize</td><td class="p-2">Initialize the audio system.</td></tr>
+            <tr><td class="p-2 font-mono">mg_audio_shutdown</td><td class="p-2">Shutdown the audio system.</td></tr>
+            <tr><td class="p-2 font-mono">mg_audio_create_sound_resource_from_file</td><td class="p-2">Load a sound from file.</td></tr>
+            <tr><td class="p-2 font-mono">mg_audio_play_sound</td><td class="p-2">Play a sound resource.</td></tr>
+          </tbody>
+        </table>
+      </section>
+      <section id="rendering" class="mb-12">
+        <h2 class="text-3xl font-bold mb-4">Rendering</h2>
+        <p class="mb-2">Cross-platform rendering abstraction supporting Vulkan, OpenGL, and Direct3D11. Includes buffer, image, pipeline, and render pass management.</p>
+        <h3 class="text-xl font-semibold mt-4 mb-2">API Reference</h3>
+        <table class="min-w-full text-sm bg-gray-800 rounded shadow overflow-hidden mb-8">
+          <thead class="bg-gray-900">
+            <tr><th class="bg-gray-200 p-2 text-left">Function</th><th class="bg-gray-200 p-2 text-left">Description</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_initialize" class="text-red-400 hover:underline">mgfx_initialize</a></td><td class="p-2">Initialize the renderer.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_shutdown" class="text-red-400 hover:underline">mgfx_shutdown</a></td><td class="p-2">Shutdown the renderer.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_begin" class="text-red-400 hover:underline">mgfx_begin</a></td><td class="p-2">Begin rendering a frame.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_end" class="text-red-400 hover:underline">mgfx_end</a></td><td class="p-2">End rendering a frame.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_wait" class="text-red-400 hover:underline">mgfx_wait</a></td><td class="p-2">Wait for GPU to finish rendering.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_viewport" class="text-red-400 hover:underline">mgfx_viewport</a></td><td class="p-2">Set the viewport region.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_scissor" class="text-red-400 hover:underline">mgfx_scissor</a></td><td class="p-2">Set the scissor rectangle.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_draw" class="text-red-400 hover:underline">mgfx_draw</a></td><td class="p-2">Draw non-indexed primitives.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_draw_indexed" class="text-red-400 hover:underline">mgfx_draw_indexed</a></td><td class="p-2">Draw indexed primitives.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_configure_swapchain" class="text-red-400 hover:underline">mgfx_configure_swapchain</a></td><td class="p-2">Configure the swapchain.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_create_render_pass" class="text-red-400 hover:underline">mgfx_create_render_pass</a></td><td class="p-2">Create a render pass.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_destroy_render_pass" class="text-red-400 hover:underline">mgfx_destroy_render_pass</a></td><td class="p-2">Destroy a render pass.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_begin_render_pass" class="text-red-400 hover:underline">mgfx_begin_render_pass</a></td><td class="p-2">Begin a render pass.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_begin_default_render_pass" class="text-red-400 hover:underline">mgfx_begin_default_render_pass</a></td><td class="p-2">Begin the default render pass.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_end_render_pass" class="text-red-400 hover:underline">mgfx_end_render_pass</a></td><td class="p-2">End the current render pass.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_create_pipeline" class="text-red-400 hover:underline">mgfx_create_pipeline</a></td><td class="p-2">Create a graphics pipeline.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_destroy_pipeline" class="text-red-400 hover:underline">mgfx_destroy_pipeline</a></td><td class="p-2">Destroy a graphics pipeline.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_bind_pipeline" class="text-red-400 hover:underline">mgfx_bind_pipeline</a></td><td class="p-2">Bind a graphics pipeline.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_create_vertex_buffer" class="text-red-400 hover:underline">mgfx_create_vertex_buffer</a></td><td class="p-2">Create a vertex buffer.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_destroy_vertex_buffer" class="text-red-400 hover:underline">mgfx_destroy_vertex_buffer</a></td><td class="p-2">Destroy a vertex buffer.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_create_index_buffer" class="text-red-400 hover:underline">mgfx_create_index_buffer</a></td><td class="p-2">Create an index buffer.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_destroy_index_buffer" class="text-red-400 hover:underline">mgfx_destroy_index_buffer</a></td><td class="p-2">Destroy an index buffer.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_create_dynamic_vertex_buffer" class="text-red-400 hover:underline">mgfx_create_dynamic_vertex_buffer</a></td><td class="p-2">Create a dynamic vertex buffer.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_destroy_dynamic_vertex_buffer" class="text-red-400 hover:underline">mgfx_destroy_dynamic_vertex_buffer</a></td><td class="p-2">Destroy a dynamic vertex buffer.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_update_dynamic_vertex_buffer" class="text-red-400 hover:underline">mgfx_update_dynamic_vertex_buffer</a></td><td class="p-2">Update a dynamic vertex buffer.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_create_dynamic_index_buffer" class="text-red-400 hover:underline">mgfx_create_dynamic_index_buffer</a></td><td class="p-2">Create a dynamic index buffer.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_destroy_dynamic_index_buffer" class="text-red-400 hover:underline">mgfx_destroy_dynamic_index_buffer</a></td><td class="p-2">Destroy a dynamic index buffer.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_update_dynamic_index_buffer" class="text-red-400 hover:underline">mgfx_update_dynamic_index_buffer</a></td><td class="p-2">Update a dynamic index buffer.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_bind_vertex_buffer" class="text-red-400 hover:underline">mgfx_bind_vertex_buffer</a></td><td class="p-2">Bind a vertex buffer.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_bind_dynamic_vertex_buffer" class="text-red-400 hover:underline">mgfx_bind_dynamic_vertex_buffer</a></td><td class="p-2">Bind a dynamic vertex buffer.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_bind_index_buffer" class="text-red-400 hover:underline">mgfx_bind_index_buffer</a></td><td class="p-2">Bind an index buffer.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_bind_dynamic_index_buffer" class="text-red-400 hover:underline">mgfx_bind_dynamic_index_buffer</a></td><td class="p-2">Bind a dynamic index buffer.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_bind_uniforms" class="text-red-400 hover:underline">mgfx_bind_uniforms</a></td><td class="p-2">Bind uniform data.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_create_image" class="text-red-400 hover:underline">mgfx_create_image</a></td><td class="p-2">Create an image/texture resource.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_destroy_image" class="text-red-400 hover:underline">mgfx_destroy_image</a></td><td class="p-2">Destroy an image/texture resource.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_update_image" class="text-red-400 hover:underline">mgfx_update_image</a></td><td class="p-2">Update an image/texture resource.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_create_image_array" class="text-red-400 hover:underline">mgfx_create_image_array</a></td><td class="p-2">Create an image array resource.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_destroy_image_array" class="text-red-400 hover:underline">mgfx_destroy_image_array</a></td><td class="p-2">Destroy an image array resource.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_update_image_array" class="text-red-400 hover:underline">mgfx_update_image_array</a></td><td class="p-2">Update an image array resource.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_bind_image_array" class="text-red-400 hover:underline">mgfx_bind_image_array</a></td><td class="p-2">Bind an image array resource.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_create_sampler" class="text-red-400 hover:underline">mgfx_create_sampler</a></td><td class="p-2">Create a sampler resource.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_destroy_sampler" class="text-red-400 hover:underline">mgfx_destroy_sampler</a></td><td class="p-2">Destroy a sampler resource.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_create_framebuffer" class="text-red-400 hover:underline">mgfx_create_framebuffer</a></td><td class="p-2">Create a framebuffer resource.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_destroy_framebuffer" class="text-red-400 hover:underline">mgfx_destroy_framebuffer</a></td><td class="p-2">Destroy a framebuffer resource.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mgfx_get_type" class="text-red-400 hover:underline">mgfx_get_type</a></td><td class="p-2">Get the current renderer type.</td></tr>
+          </tbody>
+        </table>
+        <!-- Detailed API Sections -->
+        <div class="space-y-12">
+          <!-- BEGIN FUNCTION DOCS -->
+          <!-- Each function will have an anchor, description, and example usage. -->
+
+          <!-- mgfx_initialize -->
+          <div id="mgfx_initialize">
+            <h4 class="text-lg font-bold mb-1">mgfx_initialize</h4>
+            <p class="mb-2">Initializes the renderer with the given platform, backend type, and swapchain configuration.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mgfx_init_info info = {
+  .platform = platform,
+  .type = MG_RENDERER_TYPE_VULKAN,
+  .swapchain_config_info = &swapchain_config
+};
+mgfx_initialize(&info);</code></pre>
+          </div>
+
+          <!-- mgfx_shutdown -->
+          <div id="mgfx_shutdown">
+            <h4 class="text-lg font-bold mb-1">mgfx_shutdown</h4>
+            <p class="mb-2">Shuts down the renderer and releases all resources.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mgfx_shutdown();</code></pre>
+          </div>
+
+          <!-- mgfx_begin -->
+          <div id="mgfx_begin">
+            <h4 class="text-lg font-bold mb-1">mgfx_begin</h4>
+            <p class="mb-2">Begins a new frame for rendering. Call before issuing draw commands.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mgfx_begin();</code></pre>
+          </div>
+
+          <!-- mgfx_end -->
+          <div id="mgfx_end">
+            <h4 class="text-lg font-bold mb-1">mgfx_end</h4>
+            <p class="mb-2">Ends the current frame and presents it to the screen.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mgfx_end();</code></pre>
+          </div>
+
+          <!-- mgfx_wait -->
+          <div id="mgfx_wait">
+            <h4 class="text-lg font-bold mb-1">mgfx_wait</h4>
+            <p class="mb-2">Waits for the GPU to finish all submitted work.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mgfx_wait();</code></pre>
+          </div>
+
+          <!-- mgfx_viewport -->
+          <div id="mgfx_viewport">
+            <h4 class="text-lg font-bold mb-1">mgfx_viewport</h4>
+            <p class="mb-2">Sets the viewport region for rendering.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mgfx_viewport(0, 0, 1280, 720);</code></pre>
+          </div>
+
+          <!-- mgfx_scissor -->
+          <div id="mgfx_scissor">
+            <h4 class="text-lg font-bold mb-1">mgfx_scissor</h4>
+            <p class="mb-2">Sets the scissor rectangle for rendering.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mgfx_scissor(100, 100, 400, 300);</code></pre>
+          </div>
+
+          <!-- mgfx_draw -->
+          <div id="mgfx_draw">
+            <h4 class="text-lg font-bold mb-1">mgfx_draw</h4>
+            <p class="mb-2">Draws non-indexed primitives using the currently bound pipeline and buffers.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mgfx_draw(3, 0); // Draw 3 vertices starting at vertex 0</code></pre>
+          </div>
+
+          <!-- mgfx_draw_indexed -->
+          <div id="mgfx_draw_indexed">
+            <h4 class="text-lg font-bold mb-1">mgfx_draw_indexed</h4>
+            <p class="mb-2">Draws indexed primitives using the currently bound pipeline and buffers.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mgfx_draw_indexed(6, 0, 0); // Draw 6 indices starting at index 0</code></pre>
+          </div>
+
+          <!-- mgfx_configure_swapchain -->
+          <div id="mgfx_configure_swapchain">
+            <h4 class="text-lg font-bold mb-1">mgfx_configure_swapchain</h4>
+            <p class="mb-2">Configures the swapchain (screen buffer) with the given settings.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mg_swapchain_config_info config = {
+  .format = MG_PIXEL_FORMAT_B8G8R8A8_SRGB,
+  .present_mode = MG_PRESENT_MODE_FIFO,
+  .width = 1280,
+  .height = 720
+};
+mgfx_configure_swapchain(&config);</code></pre>
+          </div>
+
+          <!-- mgfx_create_render_pass -->
+          <div id="mgfx_create_render_pass">
+            <h4 class="text-lg font-bold mb-1">mgfx_create_render_pass</h4>
+            <p class="mb-2">Creates a render pass object describing how rendering will occur.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mg_render_pass_create_info rp_info = {
+  .color_attachment = { .format = MG_PIXEL_FORMAT_B8G8R8A8_SRGB },
+  .depth_stencil_attachment = { .format = MG_PIXEL_FORMAT_D32_SFLOAT },
+  .has_depth_stencil_attachment = true
+};
+mg_render_pass render_pass = mgfx_create_render_pass(&rp_info);</code></pre>
+          </div>
+
+          <!-- mgfx_destroy_render_pass -->
+          <div id="mgfx_destroy_render_pass">
+            <h4 class="text-lg font-bold mb-1">mgfx_destroy_render_pass</h4>
+            <p class="mb-2">Destroys a render pass object.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mgfx_destroy_render_pass(render_pass);</code></pre>
+          </div>
+
+          <!-- mgfx_begin_render_pass -->
+          <div id="mgfx_begin_render_pass">
+            <h4 class="text-lg font-bold mb-1">mgfx_begin_render_pass</h4>
+            <p class="mb-2">Begins a render pass using the specified framebuffer and clear values.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mg_render_pass_begin_info begin_info = {
+  .render_area = {0, 0, 1280, 720},
+  .clear_value = {0.1f, 0.1f, 0.1f, 1.0f}
+};
+mgfx_begin_render_pass(render_pass, framebuffer, &begin_info);</code></pre>
+          </div>
+
+          <!-- mgfx_begin_default_render_pass -->
+          <div id="mgfx_begin_default_render_pass">
+            <h4 class="text-lg font-bold mb-1">mgfx_begin_default_render_pass</h4>
+            <p class="mb-2">Begins the default render pass (usually the swapchain framebuffer).</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mg_render_pass_begin_info begin_info = {
+  .render_area = {0, 0, 1280, 720},
+  .clear_value = {0.0f, 0.0f, 0.0f, 1.0f}
+};
+mgfx_begin_default_render_pass(&begin_info);</code></pre>
+          </div>
+
+          <!-- mgfx_end_render_pass -->
+          <div id="mgfx_end_render_pass">
+            <h4 class="text-lg font-bold mb-1">mgfx_end_render_pass</h4>
+            <p class="mb-2">Ends the current render pass.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mgfx_end_render_pass();</code></pre>
+          </div>
+
+          <!-- mgfx_create_pipeline -->
+          <div id="mgfx_create_pipeline">
+            <h4 class="text-lg font-bold mb-1">mgfx_create_pipeline</h4>
+            <p class="mb-2">Creates a graphics pipeline (shaders, layout, state).</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mg_pipeline_create_info pipeline_info = {
+  .shader = shader,
+  .vertex_layout = vertex_layout,
+  .primitive_topology = MG_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+  .polygon_mode = MG_POLYGON_MODE_FILL,
+  .cull_mode = MG_CULL_MODE_BACK,
+  .front_face = MG_FRONT_FACE_CCW,
+  .color_blend = color_blend,
+  .depth_stencil = depth_stencil,
+  .render_pass = render_pass
+};
+mg_pipeline pipeline = mgfx_create_pipeline(&pipeline_info);</code></pre>
+          </div>
+
+          <!-- mgfx_destroy_pipeline -->
+          <div id="mgfx_destroy_pipeline">
+            <h4 class="text-lg font-bold mb-1">mgfx_destroy_pipeline</h4>
+            <p class="mb-2">Destroys a graphics pipeline.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mgfx_destroy_pipeline(pipeline);</code></pre>
+          </div>
+
+          <!-- mgfx_bind_pipeline -->
+          <div id="mgfx_bind_pipeline">
+            <h4 class="text-lg font-bold mb-1">mgfx_bind_pipeline</h4>
+            <p class="mb-2">Binds a graphics pipeline for subsequent draw calls.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mgfx_bind_pipeline(pipeline);</code></pre>
+          </div>
+
+          <!-- mgfx_create_vertex_buffer -->
+          <div id="mgfx_create_vertex_buffer">
+            <h4 class="text-lg font-bold mb-1">mgfx_create_vertex_buffer</h4>
+            <p class="mb-2">Creates a vertex buffer with the given data.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mg_vertex_buffer vbo = mgfx_create_vertex_buffer(sizeof(vertices), vertices);</code></pre>
+          </div>
+
+          <!-- mgfx_destroy_vertex_buffer -->
+          <div id="mgfx_destroy_vertex_buffer">
+            <h4 class="text-lg font-bold mb-1">mgfx_destroy_vertex_buffer</h4>
+            <p class="mb-2">Destroys a vertex buffer.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mgfx_destroy_vertex_buffer(vbo);</code></pre>
+          </div>
+
+          <!-- mgfx_create_index_buffer -->
+          <div id="mgfx_create_index_buffer">
+            <h4 class="text-lg font-bold mb-1">mgfx_create_index_buffer</h4>
+            <p class="mb-2">Creates an index buffer with the given data.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mg_index_buffer ibo = mgfx_create_index_buffer(sizeof(indices), indices);</code></pre>
+          </div>
+
+          <!-- mgfx_destroy_index_buffer -->
+          <div id="mgfx_destroy_index_buffer">
+            <h4 class="text-lg font-bold mb-1">mgfx_destroy_index_buffer</h4>
+            <p class="mb-2">Destroys an index buffer.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mgfx_destroy_index_buffer(ibo);</code></pre>
+          </div>
+
+          <!-- mgfx_create_dynamic_vertex_buffer -->
+          <div id="mgfx_create_dynamic_vertex_buffer">
+            <h4 class="text-lg font-bold mb-1">mgfx_create_dynamic_vertex_buffer</h4>
+            <p class="mb-2">Creates a dynamic (frequently updated) vertex buffer.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mg_dynamic_vertex_buffer dyn_vbo = mgfx_create_dynamic_vertex_buffer(size);</code></pre>
+          </div>
+
+          <!-- mgfx_destroy_dynamic_vertex_buffer -->
+          <div id="mgfx_destroy_dynamic_vertex_buffer">
+            <h4 class="text-lg font-bold mb-1">mgfx_destroy_dynamic_vertex_buffer</h4>
+            <p class="mb-2">Destroys a dynamic vertex buffer.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mgfx_destroy_dynamic_vertex_buffer(dyn_vbo);</code></pre>
+          </div>
+
+          <!-- mgfx_update_dynamic_vertex_buffer -->
+          <div id="mgfx_update_dynamic_vertex_buffer">
+            <h4 class="text-lg font-bold mb-1">mgfx_update_dynamic_vertex_buffer</h4>
+            <p class="mb-2">Updates the contents of a dynamic vertex buffer.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mgfx_update_dynamic_vertex_buffer(dyn_vbo, size, new_vertices);</code></pre>
+          </div>
+
+          <!-- mgfx_create_dynamic_index_buffer -->
+          <div id="mgfx_create_dynamic_index_buffer">
+            <h4 class="text-lg font-bold mb-1">mgfx_create_dynamic_index_buffer</h4>
+            <p class="mb-2">Creates a dynamic (frequently updated) index buffer.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mg_dynamic_index_buffer dyn_ibo = mgfx_create_dynamic_index_buffer(size);</code></pre>
+          </div>
+
+          <!-- mgfx_destroy_dynamic_index_buffer -->
+          <div id="mgfx_destroy_dynamic_index_buffer">
+            <h4 class="text-lg font-bold mb-1">mgfx_destroy_dynamic_index_buffer</h4>
+            <p class="mb-2">Destroys a dynamic index buffer.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mgfx_destroy_dynamic_index_buffer(dyn_ibo);</code></pre>
+          </div>
+
+          <!-- mgfx_update_dynamic_index_buffer -->
+          <div id="mgfx_update_dynamic_index_buffer">
+            <h4 class="text-lg font-bold mb-1">mgfx_update_dynamic_index_buffer</h4>
+            <p class="mb-2">Updates the contents of a dynamic index buffer.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mgfx_update_dynamic_index_buffer(dyn_ibo, size, new_indices);</code></pre>
+          </div>
+
+          <!-- mgfx_bind_vertex_buffer -->
+          <div id="mgfx_bind_vertex_buffer">
+            <h4 class="text-lg font-bold mb-1">mgfx_bind_vertex_buffer</h4>
+            <p class="mb-2">Binds a vertex buffer for drawing.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mgfx_bind_vertex_buffer(vbo);</code></pre>
+          </div>
+
+          <!-- mgfx_bind_dynamic_vertex_buffer -->
+          <div id="mgfx_bind_dynamic_vertex_buffer">
+            <h4 class="text-lg font-bold mb-1">mgfx_bind_dynamic_vertex_buffer</h4>
+            <p class="mb-2">Binds a dynamic vertex buffer for drawing.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mgfx_bind_dynamic_vertex_buffer(dyn_vbo);</code></pre>
+          </div>
+
+          <!-- mgfx_bind_index_buffer -->
+          <div id="mgfx_bind_index_buffer">
+            <h4 class="text-lg font-bold mb-1">mgfx_bind_index_buffer</h4>
+            <p class="mb-2">Binds an index buffer for drawing.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mgfx_bind_index_buffer(ibo, MG_INDEX_TYPE_UINT32);</code></pre>
+          </div>
+
+          <!-- mgfx_bind_dynamic_index_buffer -->
+          <div id="mgfx_bind_dynamic_index_buffer">
+            <h4 class="text-lg font-bold mb-1">mgfx_bind_dynamic_index_buffer</h4>
+            <p class="mb-2">Binds a dynamic index buffer for drawing.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mgfx_bind_dynamic_index_buffer(dyn_ibo, MG_INDEX_TYPE_UINT16);</code></pre>
+          </div>
+
+          <!-- mgfx_bind_uniforms -->
+          <div id="mgfx_bind_uniforms">
+            <h4 class="text-lg font-bold mb-1">mgfx_bind_uniforms</h4>
+            <p class="mb-2">Binds uniform data to the current pipeline.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mgfx_bind_uniforms(0, sizeof(my_uniforms), &my_uniforms);</code></pre>
+          </div>
+
+          <!-- mgfx_create_image -->
+          <div id="mgfx_create_image">
+            <h4 class="text-lg font-bold mb-1">mgfx_create_image</h4>
+            <p class="mb-2">Creates an image/texture resource.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mg_image_create_info img_info = {
+  .format = MG_PIXEL_FORMAT_R8G8B8A8_UNORM,
+  .type = MG_IMAGE_TYPE_2D,
+  .usage = MG_IMAGE_USAGE_COLOR_ATTACHMENT,
+  .width = 256,
+  .height = 256
+};
+mg_image image = mgfx_create_image(&img_info);</code></pre>
+          </div>
+
+          <!-- mgfx_destroy_image -->
+          <div id="mgfx_destroy_image">
+            <h4 class="text-lg font-bold mb-1">mgfx_destroy_image</h4>
+            <p class="mb-2">Destroys an image/texture resource.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mgfx_destroy_image(image);</code></pre>
+          </div>
+
+          <!-- mgfx_update_image -->
+          <div id="mgfx_update_image">
+            <h4 class="text-lg font-bold mb-1">mgfx_update_image</h4>
+            <p class="mb-2">Updates the contents of an image/texture resource.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mg_image_write_info write_info = {
+  .format = MG_PIXEL_FORMAT_R8G8B8A8_UNORM,
+  .width = 256,
+  .height = 256,
+  .data = pixels
+};
+mgfx_update_image(image, &write_info);</code></pre>
+          </div>
+
+          <!-- mgfx_create_image_array -->
+          <div id="mgfx_create_image_array">
+            <h4 class="text-lg font-bold mb-1">mgfx_create_image_array</h4>
+            <p class="mb-2">Creates an image array resource for binding multiple images.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mg_image_array img_array = mgfx_create_image_array();</code></pre>
+          </div>
+
+          <!-- mgfx_destroy_image_array -->
+          <div id="mgfx_destroy_image_array">
+            <h4 class="text-lg font-bold mb-1">mgfx_destroy_image_array</h4>
+            <p class="mb-2">Destroys an image array resource.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mgfx_destroy_image_array(img_array);</code></pre>
+          </div>
+
+          <!-- mgfx_update_image_array -->
+          <div id="mgfx_update_image_array">
+            <h4 class="text-lg font-bold mb-1">mgfx_update_image_array</h4>
+            <p class="mb-2">Updates the contents of an image array resource.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mgfx_update_image_array(img_array, images, samplers, count);</code></pre>
+          </div>
+
+          <!-- mgfx_bind_image_array -->
+          <div id="mgfx_bind_image_array">
+            <h4 class="text-lg font-bold mb-1">mgfx_bind_image_array</h4>
+            <p class="mb-2">Binds an image array resource for use in shaders.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mgfx_bind_image_array(img_array);</code></pre>
+          </div>
+
+          <!-- mgfx_create_sampler -->
+          <div id="mgfx_create_sampler">
+            <h4 class="text-lg font-bold mb-1">mgfx_create_sampler</h4>
+            <p class="mb-2">Creates a sampler resource for sampling images/textures.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mg_sampler_create_info sampler_info = {
+  .mag_filter = MG_SAMPLER_FILTER_LINEAR,
+  .min_filter = MG_SAMPLER_FILTER_LINEAR,
+  .address_mode_u = MG_SAMPLER_ADDRESS_MODE_REPEAT,
+  .address_mode_v = MG_SAMPLER_ADDRESS_MODE_REPEAT,
+  .address_mode_w = MG_SAMPLER_ADDRESS_MODE_REPEAT
+};
+mg_sampler sampler = mgfx_create_sampler(&sampler_info);</code></pre>
+          </div>
+
+          <!-- mgfx_destroy_sampler -->
+          <div id="mgfx_destroy_sampler">
+            <h4 class="text-lg font-bold mb-1">mgfx_destroy_sampler</h4>
+            <p class="mb-2">Destroys a sampler resource.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mgfx_destroy_sampler(sampler);</code></pre>
+          </div>
+
+          <!-- mgfx_create_framebuffer -->
+          <div id="mgfx_create_framebuffer">
+            <h4 class="text-lg font-bold mb-1">mgfx_create_framebuffer</h4>
+            <p class="mb-2">Creates a framebuffer resource for offscreen rendering.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mg_framebuffer_create_info fb_info = {
+  .render_pass = render_pass,
+  .color_attachment = image,
+  .depth_stencil_attachment = depth_image,
+  .width = 1280,
+  .height = 720
+};
+mg_framebuffer framebuffer = mgfx_create_framebuffer(&fb_info);</code></pre>
+          </div>
+
+          <!-- mgfx_destroy_framebuffer -->
+          <div id="mgfx_destroy_framebuffer">
+            <h4 class="text-lg font-bold mb-1">mgfx_destroy_framebuffer</h4>
+            <p class="mb-2">Destroys a framebuffer resource.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mgfx_destroy_framebuffer(framebuffer);</code></pre>
+          </div>
+
+          <!-- mgfx_get_type -->
+          <div id="mgfx_get_type">
+            <h4 class="text-lg font-bold mb-1">mgfx_get_type</h4>
+            <p class="mb-2">Returns the current renderer backend type.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mg_renderer_type type = mgfx_get_type();</code></pre>
+          </div>
+
+        </div>
+        <!-- END FUNCTION DOCS -->
+      </section>
+      <section id="platform" class="mb-12">
+        <h2 class="text-3xl font-bold mb-4">Platform</h2>
+        <p class="mb-2">Platform abstraction for windowing, timing, and dynamic library loading.</p>
+        <h3 class="text-xl font-semibold mt-4 mb-2">API Reference</h3>
+        <table class="min-w-full text-sm bg-gray-800 rounded shadow overflow-hidden">
+          <thead class="bg-gray-900">
+            <tr><th class="bg-gray-200 p-2 text-left">Function</th><th class="bg-gray-200 p-2 text-left">Description</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="p-2 font-mono"><a href="#mg_platform_initialize" class="text-red-400 hover:underline">mg_platform_initialize</a></td><td class="p-2">Initialize the platform layer.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mg_platform_shutdown" class="text-red-400 hover:underline">mg_platform_shutdown</a></td><td class="p-2">Shutdown the platform layer.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mg_platform_poll_events" class="text-red-400 hover:underline">mg_platform_poll_events</a></td><td class="p-2">Poll for OS events.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mg_get_time" class="text-red-400 hover:underline">mg_get_time</a></td><td class="p-2">Get current time in seconds.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mg_platform_load_library" class="text-red-400 hover:underline">mg_platform_load_library</a></td><td class="p-2">Load a dynamic library.</td></tr>
+            <tr><td class="p-2 font-mono"><a href="#mg_platform_get_proc_address" class="text-red-400 hover:underline">mg_platform_get_proc_address</a></td><td class="p-2">Get a function pointer from a library.</td></tr>
+          </tbody>
+        </table>
+        <div class="space-y-12 mt-8">
+          <!-- mg_platform_initialize -->
+          <div id="mg_platform_initialize">
+            <h4 class="text-lg font-bold mb-1">mg_platform_initialize</h4>
+            <p class="mb-2">Initializes the platform layer and creates a window or context.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mg_platform_init_info info = {
+  .title = "My App",
+  .width = 1280,
+  .height = 720
+};
+mg_platform* platform = mg_platform_initialize(&info);</code></pre>
+          </div>
+          <!-- mg_platform_shutdown -->
+          <div id="mg_platform_shutdown">
+            <h4 class="text-lg font-bold mb-1">mg_platform_shutdown</h4>
+            <p class="mb-2">Shuts down the platform layer and destroys the window/context.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mg_platform_shutdown(platform);</code></pre>
+          </div>
+          <!-- mg_platform_poll_events -->
+          <div id="mg_platform_poll_events">
+            <h4 class="text-lg font-bold mb-1">mg_platform_poll_events</h4>
+            <p class="mb-2">Polls for operating system events (input, window, etc).</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mg_platform_poll_events(platform);</code></pre>
+          </div>
+          <!-- mg_get_time -->
+          <div id="mg_get_time">
+            <h4 class="text-lg font-bold mb-1">mg_get_time</h4>
+            <p class="mb-2">Returns the current time in seconds (high precision).</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">double now = mg_get_time();</code></pre>
+          </div>
+          <!-- mg_platform_load_library -->
+          <div id="mg_platform_load_library">
+            <h4 class="text-lg font-bold mb-1">mg_platform_load_library</h4>
+            <p class="mb-2">Loads a dynamic/shared library at runtime.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mg_dynamic_library* lib = mg_platform_load_library("myplugin.dll");</code></pre>
+          </div>
+          <!-- mg_platform_get_proc_address -->
+          <div id="mg_platform_get_proc_address">
+            <h4 class="text-lg font-bold mb-1">mg_platform_get_proc_address</h4>
+            <p class="mb-2">Gets a function pointer from a loaded dynamic library.</p>
+            <pre class="bg-gray-100 rounded p-4 overflow-x-auto text-xs mb-2"><code class="language-c">mg_proc_address* proc = mg_platform_get_proc_address(lib, "my_function");</code></pre>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-c.min.js"></script>
+</body>
+</html> 

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Magma Engine</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <style>
+    body, html {
+      background: #18181b !important;
+      color: #f4f4f5 !important;
+    }
+    .bg-white, .bg-gray-50, .bg-gray-100, .bg-gray-200 {
+      background-color: #23232a !important;
+    }
+    .text-gray-900, .text-gray-800, .text-gray-700, .text-gray-600 {
+      color: #e5e7eb !important;
+    }
+    .text-gray-500 { color: #a1a1aa !important; }
+    .shadow { box-shadow: 0 2px 8px 0 #0006 !important; }
+    .border, .border-r { border-color: #27272a !important; }
+    a { color: #60a5fa; }
+    a:hover { color: #f87171; }
+  </style>
+</head>
+<body class="bg-gray-900 text-gray-100">
+  <div class="min-h-screen flex flex-col items-center justify-center p-4">
+    <div class="w-full max-w-3xl flex flex-col items-center">
+      <div class="mb-8">
+        <!-- Logo -->
+        <div class="w-64 h-16 mx-auto mb-4">
+          <!-- Inline SVG logo -->
+          <!--#include file="logo.svg" -->
+          <img src="logo.svg" alt="Magma Engine Logo" class="w-full h-full object-contain">
+        </div>
+        <p class="text-lg text-center text-gray-300 mb-4">A modular, cross-platform C engine for games, multimedia, and creative applications.</p>
+        <div class="flex justify-center space-x-4">
+          <a href="docs.html" class="px-6 py-2 bg-red-600 text-white rounded shadow hover:bg-red-700 font-semibold transition">Documentation</a>
+          <a href="#credits" class="px-6 py-2 bg-gray-800 text-gray-100 rounded shadow hover:bg-gray-700 font-semibold transition">Credits</a>
+        </div>
+      </div>
+      <div class="mt-16 w-full" id="credits">
+        <h2 class="text-2xl font-bold mb-2">Credits & Third-Party Libraries</h2>
+        <ul class="list-disc pl-6 text-gray-300">
+          <li><b>miniaudio</b> - Audio playback (<a href="https://github.com/mackron/miniaudio" class="text-blue-400 underline">GitHub</a>)</li>
+          <li><b>glad</b> - OpenGL loader (<a href="https://github.com/Dav1dde/glad" class="text-blue-400 underline">GitHub</a>)</li>
+          <li><b>cute_c2</b> - 2D collision detection (<a href="https://github.com/RandyGaul/cute_headers" class="text-blue-400 underline">GitHub</a>)</li>
+          <li><b>stb_truetype</b> - Font rendering (<a href="https://github.com/nothings/stb" class="text-blue-400 underline">GitHub</a>)</li>
+        </ul>
+        <p class="text-sm text-gray-500 mt-2">Magma Engine &copy; 2024. All rights reserved.</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html> 
