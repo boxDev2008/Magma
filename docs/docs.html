@@ -36,9 +36,18 @@
 </head>
 <body class="bg-gray-900 text-gray-100">
   <div class="flex min-h-screen">
+    <!-- Mobile Sidebar Toggle Button -->
+    <button id="menu-toggle" class="md:hidden fixed top-4 left-4 z-50 p-2 bg-gray-700 rounded focus:outline-none">
+      <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M4 6h16M4 12h16M4 18h16"/>
+      </svg>
+    </button>
+
     <!-- Sidebar -->
-    <aside class="w-64 bg-gray-800 border-r p-6 flex flex-col space-y-4">
-      <nav class="fixed flex flex-col space-y-2">
+    <aside id="sidebar"
+           class="w-64 bg-gray-800 border-r p-6 flex flex-col space-y-4 fixed top-0 left-0 h-full transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out z-40">
+      <nav class="flex flex-col space-y-2">
         <a href="index.html" class="text-2xl font-extrabold text-red-400 mb-8">
           <img src="logo.svg" alt="Magma Engine Logo" class="w-48 h-16 object-contain">
         </a>
@@ -49,8 +58,12 @@
         <a href="#platform" class="hover:text-red-400 font-semibold">Platform</a>
       </nav>
     </aside>
+
+    <!-- Overlay for mobile -->
+    <div id="overlay" class="fixed inset-0 bg-black bg-opacity-50 z-30 hidden md:hidden"></div>
+
     <!-- Main Content -->
-    <main class="flex-1 p-8 overflow-y-auto">
+    <main class="flex-1 p-8 pt-20 md:pt-8 overflow-y-auto ml-0 md:ml-64">
       <section id="core" class="mb-12">
         <h2 class="text-3xl font-bold mb-4">Core</h2>
         <p class="mb-2">Application and event management, input handling, and main entry point macros.</p>
@@ -683,6 +696,24 @@ mg_platform* platform = mg_platform_initialize(&info);</code></pre>
       </section>
     </main>
   </div>
+  <script>
+    const toggleBtn = document.getElementById('menu-toggle');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('overlay');
+
+    toggleBtn.addEventListener('click', () => {
+      const isOpen = sidebar.classList.contains('translate-x-0');
+      sidebar.classList.toggle('-translate-x-full');
+      sidebar.classList.toggle('translate-x-0');
+      overlay.classList.toggle('hidden');
+    });
+
+    overlay.addEventListener('click', () => {
+      sidebar.classList.add('-translate-x-full');
+      sidebar.classList.remove('translate-x-0');
+      overlay.classList.add('hidden');
+    });
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-c.min.js"></script>
 </body>
