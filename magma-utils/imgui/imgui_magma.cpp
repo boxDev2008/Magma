@@ -166,7 +166,7 @@ void mg_imgui_initialize(void)
     io.Fonts->GetTexDataAsRGBA32(&font_pixels, &font_width, &font_height);
 
     mg_image_create_info img_create_info = { };
-    img_create_info.format = MG_PIXEL_FORMAT_R8G8B8A8_SRGB;
+    img_create_info.format = MG_PIXEL_FORMAT_R8G8B8A8_UNORM;
     img_create_info.type = MG_IMAGE_TYPE_2D;
     img_create_info.width = font_width;
     img_create_info.height = font_height;
