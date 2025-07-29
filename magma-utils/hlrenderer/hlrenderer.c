@@ -179,7 +179,7 @@ void mg_hlgfx_initialize(const mg_hlgfx_init_info *info)
     rdata = (mg_hlgfx_data*)calloc(1, sizeof(mg_hlgfx_data));
 
     mg_swapchain_config_info swapchain_info;
-    swapchain_info.format = MG_PIXEL_FORMAT_B8G8R8A8_SRGB;
+    swapchain_info.format = MG_PIXEL_FORMAT_B8G8R8A8_UNORM;
     swapchain_info.present_mode = MG_PRESENT_MODE_FIFO;
     swapchain_info.width = info->width;
     swapchain_info.height = info->height;
@@ -210,12 +210,12 @@ void mg_hlgfx_initialize(const mg_hlgfx_init_info *info)
 
 		mg_render_pass_create_info render_pass_info = {
 			.color_attachment = {
-				.format = MG_PIXEL_FORMAT_R8G8B8A8_SRGB
+				.format = MG_PIXEL_FORMAT_R8G8B8A8_UNORM
 			}
 		};
 		
 		mg_image_create_info color_attachment_info = {
-			.format = MG_PIXEL_FORMAT_R8G8B8A8_SRGB,
+			.format = MG_PIXEL_FORMAT_R8G8B8A8_UNORM,
 			.type = MG_IMAGE_TYPE_2D,
 			.usage = MG_IMAGE_USAGE_COLOR_ATTACHMENT,
 			.width = rdata->width,
@@ -401,7 +401,7 @@ void mg_hlgfx_resize(int32_t width, int32_t height)
     mgfx_wait();
 
     mg_swapchain_config_info config_info;
-	config_info.format = MG_PIXEL_FORMAT_B8G8R8A8_SRGB;
+	config_info.format = MG_PIXEL_FORMAT_B8G8R8A8_UNORM;
 	config_info.present_mode = MG_PRESENT_MODE_FIFO;
 	config_info.width = width;
 	config_info.height = height;
@@ -411,7 +411,7 @@ void mg_hlgfx_resize(int32_t width, int32_t height)
 	mgfx_destroy_image(rdata->screen_data.depth_img);
 
     mg_image_create_info color_attachment_info = {
-        .format = MG_PIXEL_FORMAT_R8G8B8A8_SRGB,
+        .format = MG_PIXEL_FORMAT_R8G8B8A8_UNORM,
         .type = MG_IMAGE_TYPE_2D,
         .usage = MG_IMAGE_USAGE_COLOR_ATTACHMENT,
         .width = width,
@@ -456,7 +456,7 @@ void mg_hlgfx_begin(const mg_post_process_info *post_process_info)
 
 	mg_render_pass_begin_info rp_info = {
         .render_area = (mg_vec4) {0.0f, 0.0f, rdata->width, rdata->height},
-        .clear_value = (mg_vec4) {0.01f, 0.01f, 0.01f, 1.0f}
+        .clear_value = (mg_vec4) {0.0f, 0.0f, 0.0f, 1.0f}
     };
 	mgfx_begin_render_pass(rdata->screen_data.rp, rdata->screen_data.fb, &rp_info);
 	mgfx_viewport(0, 0, rdata->width, rdata->height);
