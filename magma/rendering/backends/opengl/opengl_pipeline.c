@@ -121,28 +121,12 @@ mg_opengl_pipeline *mg_opengl_create_pipeline(mg_pipeline_create_info *create_in
     mg_opengl_pipeline *pipeline = (mg_opengl_pipeline*)malloc(sizeof(mg_opengl_pipeline));
 
     uint32_t vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertex_shader, 1, &create_info->shader.vertex.code, NULL);
+    glShaderSource(vertex_shader, 1, &create_info->shader.vertex.code, &create_info->shader.vertex.size);
     glCompileShader(vertex_shader);
-    
-    /*int success;
-    char infoLog[512];
-    glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &success);
-    if(!success)
-    {
-        glGetShaderInfoLog(vertex_shader, 512, NULL, infoLog);
-        printf("ERROR::SHADER::VERTEX::COMPILATION_FAILED\n%s\n", infoLog);
-    }*/
 
     uint32_t fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragment_shader, 1, &create_info->shader.fragment.code, NULL);
+    glShaderSource(fragment_shader, 1, &create_info->shader.fragment.code, &create_info->shader.fragment.size);
     glCompileShader(fragment_shader);
-    
-    /*glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &success);
-    if(!success)
-    {
-        glGetShaderInfoLog(fragment_shader, 512, NULL, infoLog);
-        printf("ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n%s\n", infoLog);
-    }*/
 
     pipeline->program_id = glCreateProgram();
     glAttachShader(pipeline->program_id, vertex_shader);
