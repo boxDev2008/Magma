@@ -9,6 +9,7 @@ workspace "Magma"
 	configurations { "Release" }
 	startproject "Sandbox"
 
+--[[
 project "Magma"
 	kind "SharedLib"
 	language "C"
@@ -69,6 +70,7 @@ project "Magma-shdc"
 	optimize "On"
 	filter "configurations:Release"
 		defines { "NDEBUG" }
+]]
 
 project "Sandbox"
 	kind "ConsoleApp"
