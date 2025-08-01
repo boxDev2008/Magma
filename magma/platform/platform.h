@@ -37,6 +37,7 @@ typedef struct mg_x11_platform
     int32_t window_width;
     int32_t window_height;
 	Atom wm_delete_window;
+	Cursor hidden_cursor;
 }
 mg_x11_platform;
 #endif

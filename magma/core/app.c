@@ -20,11 +20,8 @@ void mg_app_run(mg_app_init_info *info, int32_t argc, char* const* argv)
 
     info->events.initialize(argc, argv, init_info.width, init_info.height, platform);
 
-    struct
-    {
-        float last, current, delta;
-    }
-    app_time = { 0 };
+    struct { float last, current, delta; } app_time;
+    app_time.last = mg_get_time();
 
     app_running = true;
     while (app_running)

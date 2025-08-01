@@ -54,7 +54,7 @@ EM_BOOL resize_callback(int eventType, const EmscriptenUiEvent *e, void *userDat
 
 EM_BOOL quit_callback(int eventType, const void *reserved, void *userData)
 {
-    mg_application_quit_event_data data = {NULL};
+    mg_quit_event_data data = {NULL};
     mg_event_call(MG_EVENT_CODE_QUIT, (void*)&data);
     return EM_TRUE;
 }
@@ -85,7 +85,7 @@ void mg_platform_poll_events(mg_platform *platform)
 
 double mg_get_time(void)
 {
-
+    return emscripten_get_now() * 0.001;
 }
 
 #endif

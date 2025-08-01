@@ -9,7 +9,7 @@ out vec2 frag_tex_coord;
 out vec4 frag_color;
 out float frag_tex_id;
 
-uniform UniformBufferObject
+layout(binding = 0) uniform ViewData
 {
     mat4 view_projection;
 };
@@ -24,7 +24,7 @@ void main()
 
 @stage fragment
 
-uniform sampler2D textures[8];
+layout(set = 1, binding = 0) uniform sampler2D textures[8];
 
 in vec2 frag_tex_coord;
 in vec4 frag_color;

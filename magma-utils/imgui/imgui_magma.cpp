@@ -166,7 +166,7 @@ void mg_imgui_initialize(void)
     io.Fonts->GetTexDataAsRGBA32(&font_pixels, &font_width, &font_height);
 
     mg_image_create_info img_create_info = { };
-    img_create_info.format = MG_PIXEL_FORMAT_R8G8B8A8_SRGB;
+    img_create_info.format = MG_PIXEL_FORMAT_R8G8B8A8_UNORM;
     img_create_info.type = MG_IMAGE_TYPE_2D;
     img_create_info.width = font_width;
     img_create_info.height = font_height;
@@ -300,7 +300,7 @@ void mg_imgui_draw(ImDrawData* draw_data)
     int global_vtx_offset = 0;
     int global_idx_offset = 0;
 
-	ImTextureID global_tex_id = io.Fonts->TexID;
+	ImTextureID global_tex_id = io.Fonts->TexID.GetTexID();
 	mgfx_bind_image_array((mg_image_array)global_tex_id);
     
     for (int cl_index = 0; cl_index < draw_data->CmdListsCount; cl_index++)
@@ -319,9 +319,10 @@ void mg_imgui_draw(ImDrawData* draw_data)
                 int scissor_w = (int) (pcmd.ClipRect.z - pcmd.ClipRect.x);
                 int scissor_h = (int) (pcmd.ClipRect.w - pcmd.ClipRect.y);
 
-				if (pcmd.TextureId != global_tex_id)
+				const ImTextureID &tex_id = pcmd.GetTexID();
+				if (pcmd.GetTexID() != global_tex_id)
 				{
-					global_tex_id = pcmd.TextureId;
+					global_tex_id = tex_id;
 					mgfx_bind_image_array((mg_image_array)global_tex_id);
 				}
 

@@ -45,6 +45,7 @@ mg_vec3i;
 MG_API mg_vec3  mg_vec3_new         (float x, float y, float z);
 MG_API mg_vec3  mg_vec3_add         (mg_vec3 a, mg_vec3 b);
 MG_API mg_vec3  mg_vec3_subtract    (mg_vec3 a, mg_vec3 b);
+MG_API mg_vec3  mg_vec3_multiply    (mg_vec3 a, mg_vec3 b);
 MG_API mg_vec3  mg_vec3_lerp        (mg_vec3 a, mg_vec3 b, float by);
 
 MG_API float    mg_vec3_dot         (mg_vec3 a, mg_vec3 b);

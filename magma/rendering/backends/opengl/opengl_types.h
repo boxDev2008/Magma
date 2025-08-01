@@ -4,7 +4,11 @@
 
 #include "../../renderer.h"
 
+#if MG_PLATFORM_EMSCRIPTEN
+#include <GLES3/gl3.h>
+#else
 #include <glad/glad.h>
+#endif
 
 typedef struct mg_opengl_buffer
 {

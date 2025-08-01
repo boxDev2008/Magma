@@ -301,6 +301,17 @@ static mg_keys mg_translate_keycode(uint32_t keycode)
     }
 }
 
+Cursor mg_create_hidden_cursor(Display *display, Window root)
+{
+    Pixmap blank;
+    XColor dummy;
+    char data[1] = { 0 };
+    blank = XCreateBitmapFromData(display, root, data, 1, 1);
+    Cursor cursor = XCreatePixmapCursor(display, blank, blank, &dummy, &dummy, 0, 0);
+    XFreePixmap(display, blank);
+    return cursor;
+}
+
 mg_platform *mg_platform_initialize(mg_platform_init_info *init_info)
 {
     mg_x11_platform *platform = (mg_x11_platform*)malloc(sizeof(mg_x11_platform));
@@ -336,6 +347,13 @@ mg_platform *mg_platform_initialize(mg_platform_init_info *init_info)
     }
 
     XStoreName(platform->display, platform->window, init_info->title);
+
+	if (init_info->flags & MG_PLATFORM_FLAG_HIDE_CURSOR)
+	{
+		platform->hidden_cursor = mg_create_hidden_cursor(platform->display, platform->root_window);
+		XDefineCursor(platform->display, platform->window, platform->hidden_cursor);
+	}
+
     XMapWindow(platform->display, platform->window);
 
 	platform->wm_delete_window = XInternAtom(platform->display, "WM_DELETE_WINDOW", false);
@@ -354,6 +372,9 @@ void mg_platform_shutdown(mg_platform *platform)
     mg_x11_platform *handle = (mg_x11_platform*)platform;
 
     assert(handle->window != 0);	
+
+	if (platform->hidden_cursor)
+		XFreeCursor(handle->display, platform->hidden_cursor);
 
     XDestroyWindow(handle->display, handle->window);
     XCloseDisplay(handle->display);

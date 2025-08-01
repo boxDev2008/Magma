@@ -87,14 +87,14 @@ project "Sandbox"
 		"magma/vendor"
 	}
 
+	libdirs { "bin/%{cfg.buildcfg}" }
+
+	optimize "On"
+
 	filter { "system:windows" }
 		links { "Magma" }
 	filter { "system:linux" }
 		links { "Magma", "EGL" }
-
-	libdirs { "bin/%{cfg.buildcfg}" }
-
-	optimize "On"
 
 	filter "configurations:Release"
 		defines { "NDEBUG" }

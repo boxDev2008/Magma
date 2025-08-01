@@ -38,6 +38,7 @@ typedef enum mg_renderer_type
 {
     MG_RENDERER_TYPE_VULKAN,
     MG_RENDERER_TYPE_OPENGL,
+    MG_RENDERER_TYPE_OPENGLES,
     MG_RENDERER_TYPE_DIRECT3D11
 }
 mg_renderer_type;

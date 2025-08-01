@@ -45,7 +45,6 @@ mg_sound_resource *mg_audio_create_sound_resource_from_file(const char *file_nam
 void mg_audio_destroy_sound_resource(mg_sound_resource *resource)
 {
     ma_sound_uninit(resource);
-    free(resource);
 }
 
 mg_sound *mg_audio_play_sound_internal(mg_sound_resource *resource)
