@@ -19,7 +19,7 @@ void on_resize(mg_resized_event_data *data)
     mgfx_configure_swapchain(&config_info);
 }
 
-void on_initialize(int32_t argc, char* const* argv, uint32_t width, uint32_t height, mg_platform *platform)
+void on_initialize(int32_t argc, char* const* argv, uint32_t width, uint32_t height)
 {
     mg_event_connect(MG_EVENT_CODE_RESIZED, (mg_event)on_resize);
 
@@ -31,7 +31,6 @@ void on_initialize(int32_t argc, char* const* argv, uint32_t width, uint32_t hei
     };
     
     mgfx_init_info renderer_init_info = {
-        .platform = platform,
         .type = MG_RENDERER_TYPE_OPENGL,
         .swapchain_config_info = &swapchain_config
     };

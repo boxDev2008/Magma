@@ -10,10 +10,11 @@ typedef struct mg_app_init_info
 {
     const char *name;
     uint32_t width, height;
+    uint32_t flags;
 
     struct
     {
-        void (*initialize)(int32_t argc, char* const* argv, uint32_t width, uint32_t height, mg_platform *platform);
+        void (*initialize)(int32_t argc, char* const* argv, uint32_t width, uint32_t height);
         void (*shutdown)(void);
         void (*update)(float delta_time);
     }
@@ -22,6 +23,7 @@ typedef struct mg_app_init_info
 mg_app_init_info;
 
 MG_API void mg_app_run(mg_app_init_info *info, int32_t argc, char* const* argv);
+MG_API void mg_app_close(void);
 
 #define MG_APP_DEFINE_ENTRY(info, ...)\
 int32_t main(int32_t argc, char* const* argv)\

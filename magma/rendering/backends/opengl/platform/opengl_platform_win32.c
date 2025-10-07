@@ -20,9 +20,9 @@ static mg_opengl_win32_platform_context ctx;
 typedef BOOL (WINAPI *PFNWGLSWAPINTERVALEXTPROC)(int);
 static PFNWGLSWAPINTERVALEXTPROC wglSwapIntervalEXT = NULL;
 
-void mg_opengl_platform_initialize(mg_platform *platform)
+void mg_opengl_platform_initialize()
 {
-    mg_win32_platform *handle = (mg_win32_platform*)platform;
+    mg_win32_platform *handle = (mg_win32_platform*)mg_platform_get_handle();
     ctx.hwnd = handle->hwnd;
     ctx.hdc = GetDC(ctx.hwnd);
 

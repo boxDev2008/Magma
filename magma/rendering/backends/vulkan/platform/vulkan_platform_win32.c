@@ -5,9 +5,9 @@
 #include "../vulkan_renderer.h"
 #include <assert.h>
 
-void mg_vulkan_create_surface(mg_platform *platform)
+void mg_vulkan_create_surface(void)
 {
-    mg_win32_platform *handle = (mg_win32_platform*)platform;
+    mg_win32_platform *handle = (mg_win32_platform*)mg_platform_get_handle();
 
     VkWin32SurfaceCreateInfoKHR create_info = {VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR};
     create_info.hwnd = handle->hwnd;

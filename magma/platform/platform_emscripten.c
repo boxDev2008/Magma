@@ -52,14 +52,14 @@ EM_BOOL resize_callback(int eventType, const EmscriptenUiEvent *e, void *userDat
     return EM_TRUE;
 }
 
-EM_BOOL quit_callback(int eventType, const void *reserved, void *userData)
+const char *quit_callback(int eventType, const void *reserved, void *userData)
 {
     mg_quit_event_data data = {NULL};
     mg_event_call(MG_EVENT_CODE_QUIT, (void*)&data);
-    return EM_TRUE;
+    return NULL;
 }
 
-mg_platform *mg_platform_initialize(mg_platform_init_info *init_info)
+void mg_platform_initialize(mg_platform_init_info *init_info)
 {
     emscripten_set_keydown_callback(EMSCRIPTEN_EVENT_TARGET_DOCUMENT, NULL, EM_TRUE, key_down_callback);
     emscripten_set_keyup_callback(EMSCRIPTEN_EVENT_TARGET_DOCUMENT, NULL, EM_TRUE, key_up_callback);
@@ -67,18 +67,21 @@ mg_platform *mg_platform_initialize(mg_platform_init_info *init_info)
     emscripten_set_mouseup_callback(EMSCRIPTEN_EVENT_TARGET_DOCUMENT, NULL, EM_TRUE, mouse_up_callback);
     emscripten_set_mousemove_callback(EMSCRIPTEN_EVENT_TARGET_DOCUMENT, NULL, EM_TRUE, mouse_move_callback);
     emscripten_set_wheel_callback(EMSCRIPTEN_EVENT_TARGET_DOCUMENT, NULL, EM_TRUE, mouse_wheel_callback);
+    if (init_info->flags & MG_PLATFORM_FLAG_RESIZABLE)
+        emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, NULL, EM_TRUE, resize_callback);
     emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, NULL, EM_TRUE, resize_callback);
     emscripten_set_beforeunload_callback(NULL, quit_callback);
 
-    return NULL;
+    if (init_info->flags & MG_PLATFORM_FLAG_HIDE_CURSOR)
+        EM_ASM({document.getElementById('canvas').style.cursor = 'none';});
 }
 
-void mg_platform_shutdown(mg_platform *platform)
+void mg_platform_shutdown(void)
 {
 
 }
 
-void mg_platform_poll_events(mg_platform *platform)
+void mg_platform_poll_events(void)
 {
 
 }

@@ -18,18 +18,40 @@
 
 mg_opengl_context gl_ctx;
 
-const char *BACK_BUFFER_VERT = "#version 450 core\n"
-    "layout (location = 0) in vec2 in_position;"
-    "layout (location = 1) in vec2 in_tex_coord;"
+const char *BACK_BUFFER_VERT =
+#if MG_PLATFORM_EMSCRIPTEN
+    "#version 300 es\n"
+    "precision mediump float;"
+#else
+    "#version 450 core\n"
+#endif
+    "const vec2 positions[4] = vec2[]("
+        "vec2(-1.0, -1.0),"
+        "vec2(1.0, -1.0),"
+        "vec2(-1.0, 1.0),"
+        "vec2(1.0, 1.0)"
+    ");"
+    "const vec2 tex_coords[4] = vec2[]("
+        "vec2(0.0, 0.0),"
+        "vec2(1.0, 0.0),"
+        "vec2(0.0, 1.0),"
+        "vec2(1.0, 1.0)"
+    ");"
     "out vec2 tex_coord;"
     "void main()"
     "{"
-        "gl_Position = vec4(in_position, 0.0, 1.0);"
+        "gl_Position = vec4(positions[gl_VertexID], 0.0, 1.0);"
         "gl_Position.y = -gl_Position.y;"
-        "tex_coord = in_tex_coord;"
+        "tex_coord = tex_coords[gl_VertexID];"
     "}\0";
 
-const char *BACK_BUFFER_FRAG = "#version 450 core\n"
+const char *BACK_BUFFER_FRAG =
+#if MG_PLATFORM_EMSCRIPTEN
+    "#version 300 es\n"
+    "precision mediump float;"
+#else
+    "#version 450 core\n"
+#endif
     "out vec4 out_color;\n"
     "in vec2 tex_coord;"
     "uniform sampler2D u_texture;"
@@ -40,7 +62,7 @@ const char *BACK_BUFFER_FRAG = "#version 450 core\n"
 
 void mg_opengl_renderer_initialize(mgfx_init_info *init_info)
 {
-    mg_opengl_platform_initialize(init_info->platform);
+    mg_opengl_platform_initialize();
 
     glGenVertexArrays(1, &gl_ctx.vao);
 
@@ -59,27 +81,6 @@ void mg_opengl_renderer_initialize(mgfx_init_info *init_info)
 
     glDeleteShader(vertex);
     glDeleteShader(fragment);
-
-    const float vertices[20] = {
-        -1.0f, -1.0f, 0.0f, 0.0f,
-        1.0f, -1.0f, 1.0f, 0.0f,
-        1.0f, 1.0f, 1.0f, 1.0f,
-        -1.0f, 1.0f, 0.0f, 1.0f
-    };
-
-    glGenBuffers(1, &gl_ctx.back_buffer.vertex_buffer);
-    glBindBuffer(GL_ARRAY_BUFFER, gl_ctx.back_buffer.vertex_buffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-    const uint16_t indices[8] = {
-        0, 1, 3, 1, 2, 3
-    };
-
-    glGenBuffers(1, &gl_ctx.back_buffer.index_buffer);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gl_ctx.back_buffer.index_buffer);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
     glGenFramebuffers(1, &gl_ctx.back_buffer.framebuffer);
     glBindFramebuffer(GL_FRAMEBUFFER, gl_ctx.back_buffer.framebuffer);
@@ -100,6 +101,9 @@ void mg_opengl_renderer_initialize(mgfx_init_info *init_info)
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     glGenBuffers(MG_CONFIG_MAX_BINDABLE_UNIFORMS, gl_ctx.uniform_buffers);
+
+    for (uint32_t i = 0; i < MG_CONFIG_MAX_BINDABLE_IMAGES; i++)
+        gl_ctx.sampler_indices[i] = i;
 }
 
 void mg_opengl_renderer_shutdown(void)
@@ -107,8 +111,6 @@ void mg_opengl_renderer_shutdown(void)
     glDeleteBuffers(MG_CONFIG_MAX_BINDABLE_UNIFORMS, gl_ctx.uniform_buffers);
     glDeleteFramebuffers(1, &gl_ctx.back_buffer.framebuffer);
     glDeleteTextures(1, &gl_ctx.back_buffer.color_attachment);
-    glDeleteBuffers(1, &gl_ctx.back_buffer.vertex_buffer);
-    glDeleteBuffers(1, &gl_ctx.back_buffer.index_buffer);
     glDeleteProgram(gl_ctx.back_buffer.program);
     glDeleteVertexArrays(1, &gl_ctx.vao);
     mg_opengl_platform_shutdown();
@@ -133,18 +135,8 @@ void mg_opengl_renderer_end(void)
     glUseProgram(gl_ctx.back_buffer.program);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, gl_ctx.back_buffer.color_attachment);
-    glBindBuffer(GL_ARRAY_BUFFER, gl_ctx.back_buffer.vertex_buffer);
-        glVertexAttribPointer(0, 2,
-            GL_FLOAT, GL_FALSE, 4 * sizeof(float),
-            (void*)0);
-    glEnableVertexAttribArray(0);
-        glVertexAttribPointer(1, 2,
-            GL_FLOAT, GL_FALSE, 4 * sizeof(float),
-            (void*)(2 * sizeof(float)));
-    glEnableVertexAttribArray(1);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gl_ctx.back_buffer.index_buffer);
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
     mg_opengl_platform_swapbuffers();
 }
@@ -172,7 +164,11 @@ void mg_opengl_renderer_draw(uint32_t vertex_count, uint32_t first_vertex)
 void mg_opengl_renderer_draw_indexed(uint32_t index_count, uint32_t first_index, int32_t first_vertex)
 {
 	const int index_size = (gl_ctx.index_type == GL_UNSIGNED_SHORT) ? 2 : 4;
+#if !MG_PLATFORM_EMSCRIPTEN
 	glDrawElementsBaseVertex(gl_ctx.primitive_topology, index_count, gl_ctx.index_type, (void*)(first_index * index_size), first_vertex);
+#else
+    glDrawElements(gl_ctx.primitive_topology, index_count, gl_ctx.index_type, (void*)(first_index * index_size));
+#endif
 }
 
 void mg_opengl_configure_swapchain(mg_swapchain_config_info *config_info)
@@ -186,12 +182,16 @@ void mg_opengl_configure_swapchain(mg_swapchain_config_info *config_info)
     case MG_PIXEL_FORMAT_R8G8B8A8_SRGB:
     case MG_PIXEL_FORMAT_B8G8R8_SRGB:
     case MG_PIXEL_FORMAT_B8G8R8A8_SRGB:
+#if !MG_PLATFORM_EMSCRIPTEN
         glEnable(GL_FRAMEBUFFER_SRGB);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB, config_info->width, config_info->height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+#endif
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB8, config_info->width, config_info->height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
         break;
     default:
+#if !MG_PLATFORM_EMSCRIPTEN
         glDisable(GL_FRAMEBUFFER_SRGB);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, config_info->width, config_info->height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+#endif
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, config_info->width, config_info->height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
     }
 
     switch (config_info->present_mode)

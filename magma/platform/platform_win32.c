@@ -11,6 +11,8 @@
 #include <stdio.h>
 #include <assert.h>
 
+static mg_win32_platform *platform;
+
 static double clock_frequency;
 static LARGE_INTEGER start_time;
 
@@ -34,11 +36,12 @@ void mg_create_wide_string_from_utf8(const char *source, WCHAR *target)
     }
 }
 
-mg_platform *mg_platform_initialize(mg_platform_init_info *init_info)
+void mg_platform_initialize(mg_platform_init_info *init_info)
 {
-    mg_win32_platform *platform = (mg_win32_platform*)malloc(sizeof(mg_win32_platform));
-
+    platform = (mg_win32_platform*)malloc(sizeof(mg_win32_platform));
     platform->h_instance = GetModuleHandleA(0);
+
+    SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE);
 
     HICON icon = LoadIcon(platform->h_instance, IDI_APPLICATION);
     WNDCLASSA wc;
@@ -64,12 +67,11 @@ mg_platform *mg_platform_initialize(mg_platform_init_info *init_info)
     uint32_t window_width = init_info->width;
     uint32_t window_height = init_info->height;
 
-    uint32_t window_style = WS_OVERLAPPED | WS_SYSMENU | WS_CAPTION;
+    uint32_t window_style = WS_OVERLAPPED | WS_SYSMENU | WS_CAPTION | WS_MINIMIZEBOX;
     uint32_t window_ex_style = WS_EX_APPWINDOW;
 
-    window_style |= WS_MAXIMIZEBOX;
-    window_style |= WS_MINIMIZEBOX;
-    window_style |= WS_THICKFRAME;
+    if (init_info->flags & MG_PLATFORM_FLAG_RESIZABLE)
+        window_style |= WS_THICKFRAME | WS_MAXIMIZEBOX;
 
     RECT border_rect = {0, 0, 0, 0};
     AdjustWindowRectEx(&border_rect, window_style, 0, window_ex_style);
@@ -104,6 +106,9 @@ mg_platform *mg_platform_initialize(mg_platform_init_info *init_info)
     int32_t show_window_command_flags = should_activate ? SW_SHOW : SW_SHOWNOACTIVATE;
     ShowWindow(platform->hwnd, show_window_command_flags);
 
+    if (init_info->flags & MG_PLATFORM_FLAG_HIDE_CURSOR)
+        ShowCursor(FALSE);
+
     LARGE_INTEGER frequency;
     QueryPerformanceFrequency(&frequency);
     clock_frequency = 1.0 / (double)frequency.QuadPart;
@@ -111,31 +116,27 @@ mg_platform *mg_platform_initialize(mg_platform_init_info *init_info)
 
     platform->window_width = init_info->width;
     platform->window_height = init_info->height;
-
-    return platform;
 }
 
-void mg_platform_shutdown(mg_platform *platform)
+void mg_platform_shutdown(void)
 {
-    mg_win32_platform *handle = (mg_win32_platform*)platform;
+    assert(platform->hwnd != NULL);
 
-    assert(handle->hwnd != NULL);
+    DestroyWindow(platform->hwnd);
+    platform->hwnd = 0;
 
-    DestroyWindow(handle->hwnd);
-    handle->hwnd = 0;
-
-    UnregisterClassA("magma_window_class", handle->h_instance);
+    UnregisterClassA("magma_window_class", platform->h_instance);
 
     free(platform);
 }
 
-void mg_platform_poll_events(mg_platform *platform)
+void mg_platform_poll_events(void)
 {
     mg_win32_platform *handle = (mg_win32_platform*)platform;
 
     MSG message;
     
-    while (PeekMessageA(&message, handle->hwnd, 0, 0, PM_REMOVE))
+    while (PeekMessageA(&message, platform->hwnd, 0, 0, PM_REMOVE))
     {
         TranslateMessage(&message);
         DispatchMessageA(&message);
@@ -144,18 +145,10 @@ void mg_platform_poll_events(mg_platform *platform)
 
 LRESULT CALLBACK win32_process_message(HWND hwnd, uint32_t msg, WPARAM w_param, LPARAM l_param)
 {
-    static mg_platform *platform = 0;
-
     switch (msg)
     {
         case WM_ERASEBKGND:
             return 1;
-        case WM_NCCREATE:
-        {
-            CREATESTRUCT *p = (CREATESTRUCT *)l_param;
-            platform = (mg_platform*)p->lpCreateParams;
-            DefWindowProc(hwnd, msg, w_param, l_param);
-        }
         break;
         case WM_CLOSE:
         {
@@ -173,9 +166,8 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, uint32_t msg, WPARAM w_param, 
 
             mg_resized_event_data data = {r.right - r.left, r.bottom - r.top};
 
-            mg_win32_platform *handle = (mg_win32_platform*)platform;
-            handle->window_width = data.width; 
-            handle->window_height = data.height; 
+            platform->window_width = data.width;
+            platform->window_height = data.height;
 
             mg_event_call(MG_EVENT_CODE_RESIZED, (void*)&data);
         }
@@ -266,6 +258,11 @@ void mg_platform_unload_library(mg_dynamic_library *library)
 {
     if (library)
         FreeLibrary(library);
+}
+
+mg_platform *mg_platform_get_handle(void)
+{
+    return (mg_platform*)platform;
 }
 
 #endif

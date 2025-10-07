@@ -24,7 +24,7 @@ void mg_d3d11_renderer_initialize(mgfx_init_info *init_info)
     //sd.BufferDesc.RefreshRate.Numerator = 60;
     //sd.BufferDesc.RefreshRate.Denominator = 1;
     sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    sd.OutputWindow = ((mg_win32_platform*)init_info->platform)->hwnd;
+    sd.OutputWindow = ((mg_win32_platform*)mg_platform_get_handle())->hwnd;
     sd.SampleDesc.Count = 1;
     sd.SampleDesc.Quality = 0;
     sd.Windowed = TRUE;

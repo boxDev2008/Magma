@@ -15,6 +15,8 @@
 #include <time.h>
 #include <dlfcn.h>
 
+static mg_x11_platform *platform;
+
 static double clock_frequency = 0.000000001;
 static struct timespec start_time;
 
@@ -312,9 +314,9 @@ Cursor mg_create_hidden_cursor(Display *display, Window root)
     return cursor;
 }
 
-mg_platform *mg_platform_initialize(mg_platform_init_info *init_info)
+void mg_platform_initialize(mg_platform_init_info *init_info)
 {
-    mg_x11_platform *platform = (mg_x11_platform*)malloc(sizeof(mg_x11_platform));
+    platform = (mg_x11_platform*)malloc(sizeof(mg_x11_platform));
 
     platform->display = XOpenDisplay(NULL);
     if (!platform->display)
@@ -367,29 +369,25 @@ mg_platform *mg_platform_initialize(mg_platform_init_info *init_info)
     return platform;
 }
 
-void mg_platform_shutdown(mg_platform *platform)
+void mg_platform_shutdown(void)
 {
-    mg_x11_platform *handle = (mg_x11_platform*)platform;
-
-    assert(handle->window != 0);	
+    assert(platform->window != 0);	
 
 	if (platform->hidden_cursor)
-		XFreeCursor(handle->display, platform->hidden_cursor);
+		XFreeCursor(platform->display, platform->hidden_cursor);
 
-    XDestroyWindow(handle->display, handle->window);
-    XCloseDisplay(handle->display);
+    XDestroyWindow(platform->display, platform->window);
+    XCloseDisplay(platform->display);
 
     free(platform);
 }
 
-void mg_platform_poll_events(mg_platform *platform)
+void mg_platform_poll_events(void)
 {
-    mg_x11_platform *handle = (mg_x11_platform*)platform;
-
     XEvent event;
-    while (XPending(handle->display) > 0)
+    while (XPending(platform->display) > 0)
     {
-        XNextEvent(handle->display, &event);
+        XNextEvent(platform->display, &event);
         
         switch (event.type)
         {
@@ -399,8 +397,8 @@ void mg_platform_poll_events(mg_platform *platform)
             {
                 XConfigureEvent *resize_event = (XConfigureEvent*)&event;
                 mg_resized_event_data data = {resize_event->width, resize_event->height};
-                handle->window_width = data.width;
-                handle->window_height = data.height;
+                platform->window_width = data.width;
+                platform->window_height = data.height;
                 mg_event_call(MG_EVENT_CODE_RESIZED, (void*)&data);
             }
             break;
@@ -408,7 +406,7 @@ void mg_platform_poll_events(mg_platform *platform)
             case KeyRelease:
             {
                 int32_t ret;
-                KeySym *key = XGetKeyboardMapping(handle->display, (KeyCode)event.xkey.keycode, 1, &ret);
+                KeySym *key = XGetKeyboardMapping(platform->display, (KeyCode)event.xkey.keycode, 1, &ret);
                 bool pressed = (event.type == KeyPress);
                 mg_keys mg_key = mg_translate_keycode(*key);
                 mg_input_process_key(mg_key, pressed);
@@ -451,7 +449,7 @@ void mg_platform_poll_events(mg_platform *platform)
             break;
 			case ClientMessage:
 			{
-				if ((Atom)event.xclient.data.l[0] == handle->wm_delete_window)
+				if ((Atom)event.xclient.data.l[0] == platform->wm_delete_window)
 				{
 					mg_quit_event_data data = {platform};
 					mg_event_call(MG_EVENT_CODE_QUIT, (void*)&data);
@@ -485,6 +483,11 @@ void mg_platform_unload_library(mg_dynamic_library *library)
 {
     if (library)
         dlclose(library);
+}
+
+mg_platform *mg_platform_get_handle(void)
+{
+    return (mg_platform*)platform;
 }
 
 #endif

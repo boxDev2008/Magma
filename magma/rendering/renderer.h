@@ -37,9 +37,9 @@ extern "C" {
 typedef enum mg_renderer_type
 {
     MG_RENDERER_TYPE_VULKAN,
+    MG_RENDERER_TYPE_DIRECT3D11,
     MG_RENDERER_TYPE_OPENGL,
-    MG_RENDERER_TYPE_OPENGLES,
-    MG_RENDERER_TYPE_DIRECT3D11
+    MG_RENDERER_TYPE_OPENGLES
 }
 mg_renderer_type;
 
@@ -159,7 +159,6 @@ mg_pixel_format;
 
 typedef enum mg_image_type
 {
-    MG_IMAGE_TYPE_1D = 0,
     MG_IMAGE_TYPE_2D = 1,
     MG_IMAGE_TYPE_3D = 2,
     MG_IMAGE_TYPE_CUBE = 3
@@ -488,6 +487,13 @@ typedef struct mg_shader
 {
     mg_shader_source vertex;
     mg_shader_source fragment;
+    struct
+    {
+        const char *name;
+        uint32_t binding;
+    }
+    uniform_blocks[MG_CONFIG_MAX_BINDABLE_UNIFORMS];
+    const char *sampled_image_name;
 }
 mg_shader;
 
@@ -528,7 +534,6 @@ mg_swapchain_config_info;
 
 typedef struct mgfx_init_info
 {
-    mg_platform *platform;
     mg_renderer_type type;
     mg_swapchain_config_info *swapchain_config_info;
 }

@@ -27,6 +27,7 @@ mg_opengl_dynamic_vertex_buffer, mg_opengl_dynamic_index_buffer;
 typedef struct mg_opengl_pipeline
 {
     GLuint program_id;
+    GLuint sampler_image_location;
 
     struct
     {
@@ -35,8 +36,7 @@ typedef struct mg_opengl_pipeline
         mg_vertex_attribute_info attributes[MG_CONFIG_MAX_VERTEX_ATTRIBUTES];
     }
     vertex_layout;
-    
-    //mg_vertex_layout_info vertex_layout;
+
     GLenum polygon_mode;
     GLenum primitive_topology;
     GLenum cull_mode;
@@ -91,6 +91,7 @@ typedef struct mg_opengl_context
 {
     GLuint vao;
     GLuint uniform_buffers[MG_CONFIG_MAX_BINDABLE_UNIFORMS];
+    GLuint sampler_indices[MG_CONFIG_MAX_BINDABLE_IMAGES];
 
     GLenum index_type;
     //GLenum polygon_mode;
@@ -101,8 +102,6 @@ typedef struct mg_opengl_context
         GLuint program;
         GLuint framebuffer;
         GLuint color_attachment;
-        GLuint vertex_buffer;
-        GLuint index_buffer;  
     }
     back_buffer;
 

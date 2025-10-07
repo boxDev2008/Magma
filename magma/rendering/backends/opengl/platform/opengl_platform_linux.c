@@ -16,9 +16,9 @@ mg_opengl_egl_platform_context;
 
 static mg_opengl_egl_platform_context ctx;
 
-void mg_opengl_platform_initialize(mg_platform *platform)
+void mg_opengl_platform_initialize(void)
 {
-    mg_x11_platform *handle = (mg_x11_platform*)platform;
+    mg_x11_platform *handle = (mg_x11_platform*)mg_platform_get_handle();
     ctx.display = eglGetDisplay((EGLNativeDisplayType)handle->display);
     eglInitialize(ctx.display, NULL, NULL);
 

@@ -6,7 +6,7 @@
 #include "backends/opengl/opengl_image.h"
 #include "backends/opengl/opengl_render_pass.h"
 
-#if !defined(MG_PLATFORM_EMSCRIPTEN)
+#if !MG_PLATFORM_EMSCRIPTEN
     #include "backends/vulkan/vulkan_renderer.h"
     #include "backends/vulkan/vulkan_swapchain.h"
     #include "backends/vulkan/vulkan_render_pass.h"
@@ -99,7 +99,7 @@ void mgfx_initialize(mgfx_init_info *init_info)
 {
     switch (init_info->type)
     {
-#if !defined(MG_PLATFORM_EMSCRIPTEN)
+#if !MG_PLATFORM_EMSCRIPTEN
     case MG_RENDERER_TYPE_VULKAN:
         pipe.initialize       =   mg_vulkan_renderer_initialize;
         pipe.shutdown         =   mg_vulkan_renderer_shutdown;
@@ -161,8 +161,8 @@ void mgfx_initialize(mgfx_init_info *init_info)
         pipe.draw         =   mg_vulkan_renderer_draw;
         pipe.draw_indexed =   mg_vulkan_renderer_draw_indexed;
         break;
-#endif
     case MG_RENDERER_TYPE_OPENGL:
+#endif
     case MG_RENDERER_TYPE_OPENGLES:
         pipe.initialize       =   mg_opengl_renderer_initialize;
         pipe.shutdown         =   mg_opengl_renderer_shutdown;

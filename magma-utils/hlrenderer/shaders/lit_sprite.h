@@ -19,13 +19,13 @@ static const uint32_t lit_sprite_spirv_vert[] = {
 	0x00006472,0x00060005,0x00000027,0x745f6e69,0x635f7865,0x64726f6f,0x00000000,0x00050005,
 	0x00000029,0x67617266,0x6c6f635f,0x0000726f,0x00050005,0x0000002b,0x635f6e69,0x726f6c6f,
 	0x00000000,0x00050005,0x0000002e,0x67617266,0x7865745f,0x0064695f,0x00050005,0x00000030,
-	0x745f6e69,0x695f7865,0x00000064,0x00050048,0x0000000b,0x00000000,0x0000000b,0x00000000,
-	0x00050048,0x0000000b,0x00000001,0x0000000b,0x00000001,0x00050048,0x0000000b,0x00000002,
-	0x0000000b,0x00000003,0x00050048,0x0000000b,0x00000003,0x0000000b,0x00000004,0x00030047,
-	0x0000000b,0x00000002,0x00040048,0x00000011,0x00000000,0x00000005,0x00050048,0x00000011,
-	0x00000000,0x00000023,0x00000000,0x00050048,0x00000011,0x00000000,0x00000007,0x00000010,
-	0x00030047,0x00000011,0x00000002,0x00040047,0x00000013,0x00000022,0x00000000,0x00040047,
-	0x00000013,0x00000021,0x00000000,0x00040047,0x00000019,0x0000001e,0x00000000,0x00040047,
+	0x745f6e69,0x695f7865,0x00000064,0x00030047,0x0000000b,0x00000002,0x00050048,0x0000000b,
+	0x00000000,0x0000000b,0x00000000,0x00050048,0x0000000b,0x00000001,0x0000000b,0x00000001,
+	0x00050048,0x0000000b,0x00000002,0x0000000b,0x00000003,0x00050048,0x0000000b,0x00000003,
+	0x0000000b,0x00000004,0x00030047,0x00000011,0x00000002,0x00040048,0x00000011,0x00000000,
+	0x00000005,0x00050048,0x00000011,0x00000000,0x00000007,0x00000010,0x00050048,0x00000011,
+	0x00000000,0x00000023,0x00000000,0x00040047,0x00000013,0x00000021,0x00000000,0x00040047,
+	0x00000013,0x00000022,0x00000000,0x00040047,0x00000019,0x0000001e,0x00000000,0x00040047,
 	0x00000024,0x0000001e,0x00000000,0x00040047,0x00000026,0x0000001e,0x00000001,0x00040047,
 	0x00000027,0x0000001e,0x00000001,0x00040047,0x00000029,0x0000001e,0x00000002,0x00040047,
 	0x0000002b,0x0000001e,0x00000002,0x00040047,0x0000002e,0x0000001e,0x00000003,0x00040047,
@@ -80,14 +80,14 @@ static const uint32_t lit_sprite_spirv_frag[] = {
 	0x7865745f,0x0064695f,0x00050005,0x000000a5,0x5f74756f,0x6f6c6f63,0x00000072,0x00050005,
 	0x000000ab,0x74786574,0x73657275,0x00000000,0x00050005,0x000000d9,0x67617266,0x6c6f635f,
 	0x0000726f,0x00040047,0x0000001f,0x00000006,0x00000010,0x00040047,0x00000020,0x00000006,
-	0x00000010,0x00050048,0x00000021,0x00000000,0x00000023,0x00000000,0x00050048,0x00000021,
-	0x00000001,0x00000023,0x00000800,0x00050048,0x00000021,0x00000002,0x00000023,0x00001000,
-	0x00050048,0x00000021,0x00000003,0x00000023,0x00001010,0x00050048,0x00000021,0x00000004,
-	0x00000023,0x00001020,0x00030047,0x00000021,0x00000002,0x00040047,0x00000023,0x00000022,
-	0x00000000,0x00040047,0x00000023,0x00000021,0x00000001,0x00040047,0x0000008f,0x0000001e,
+	0x00000010,0x00030047,0x00000021,0x00000002,0x00050048,0x00000021,0x00000000,0x00000023,
+	0x00000000,0x00050048,0x00000021,0x00000001,0x00000023,0x00000800,0x00050048,0x00000021,
+	0x00000002,0x00000023,0x00001000,0x00050048,0x00000021,0x00000003,0x00000023,0x00001010,
+	0x00050048,0x00000021,0x00000004,0x00000023,0x00001020,0x00040047,0x00000023,0x00000021,
+	0x00000001,0x00040047,0x00000023,0x00000022,0x00000000,0x00040047,0x0000008f,0x0000001e,
 	0x00000001,0x00040047,0x00000092,0x0000001e,0x00000000,0x00040047,0x00000097,0x0000001e,
-	0x00000003,0x00040047,0x000000a5,0x0000001e,0x00000000,0x00040047,0x000000ab,0x00000022,
-	0x00000001,0x00040047,0x000000ab,0x00000021,0x00000000,0x00040047,0x000000d9,0x0000001e,
+	0x00000003,0x00040047,0x000000a5,0x0000001e,0x00000000,0x00040047,0x000000ab,0x00000021,
+	0x00000000,0x00040047,0x000000ab,0x00000022,0x00000001,0x00040047,0x000000d9,0x0000001e,
 	0x00000002,0x00020013,0x00000002,0x00030021,0x00000003,0x00000002,0x00030016,0x00000006,
 	0x00000020,0x00040017,0x00000007,0x00000006,0x00000002,0x00040020,0x00000008,0x00000007,
 	0x00000007,0x00040017,0x00000009,0x00000006,0x00000003,0x00040021,0x0000000a,0x00000009,
@@ -1401,52 +1401,31 @@ static const uint8_t lit_sprite_hlsl_frag[] = {
 };
 
 static inline const mg_shader get_lit_sprite_shader(mg_renderer_type type) {
+    mg_shader shader = {0};
     switch (type) {
         case MG_RENDERER_TYPE_VULKAN:
-            return (mg_shader) {
-                .vertex = (mg_shader_source) {
-                    .code = lit_sprite_spirv_vert,
-                    .size = sizeof(lit_sprite_spirv_vert)
-                },
-                .fragment = (mg_shader_source) {
-                    .code = lit_sprite_spirv_frag,
-                    .size = sizeof(lit_sprite_spirv_frag)
-                },
-            };
-        case MG_RENDERER_TYPE_OPENGL:
-            return (mg_shader) {
-                .vertex = (mg_shader_source) {
-                    .code = lit_sprite_glsl_vert,
-                    .size = sizeof(lit_sprite_glsl_vert)
-                },
-                .fragment = (mg_shader_source) {
-                    .code = lit_sprite_glsl_frag,
-                    .size = sizeof(lit_sprite_glsl_frag)
-                },
-            };
-        case MG_RENDERER_TYPE_OPENGLES:
-            return (mg_shader) {
-                .vertex = (mg_shader_source) {
-                    .code = lit_sprite_glsles_vert,
-                    .size = sizeof(lit_sprite_glsles_vert)
-                },
-                .fragment = (mg_shader_source) {
-                    .code = lit_sprite_glsles_frag,
-                    .size = sizeof(lit_sprite_glsles_frag)
-                },
-            };
+            shader.vertex = (mg_shader_source){.code = lit_sprite_spirv_vert, .size = sizeof(lit_sprite_spirv_vert)};
+            shader.fragment = (mg_shader_source){.code = lit_sprite_spirv_frag, .size = sizeof(lit_sprite_spirv_frag)};
+            break;
         case MG_RENDERER_TYPE_DIRECT3D11:
-            return (mg_shader) {
-                .vertex = (mg_shader_source) {
-                    .code = lit_sprite_hlsl_vert,
-                    .size = sizeof(lit_sprite_hlsl_vert)
-                },
-                .fragment = (mg_shader_source) {
-                    .code = lit_sprite_hlsl_frag,
-                    .size = sizeof(lit_sprite_hlsl_frag)
-                },
-            };
-    };
-    return (mg_shader) { 0 };
+            shader.vertex = (mg_shader_source){.code = lit_sprite_hlsl_vert, .size = sizeof(lit_sprite_hlsl_vert)};
+            shader.fragment = (mg_shader_source){.code = lit_sprite_hlsl_frag, .size = sizeof(lit_sprite_hlsl_frag)};
+            break;
+        case MG_RENDERER_TYPE_OPENGL:
+            shader.vertex = (mg_shader_source){.code = lit_sprite_glsl_vert, .size = sizeof(lit_sprite_glsl_vert)};
+            shader.fragment = (mg_shader_source){.code = lit_sprite_glsl_frag, .size = sizeof(lit_sprite_glsl_frag)};
+            break;
+        case MG_RENDERER_TYPE_OPENGLES:
+            shader.vertex = (mg_shader_source){.code = lit_sprite_glsles_vert, .size = sizeof(lit_sprite_glsles_vert)};
+            shader.fragment = (mg_shader_source){.code = lit_sprite_glsles_frag, .size = sizeof(lit_sprite_glsles_frag)};
+            break;
+    }
+
+    shader.uniform_blocks[0].name = "ViewData";
+    shader.uniform_blocks[0].binding = 0;
+    shader.uniform_blocks[1].name = "LightData";
+    shader.uniform_blocks[1].binding = 1;
+    shader.sampled_image_name = "textures";
+    return shader;
 }
 

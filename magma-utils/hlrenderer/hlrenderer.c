@@ -10,11 +10,17 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
+#define STB_TRUETYPE_IMPLEMENTATION
+#include "stb_truetype.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 
-#define MG_HLGFX_2D_MAX_GEOMETRY_COUNT (1 << 14)
+#ifndef MG_HLGFX_2D_MAX_GEOMETRY_COUNT
+    #define MG_HLGFX_2D_MAX_GEOMETRY_COUNT (1 << 14)
+#endif
+
 #define MG_HLGFX_2D_MAX_LIGHT_COUNT 128
 
 /*typedef struct mg_world_ubo_2d
@@ -129,8 +135,11 @@ void mg_hlgfx_begin_scene_2d(const mg_camera_info_2d *camera_info)
 	}
 	ub_data;
     
+    const float half_width = width * 0.5f;
+    const float half_height = height * 0.5f;
+
     ub_data.vp = mg_mat4_ortho(height * 0.5f, -height * 0.5f, -width * 0.5f, width * 0.5f, -1.0f, 1.0f);
-	ub_data.vp = mg_mat4_translate(ub_data.vp, (mg_vec3) { -camera_info->position.x, -camera_info->position.y, 0.0f });
+	ub_data.vp = mg_mat4_translate(ub_data.vp, (mg_vec3) { -camera_info->position.x / half_width, -camera_info->position.y / half_height, 0.0f });
 	ub_data.vp = mg_mat4_scale(ub_data.vp, (mg_vec3) { camera_info->zoom.x, camera_info->zoom.y, 1.0f });
 	mgfx_bind_pipeline(rdata->sprite_batch.pipeline);
 	mgfx_bind_uniforms(0, sizeof(ub_data), &ub_data);
@@ -151,9 +160,12 @@ void mg_hlgfx_begin_lit_scene_2d(const mg_camera_info_2d *camera_info, mg_lit_sc
 		mg_mat4 vp;
 	}
 	vs_ub_data;
-    
+
+    const float half_width = width * 0.5f;
+    const float half_height = height * 0.5f;
+
     vs_ub_data.vp = mg_mat4_ortho(height * 0.5f, -height * 0.5f, -width * 0.5f, width * 0.5f, -1.0f, 1.0f);
-	vs_ub_data.vp = mg_mat4_translate(vs_ub_data.vp, (mg_vec3) { -camera_info->position.x, -camera_info->position.y, 0.0f });
+	vs_ub_data.vp = mg_mat4_translate(vs_ub_data.vp, (mg_vec3) { -camera_info->position.x / half_width, -camera_info->position.y / half_height, 0.0f });
 	vs_ub_data.vp = mg_mat4_scale(vs_ub_data.vp, (mg_vec3) { camera_info->zoom.x, camera_info->zoom.y, 1.0f });
 	mgfx_bind_pipeline(rdata->sprite_batch.lit_pipeline);
 	mgfx_bind_uniforms(0, sizeof(vs_ub_data), &vs_ub_data);
@@ -185,7 +197,6 @@ void mg_hlgfx_initialize(const mg_hlgfx_init_info *info)
     swapchain_info.height = info->height;
 
     mgfx_init_info renderer_info;
-    renderer_info.platform = info->platform;
     renderer_info.type = info->type;
     renderer_info.swapchain_config_info = &swapchain_info;
 
@@ -321,7 +332,7 @@ void mg_hlgfx_initialize(const mg_hlgfx_init_info *info)
         mg_pipeline_create_info pipeline_create_info = {
             .shader = get_sprite_shader(rdata->renderer_type),
             
-            vertex_layout = vertex_layout,
+            .vertex_layout = vertex_layout,
 
             .primitive_topology = MG_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
             .polygon_mode = MG_POLYGON_MODE_FILL,
@@ -447,7 +458,7 @@ void mg_hlgfx_resize(int32_t width, int32_t height)
     mgfx_configure_swapchain(&config_info);        
 }
 
-void mg_hlgfx_begin(const mg_post_process_info *post_process_info)
+void mg_hlgfx_begin(const mg_post_process_info *post_process_info, const mg_vec3 clear_color)
 {
     rdata->sprite_batch.quad_count = 0;
     rdata->sprite_batch.current_offset = 0;
@@ -456,7 +467,7 @@ void mg_hlgfx_begin(const mg_post_process_info *post_process_info)
 
 	mg_render_pass_begin_info rp_info = {
         .render_area = (mg_vec4) {0.0f, 0.0f, rdata->width, rdata->height},
-        .clear_value = (mg_vec4) {0.0f, 0.0f, 0.0f, 1.0f}
+        .clear_value = (mg_vec4) {clear_color.x, clear_color.y, clear_color.z, 1.0f}
     };
 	mgfx_begin_render_pass(rdata->screen_data.rp, rdata->screen_data.fb, &rp_info);
 	mgfx_viewport(0, 0, rdata->width, rdata->height);
@@ -544,6 +555,72 @@ void mg_hlgfx_draw_sprite_2d(mg_vec2 position, mg_vec2 scale, mg_vec2 pivot, mg_
         {position.x + scale.x - pivot_offset.x, position.y + scale.y - pivot_offset.y, sprite->x + sprite->width, sprite->y + sprite->height, color.r, color.g, color.b, color.a, tex_id},
         {position.x - pivot_offset.x, position.y + scale.y - pivot_offset.y, sprite->x, sprite->y + sprite->height, color.r, color.g, color.b, color.a, tex_id}
     }};
+}
+
+float mg_hlgfx_calculate_text_width(float scale, mg_font *font, const char *text)
+{
+    float text_width = 0.0f;
+    const char *p = text;
+    while (*p)
+    {
+        if (*p >= 32 && *p < 128)
+        {
+            stbtt_bakedchar *b = &font->cdata[*p - 32];
+            text_width += b->xadvance * scale;
+        }
+        ++p;
+    }
+    return text_width;
+}
+
+void mg_hlgfx_draw_text_2d(mg_vec2 position, float scale, mg_vec4 color, mg_text_alignment alignment, mg_font *font, const char *fmt, ...)
+{
+    char buffer[1024];
+
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(buffer, sizeof(buffer), fmt, args);
+    va_end(args);
+
+    const char *text = buffer;
+    const uint8_t tex_id = font->texture.id;
+    scale /= 86.0f;
+
+    if (alignment == MG_TEXT_ALIGNMENT_CENTER)
+        position.x -= mg_hlgfx_calculate_text_width(scale, font, text) * 0.5f;
+    else if (alignment == MG_TEXT_ALIGNMENT_RIGHT)
+        position.x -= mg_hlgfx_calculate_text_width(scale, font, text);
+
+    while (*text)
+    {
+        if (*text >= 32 && *text < 128)
+        {
+            stbtt_bakedchar *b = &font->cdata[*text - 32];
+
+            float x0 = position.x + b->xoff * scale;
+            float y0 = position.y + b->yoff * scale;
+            float w  = (b->x1 - b->x0) * scale;
+            float h  = (b->y1 - b->y0) * scale;
+
+            float x1 = x0 + w;
+            float y1 = y0 + h;
+
+            float s0 = (b->x0 + 2) / 2048.0f;
+            float t0 = b->y0 / 512.0f;
+            float s1 = (b->x1 - 2) / 2048.0f;
+            float t1 = b->y1 / 512.0f;
+
+            rdata->sprite_batch.quads[rdata->sprite_batch.quad_count++] = (mg_batch_quad){{
+                {x0, y0, s0, t0, color.r, color.g, color.b, color.a, tex_id},
+                {x1, y0, s1, t0, color.r, color.g, color.b, color.a, tex_id},
+                {x1, y1, s1, t1, color.r, color.g, color.b, color.a, tex_id},
+                {x0, y1, s0, t1, color.r, color.g, color.b, color.a, tex_id}
+            }};
+
+            position.x += b->xadvance * scale;
+        }
+        ++text;
+    }
 }
 
 void mg_hlgfx_draw_vertex_colored_sprite_2d(mg_vec2 position, mg_vec2 scale, mg_vec2 pivot, mg_vec4 c0 , mg_vec4 c1 , mg_vec4 c2 , mg_vec4 c3, const mg_sprite *sprite)
@@ -744,4 +821,45 @@ void mg_hlgfx_destroy_textures(void)
         mgfx_destroy_sampler(rdata->sprite_batch.samplers[i]);
     }
     rdata->sprite_batch.image_count = 0;
+}
+
+mg_font mg_hlgfx_add_font(void *ttf_data)
+{
+    uint32_t *bitmap = (uint32_t*)malloc(512 * 512 * sizeof(uint32_t));
+    mg_font font;
+
+    stbtt_BakeFontBitmap(ttf_data, 0, 86.0, bitmap, 2048, 256, 32, 96, font.cdata);
+
+    uint32_t* p = bitmap;
+    uint32_t* end = bitmap + (512 * 512);
+    while (p < end)
+    {
+        uint32_t a = *p;
+        *p++ = (a >> 24 > 200) ? 0xFFFFFFFF : 0x00FFFFFF;
+    }
+
+    font.texture = mg_hlgfx_add_texture(512, 512, MG_SAMPLER_FILTER_NEAREST, MG_PIXEL_FORMAT_R8G8B8A8_UNORM, bitmap);
+    free(bitmap);
+    return font;
+}
+
+mg_font mg_hlgfx_add_font_from_file(const char* file_name)
+{
+    long size;
+    uint8_t *buffer;
+
+    FILE* file = fopen(file_name, "rb");
+    fseek(file, 0, SEEK_END);
+    size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+
+    buffer = malloc(size);
+
+    fread(buffer, size, 1, file);
+    fclose(file);
+
+    mg_font font = mg_hlgfx_add_font(buffer);
+
+    free(buffer);
+    return font;
 }

@@ -6,9 +6,9 @@
 #include <assert.h>
 #include <X11/Xlib.h>
 
-void mg_vulkan_create_surface(mg_platform *platform)
+void mg_vulkan_create_surface(void)
 {
-    mg_x11_platform *handle = (mg_x11_platform*)platform;
+    mg_x11_platform *handle = (mg_x11_platform*)mg_platform_get_handle();
 
     VkXlibSurfaceCreateInfoKHR create_info = {VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR};
     create_info.dpy = handle->display;

@@ -244,8 +244,7 @@ void mg_vulkan_create_scratch_buffer(void)
 void mg_vulkan_renderer_initialize(mgfx_init_info *init_info)
 {
     mg_vulkan_create_instance();
-
-    mg_vulkan_create_surface(init_info->platform);
+    mg_vulkan_create_surface();
 
     mg_vulkan_get_physical_device();
     mg_vulkan_create_device();

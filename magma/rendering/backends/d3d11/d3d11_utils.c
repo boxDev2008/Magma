@@ -226,7 +226,6 @@ D3D_SRV_DIMENSION mg_d3d11_get_srv_dimension(mg_image_type type)
 {
     switch (type)
     {
-        case MG_IMAGE_TYPE_1D: return D3D11_SRV_DIMENSION_TEXTURE1D;
         case MG_IMAGE_TYPE_2D: return D3D11_SRV_DIMENSION_TEXTURE2D;
         case MG_IMAGE_TYPE_3D: return D3D11_SRV_DIMENSION_TEXTURE3D;
         case MG_IMAGE_TYPE_CUBE: return D3D11_SRV_DIMENSION_TEXTURECUBE;

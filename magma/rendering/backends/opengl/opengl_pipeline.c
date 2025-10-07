@@ -22,10 +22,12 @@ static GLenum mg_opengl_get_blend_factor(mg_blend_factor factor)
         case MG_BLEND_FACTOR_CONSTANT_ALPHA: return GL_CONSTANT_ALPHA;
         case MG_BLEND_FACTOR_ONE_MINUS_CONSTANT_ALPHA: return GL_ONE_MINUS_CONSTANT_ALPHA;
         case MG_BLEND_FACTOR_SRC_ALPHA_SATURATE: return GL_SRC_ALPHA_SATURATE;
+#if !MG_PLATFORM_EMSCRIPTEN
         case MG_BLEND_FACTOR_SRC1_COLOR: return GL_SRC1_COLOR;
         case MG_BLEND_FACTOR_ONE_MINUS_SRC1_COLOR: return GL_ONE_MINUS_SRC1_COLOR;
         case MG_BLEND_FACTOR_SRC1_ALPHA: return GL_SRC1_ALPHA;
         case MG_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA: return GL_ONE_MINUS_SRC1_ALPHA;
+#endif
     }
 }
 
@@ -41,15 +43,18 @@ static GLenum mg_opengl_get_blend_op(mg_blend_op blend_op)
         case MG_BLEND_OP_ZERO: return GL_ZERO;
         case MG_BLEND_OP_SRC: return GL_SRC_COLOR;
         case MG_BLEND_OP_DST: return GL_DST_COLOR;
-        case MG_BLEND_OP_XOR: return GL_XOR;
         case MG_BLEND_OP_INVERT: return GL_INVERT;
         case MG_BLEND_OP_RED: return GL_RED;
         case MG_BLEND_OP_GREEN: return GL_GREEN;
         case MG_BLEND_OP_BLUE: return GL_BLUE;
+#if !MG_PLATFORM_EMSCRIPTEN
+        case MG_BLEND_OP_XOR: return GL_XOR;
+#endif
         default: return GL_FUNC_ADD;
     }
 }
 
+#if !MG_PLATFORM_EMSCRIPTEN
 static GLenum mg_opengl_get_polygon_mode(mg_polygon_mode mode)
 {
     switch (mode)
@@ -59,6 +64,7 @@ static GLenum mg_opengl_get_polygon_mode(mg_polygon_mode mode)
         case MG_POLYGON_MODE_POINT: return GL_POINT;
     }
 }
+#endif
 
 static GLenum mg_opengl_get_primitive_topology(mg_primitive_topology topology)
 {
@@ -78,16 +84,12 @@ static GLenum mg_opengl_get_cull_mode(mg_cull_mode mode)
     switch (mode)
     {
         case MG_CULL_MODE_NONE:
-        glDisable(GL_CULL_FACE);
         return GL_NONE;
         case MG_CULL_MODE_FRONT:
-        glEnable(GL_CULL_FACE);
         return GL_FRONT;
         case MG_CULL_MODE_BACK:
-        glEnable(GL_CULL_FACE);
         return GL_BACK;
         case MG_CULL_MODE_FRONT_AND_BACK:
-        glEnable(GL_CULL_FACE);
         return GL_FRONT_AND_BACK;
     }
 }
@@ -116,6 +118,8 @@ static GLenum mg_opengl_get_front_face(mg_front_face front_face)
     }
 }
 
+#include <stdio.h>
+
 mg_opengl_pipeline *mg_opengl_create_pipeline(mg_pipeline_create_info *create_info)
 {
     mg_opengl_pipeline *pipeline = (mg_opengl_pipeline*)malloc(sizeof(mg_opengl_pipeline));
@@ -136,6 +140,19 @@ mg_opengl_pipeline *mg_opengl_create_pipeline(mg_pipeline_create_info *create_in
     glDeleteShader(vertex_shader);
     glDeleteShader(fragment_shader);
 
+    glUseProgram(pipeline->program_id);
+
+    for (uint32_t i = 0; i < MG_CONFIG_MAX_BINDABLE_UNIFORMS; i++)
+    {
+        if (!create_info->shader.uniform_blocks[i].name)
+            continue;
+        const uint32_t index = glGetUniformBlockIndex(pipeline->program_id, create_info->shader.uniform_blocks[i].name);   
+        glUniformBlockBinding(pipeline->program_id, index, create_info->shader.uniform_blocks[i].binding);
+    }
+
+    if (create_info->shader.sampled_image_name)
+        glUniform1iv(glGetUniformLocation(pipeline->program_id, create_info->shader.sampled_image_name), MG_CONFIG_MAX_BINDABLE_IMAGES, gl_ctx.sampler_indices);
+
     pipeline->vertex_layout.stride = create_info->vertex_layout.stride;
     pipeline->vertex_layout.attribute_count = create_info->vertex_layout.attribute_count;
 
@@ -143,7 +160,9 @@ mg_opengl_pipeline *mg_opengl_create_pipeline(mg_pipeline_create_info *create_in
         pipeline->vertex_layout.attributes[i] = create_info->vertex_layout.attributes[i];
 
     pipeline->color_blend = create_info->color_blend;
+#if !MG_PLATFORM_EMSCRIPTEN
     pipeline->polygon_mode = mg_opengl_get_polygon_mode(create_info->polygon_mode);
+#endif
     pipeline->primitive_topology = mg_opengl_get_primitive_topology(create_info->primitive_topology);
     pipeline->cull_mode = mg_opengl_get_cull_mode(create_info->cull_mode);
     pipeline->front_face = mg_opengl_get_front_face(create_info->front_face);
@@ -179,10 +198,17 @@ void mg_opengl_bind_pipeline(mg_opengl_pipeline *pipeline)
     else
         glDisable(GL_BLEND);
 
-    glCullFace(pipeline->cull_mode);
+    if (pipeline->cull_mode == GL_NONE)
+        glDisable(GL_CULL_FACE);
+    else
+    {
+        glEnable(GL_CULL_FACE);
+        glCullFace(pipeline->cull_mode);
+    }
     glFrontFace(pipeline->front_face);
+#if !MG_PLATFORM_EMSCRIPTEN
     glPolygonMode(GL_FRONT_AND_BACK, pipeline->polygon_mode);
-
+#endif
     pipeline->depth_stencil.depth_test_enable ? glEnable(GL_DEPTH_TEST) : glDisable(GL_DEPTH_TEST);
     pipeline->depth_stencil.stencil_test_enable ? glEnable(GL_STENCIL_TEST) : glDisable(GL_STENCIL_TEST);
     glDepthFunc(pipeline->depth_stencil.depth_compare_op);

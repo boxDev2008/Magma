@@ -1,8 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <filesystem>
-#include <regex>
-
+#include <format>
 #include <pystring/pystring.h>
 
 #include <glslang/Public/ShaderLang.h>
@@ -16,6 +15,17 @@
 #include <spirv_cross/spirv_msl.hpp>
 
 #include "default_resource.h"
+
+struct ShaderResources
+{
+    struct UniformBlock
+    {
+        std::string name;
+        uint32_t binding;
+    };
+    std::vector<UniformBlock> uniform_blocks;
+    std::string sampled_image_name;
+};
 
 struct ShaderSource
 {
@@ -74,10 +84,6 @@ void compile_shader_to_spirv(std::string &source, EShLanguage stage, std::vector
 {
     glslang::InitializeProcess();
 
-    // Dirty fix for descriptor set index on samplers
-    //std::regex sampler_regex(R"(\buniform\s+(sampler2D|sampler2DArray)\b)");
-    //source = std::regex_replace(source, sampler_regex, "layout(set = 1) uniform $1");
-
     const char* sources[1] = { source.c_str() };
     glslang::TShader shader(stage);
     shader.setStrings(sources, 1);
@@ -87,9 +93,6 @@ void compile_shader_to_spirv(std::string &source, EShLanguage stage, std::vector
     shader.setEnvTarget(glslang::EshTargetSpv, glslang::EShTargetSpv_1_0);
     shader.setAutoMapLocations(true);
     //shader.setAutoMapBindings(true);
-
-    //if (stage == EShLanguage::EShLangFragment)
-        //shader.setShiftUboBinding(1);
 
     bool parse_success = shader.parse(&DefaultTBuiltInResource, 450, false, EShMsgDefault);
     if (!parse_success)
@@ -171,6 +174,19 @@ void compile_spirv_to_metal(const std::vector<uint32_t> &spirv, std::string &out
     output_source = msl.compile();
 }
 
+void get_spirv_resources(const std::vector<uint32_t>& spirv, ShaderResources &output_resources)
+{
+	spirv_cross::CompilerGLSL glsl(spirv);
+    spirv_cross::ShaderResources resources = glsl.get_shader_resources();
+    for (auto &resource : resources.uniform_buffers)
+    {
+        const uint32_t binding = glsl.get_decoration(resource.id, spv::DecorationBinding);
+        output_resources.uniform_blocks.push_back({ resource.name, binding });
+    }
+    if (!resources.sampled_images.empty())
+        output_resources.sampled_image_name = resources.sampled_images[0].name;
+}
+
 void write_spirv_to_header(const std::vector<uint32_t>& spirv, const std::string& name, const std::string& api, const std::string& stage, std::ofstream& output)
 {
     std::string array_name = name + "_" + api + "_" + stage;
@@ -203,51 +219,51 @@ void write_shader_source_to_header(const std::string& shader_source, const std::
     output << "\n};\n\n";
 }
 
-void write_get_shader_function(const std::string& name, std::ofstream& output, uint32_t lang_flags)
+void write_get_shader_function(const std::string& name, std::ofstream& output, uint32_t lang_flags, const ShaderResources &resources)
 {
-    output << "static inline const mg_shader get_" << name << "_shader(mg_renderer_type type) {\n";
+    output << std::format("static inline const mg_shader get_{}_shader(mg_renderer_type type) {{\n", name);
+    output << "    mg_shader shader = {0};\n";
     output << "    switch (type) {\n";
 
     auto write_shader_case = [&](const std::string& shader_type, const std::string& renderer_case) {
-        output << "        case " << renderer_case << ":\n";
-        output << "            return (mg_shader) {\n";
-        output << "                .vertex = (mg_shader_source) {\n";
-        output << "                    .code = " << name << "_" << shader_type << "_vert,\n";
-        output << "                    .size = sizeof(" << name << "_" << shader_type << "_vert)\n";
-        output << "                },\n";
-        output << "                .fragment = (mg_shader_source) {\n";
-        output << "                    .code = " << name << "_" << shader_type << "_frag,\n";
-        output << "                    .size = sizeof(" << name << "_" << shader_type << "_frag)\n";
-        output << "                },\n";
-        output << "            };\n";
+        output << std::format(
+            "        case {}:\n"
+            "            shader.vertex = (mg_shader_source){{.code = {}_{}_vert, .size = sizeof({}_{}_vert)}};\n"
+            "            shader.fragment = (mg_shader_source){{.code = {}_{}_frag, .size = sizeof({}_{}_frag)}};\n"
+            "            break;\n",
+            renderer_case,
+            name, shader_type,
+            name, shader_type,
+            name, shader_type,
+            name, shader_type
+        );
     };
-
-    /*auto write_shader_case = [&](const std::string& shader_type, const std::string& renderer_case) {
-        output << "        case " << renderer_case << ":\n";
-        output << "            return {\n";
-        output << "                .vertex = {\n";
-        output << "                    .code = (void*)" << name << "_" << shader_type << "_vert,\n";
-        output << "                    .size = sizeof(" << name << "_" << shader_type << "_vert)\n";
-        output << "                },\n";
-        output << "                .fragment = {\n";
-        output << "                    .code = (void*)" << name << "_" << shader_type << "_frag,\n";
-        output << "                    .size = sizeof(" << name << "_" << shader_type << "_frag)\n";
-        output << "                },\n";
-        output << "            };\n";
-    };*/
 
     if (lang_flags & ShaderLangFlags::SPIRV)
         write_shader_case("spirv", "MG_RENDERER_TYPE_VULKAN");
+    if (lang_flags & ShaderLangFlags::HLSL)
+        write_shader_case("hlsl", "MG_RENDERER_TYPE_DIRECT3D11");
     if (lang_flags & ShaderLangFlags::GLSL)
         write_shader_case("glsl", "MG_RENDERER_TYPE_OPENGL");
     if (lang_flags & ShaderLangFlags::GLSLES)
         write_shader_case("glsles", "MG_RENDERER_TYPE_OPENGLES");
-    if (lang_flags & ShaderLangFlags::HLSL)
-        write_shader_case("hlsl", "MG_RENDERER_TYPE_DIRECT3D11");
 
-    output << "    };\n";
-    output << "    return (mg_shader) { 0 };\n";
-    //output << "    return {};\n";
+    output << "    }\n\n";
+
+    for (uint32_t i = 0; i < resources.uniform_blocks.size(); ++i)
+    {
+        output << std::format("    shader.uniform_blocks[{}].name = \"{}\";\n",
+            i,
+            resources.uniform_blocks[i].name);
+        output << std::format("    shader.uniform_blocks[{}].binding = {};\n",
+            i,
+            resources.uniform_blocks[i].binding);
+    }
+
+    if (!resources.sampled_image_name.empty())
+        output << "    shader.sampled_image_name = \"" << resources.sampled_image_name << "\";\n";
+
+    output << "    return shader;\n";
     output << "}\n\n";
 }
 
@@ -306,7 +322,6 @@ int main(int argc, char **argv)
     std::string token;
 
     uint32_t lang_flags = 0;
-    ShaderSource glsl_source, hlsl_source, msl_source;
     while (std::getline(lang_stream, token, ','))
     {
         if      (token == "spirv")  lang_flags |= ShaderLangFlags::SPIRV;
@@ -325,6 +340,11 @@ int main(int argc, char **argv)
     header_file << "#pragma once\n\n#include <stdint.h>\n\n";
 
     ShaderSource source;
+    ShaderResources resources;
+
+    get_spirv_resources(spirv_vert, resources);
+    get_spirv_resources(spirv_frag, resources);
+
     if (lang_flags & ShaderLangFlags::SPIRV)
     {
         write_spirv_to_header(spirv_vert, name, "spirv", "vert", header_file);
@@ -359,7 +379,7 @@ int main(int argc, char **argv)
         write_shader_source_to_header(source.fragment, name, "msl", "frag", header_file);
     }
 
-    write_get_shader_function(name, header_file, lang_flags);
+    write_get_shader_function(name, header_file, lang_flags, resources);
 
     header_file.close();
 
