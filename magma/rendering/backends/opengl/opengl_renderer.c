@@ -165,9 +165,9 @@ void mg_opengl_renderer_draw_indexed(uint32_t index_count, uint32_t first_index,
 {
 	const int index_size = (gl_ctx.index_type == GL_UNSIGNED_SHORT) ? 2 : 4;
 #if !MG_PLATFORM_EMSCRIPTEN
-	glDrawElementsBaseVertex(gl_ctx.primitive_topology, index_count, gl_ctx.index_type, (void*)(first_index * index_size), first_vertex);
+	glDrawElementsBaseVertex(gl_ctx.primitive_topology, index_count, gl_ctx.index_type, (void*)(uintptr_t)(first_index * index_size), first_vertex);
 #else
-    glDrawElements(gl_ctx.primitive_topology, index_count, gl_ctx.index_type, (void*)(first_index * index_size));
+    glDrawElements(gl_ctx.primitive_topology, index_count, gl_ctx.index_type, (void*)(uintptr_t)(first_index * index_size));
 #endif
 }
 

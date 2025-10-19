@@ -23,73 +23,120 @@
     #include "backends/d3d11/d3d11_image.h"
 #endif
 
+typedef void (*mgfx_initialize_fn)(mgfx_init_info *init_info);
+typedef void (*mgfx_shutdown_fn)(void);
+typedef void (*mgfx_begin_fn)(void);
+typedef void (*mgfx_end_fn)(void);
+typedef void (*mgfx_present_frame_fn)(void);
+typedef void (*mgfx_wait_fn)(void);
+
+typedef void (*mgfx_configure_swapchain_fn)(mg_swapchain_config_info *config_info);
+
+typedef void (*mgfx_viewport_fn)(int32_t x, int32_t y, uint32_t width, uint32_t height);
+typedef void (*mgfx_scissor_fn)(int32_t x, int32_t y, uint32_t width, uint32_t height);
+
+typedef void *(*mgfx_create_render_pass_fn)(mg_render_pass_create_info *create_info);
+typedef void (*mgfx_destroy_render_pass_fn)(void *render_pass);
+typedef void (*mgfx_begin_render_pass_fn)(void *render_pass, void *framebuffer, mg_render_pass_begin_info *begin_info);
+typedef void (*mgfx_begin_default_render_pass_fn)(mg_render_pass_begin_info *begin_info);
+typedef void (*mgfx_end_render_pass_fn)(void);
+
+typedef void *(*mgfx_create_pipeline_fn)(mg_pipeline_create_info *create_info);
+typedef void (*mgfx_destroy_pipeline_fn)(void *pipeline);
+typedef void (*mgfx_bind_pipeline_fn)(void *pipeline);
+
+typedef void *(*mgfx_create_image_fn)(mg_image_create_info *create_info);
+typedef void (*mgfx_destroy_image_fn)(void *image);
+typedef void (*mgfx_update_image_fn)(void *image, mg_image_write_info *write_info);
+
+typedef mg_image_array (*mgfx_create_image_array_fn)(void);
+typedef void (*mgfx_destroy_image_array_fn)(mg_image_array array);
+typedef void (*mgfx_update_image_array_fn)(mg_image_array array, mg_image *images, mg_sampler *samplers, uint32_t count);
+typedef void (*mgfx_bind_image_array_fn)(mg_image_array array);
+
+typedef void *(*mgfx_create_sampler_fn)(mg_sampler_create_info *create_info);
+typedef void (*mgfx_destroy_sampler_fn)(void *sampler);
+
+typedef void *(*mgfx_create_framebuffer_fn)(mg_framebuffer_create_info *create_info);
+typedef void (*mgfx_destroy_framebuffer_fn)(void *framebuffer);
+
+typedef void *(*mgfx_create_buffer_fn)(size_t size, void *data);
+typedef void *(*mgfx_create_dynamic_buffer_fn)(size_t size);
+typedef void (*mgfx_destroy_buffer_fn)(void *buffer);
+typedef void (*mgfx_update_dynamic_buffer_fn)(void *buffer, size_t size, void *data);
+
+typedef void (*mgfx_bind_vertex_buffer_fn)(void *buffer);
+typedef void (*mgfx_bind_index_buffer_fn)(void *buffer, mg_index_type index_type);
+typedef void (*mgfx_bind_uniforms_fn)(uint32_t binding, size_t size, void *data);
+
+typedef void (*mgfx_draw_fn)(uint32_t vertex_count, uint32_t first_vertex);
+typedef void (*mgfx_draw_indexed_fn)(uint32_t index_count, uint32_t first_index, int32_t vertex_offset);
+
 typedef struct mgfx_pipe
 {
     mg_platform *platform;
     mg_renderer_type type;
 
-    void (*initialize)      (mgfx_init_info *init_info);
-    void (*shutdown)        (void);
+    mgfx_initialize_fn             initialize;
+    mgfx_shutdown_fn               shutdown;
 
-    void (*begin)     (void);
-    void (*end)       (void);
+    mgfx_begin_fn                  begin;
+    mgfx_end_fn                    end;
+    mgfx_present_frame_fn          present_frame;
+    mgfx_wait_fn                   wait;
 
-    void (*present_frame)   (void);
-    void (*wait)            (void);
+    mgfx_configure_swapchain_fn    configure_swapchain;
 
-    void (*configure_swapchain) (mg_swapchain_config_info *config_info);
+    mgfx_viewport_fn               viewport;
+    mgfx_scissor_fn                scissor;
 
-    void (*viewport)        (int32_t x, int32_t y, uint32_t width, uint32_t height);
-    void (*scissor)         (int32_t x, int32_t y, uint32_t width, uint32_t height);
+    mgfx_create_render_pass_fn         create_render_pass;
+    mgfx_destroy_render_pass_fn        destroy_render_pass;
+    mgfx_begin_render_pass_fn          begin_render_pass;
+    mgfx_begin_default_render_pass_fn  begin_default_render_pass;
+    mgfx_end_render_pass_fn            end_render_pass;
 
-    void *(*create_render_pass)         (mg_render_pass_create_info *create_info);
-    void (*destroy_render_pass)         (void *render_pass);
-    void (*begin_render_pass)           (void *render_pass, void *framebuffer, mg_render_pass_begin_info *begin_info);
-    void (*begin_default_render_pass)   (mg_render_pass_begin_info *begin_info);
-    void (*end_render_pass)             (void);
+    mgfx_create_pipeline_fn         create_pipeline;
+    mgfx_destroy_pipeline_fn        destroy_pipeline;
+    mgfx_bind_pipeline_fn           bind_pipeline;
 
-    void *(*create_pipeline)            (mg_pipeline_create_info *create_info);
-    void (*destroy_pipeline)            (void *pipeline);
-    void (*bind_pipeline)               (void *pipeline);
+    mgfx_create_image_fn            create_image;
+    mgfx_destroy_image_fn           destroy_image;
+    mgfx_update_image_fn            update_image;
 
-    void *(*create_image)               (mg_image_create_info *create_info);
-    void (*destroy_image)               (void *image);
-    void (*update_image)                (void *image, mg_image_write_info *write_info);
+    mgfx_create_image_array_fn      create_image_array;
+    mgfx_destroy_image_array_fn     destroy_image_array;
+    mgfx_update_image_array_fn      update_image_array;
+    mgfx_bind_image_array_fn        bind_image_array;
 
-    mg_image_array (*create_image_array)    (void);
-    void (*destroy_image_array)             (mg_image_array array);
-    void (*update_image_array)              (mg_image_array array, mg_image *images, mg_sampler *samplers, uint32_t count);
-    void (*bind_image_array)                (mg_image_array array);
+    mgfx_create_sampler_fn          create_sampler;
+    mgfx_destroy_sampler_fn         destroy_sampler;
 
-    void *(*create_sampler)             (mg_sampler_create_info *create_info);
-    void (*destroy_sampler)             (void *sampler);
+    mgfx_create_framebuffer_fn      create_framebuffer;
+    mgfx_destroy_framebuffer_fn     destroy_framebuffer;
 
-    void *(*create_framebuffer)         (mg_framebuffer_create_info *create_info);
-    void (*destroy_framebuffer)         (void *framebuffer);
+    mgfx_create_buffer_fn           create_vertex_buffer;
+    mgfx_destroy_buffer_fn          destroy_vertex_buffer;
+    mgfx_create_buffer_fn           create_index_buffer;
+    mgfx_destroy_buffer_fn          destroy_index_buffer;
 
-    void *(*create_vertex_buffer)           (size_t size, void *data);
-    void (*destroy_vertex_buffer)           (void *buffer);
+    mgfx_create_dynamic_buffer_fn   create_dynamic_vertex_buffer;
+    mgfx_destroy_buffer_fn          destroy_dynamic_vertex_buffer;
+    mgfx_update_dynamic_buffer_fn   update_dynamic_vertex_buffer;
 
-    void *(*create_index_buffer)            (size_t size, void *data);
-    void (*destroy_index_buffer)            (void *buffer);
+    mgfx_create_dynamic_buffer_fn   create_dynamic_index_buffer;
+    mgfx_destroy_buffer_fn          destroy_dynamic_index_buffer;
+    mgfx_update_dynamic_buffer_fn   update_dynamic_index_buffer;
 
-    void *(*create_dynamic_vertex_buffer)   (size_t size);
-    void (*destroy_dynamic_vertex_buffer)   (void *buffer);
-    void (*update_dynamic_vertex_buffer)    (void *buffer, size_t size, void *data);
+    mgfx_bind_vertex_buffer_fn      bind_vertex_buffer;
+    mgfx_bind_vertex_buffer_fn      bind_dynamic_vertex_buffer;
+    mgfx_bind_index_buffer_fn       bind_index_buffer;
+    mgfx_bind_index_buffer_fn       bind_dynamic_index_buffer;
 
-    void *(*create_dynamic_index_buffer)    (size_t size);
-    void (*destroy_dynamic_index_buffer)    (void *buffer);
-    void (*update_dynamic_index_buffer)     (void *buffer, size_t size, void *data);
+    mgfx_bind_uniforms_fn           bind_uniforms;
 
-    void (*bind_vertex_buffer)              (void *buffer);
-    void (*bind_dynamic_vertex_buffer)      (void *buffer);
-    void (*bind_index_buffer)               (void *buffer, mg_index_type index_type);
-    void (*bind_dynamic_index_buffer)       (void *buffer, mg_index_type index_type);
-
-    void (*bind_uniforms)                   (uint32_t binding, size_t size, void *data);
-
-    void (*draw)                        (uint32_t vertex_count, uint32_t first_vertex);
-    void (*draw_indexed)                (uint32_t index_count, uint32_t first_index, uint32_t vertex_offset);
+    mgfx_draw_fn                    draw;
+    mgfx_draw_indexed_fn            draw_indexed;
 }
 mgfx_pipe;
 
@@ -152,7 +199,7 @@ void mgfx_initialize(mgfx_init_info *init_info)
 
         pipe.create_image_array = mg_vulkan_create_image_array;
         pipe.destroy_image_array = mg_vulkan_destroy_image_array;
-        pipe.update_image_array = mg_vulkan_update_image_array;
+        pipe.update_image_array = (mgfx_update_image_array_fn)mg_vulkan_update_image_array;
         pipe.bind_image_array = mg_vulkan_bind_image_array;
 
         pipe.create_framebuffer   =   mg_vulkan_create_framebuffer;
@@ -215,7 +262,7 @@ void mgfx_initialize(mgfx_init_info *init_info)
 
         pipe.create_image_array = mg_opengl_create_image_array;
         pipe.destroy_image_array = mg_opengl_destroy_image_array;
-        pipe.update_image_array = mg_opengl_update_image_array;
+        pipe.update_image_array = (mgfx_update_image_array_fn)mg_opengl_update_image_array;
         pipe.bind_image_array = mg_opengl_bind_image_array;
 
         pipe.create_framebuffer   =   mg_opengl_create_framebuffer;
@@ -277,7 +324,7 @@ void mgfx_initialize(mgfx_init_info *init_info)
 
         pipe.create_image_array = mg_d3d11_create_image_array;
         pipe.destroy_image_array = mg_d3d11_destroy_image_array;
-        pipe.update_image_array = mg_d3d11_update_image_array;
+        pipe.update_image_array = (mgfx_update_image_array_fn)mg_d3d11_update_image_array;
         pipe.bind_image_array = mg_d3d11_bind_image_array;
 
         pipe.create_framebuffer   =   mg_d3d11_create_framebuffer;

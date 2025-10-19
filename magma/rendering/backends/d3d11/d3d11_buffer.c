@@ -10,7 +10,7 @@ ID3D11Buffer *mg_d3d11_create_buffer(size_t size, UINT bind_flags, void *data)
 
     D3D11_BUFFER_DESC desc = { 0 };
     desc.Usage = D3D11_USAGE_DEFAULT;
-    desc.ByteWidth = size;
+    desc.ByteWidth = (UINT)size;
     desc.BindFlags = bind_flags;
     desc.CPUAccessFlags = 0;
 
@@ -28,7 +28,7 @@ ID3D11Buffer *mg_d3d11_create_dynamic_buffer(size_t size, UINT bind_flags)
 
     D3D11_BUFFER_DESC desc = { 0 };
     desc.Usage = D3D11_USAGE_DYNAMIC;
-    desc.ByteWidth = size;
+    desc.ByteWidth = (UINT)size;
     desc.BindFlags = bind_flags;
     desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
@@ -60,9 +60,9 @@ ID3D11Buffer *mg_d3d11_create_dynamic_index_buffer(size_t size)
 void mg_d3d11_update_dynamic_buffer(ID3D11Buffer *buffer, size_t size, void *data)
 {
     D3D11_MAPPED_SUBRESOURCE mapped_resource;
-    ID3D11DeviceContext_Map(d3d11_ctx.immediate_context, buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
+    ID3D11DeviceContext_Map(d3d11_ctx.immediate_context, (ID3D11Resource*)buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
     memcpy(mapped_resource.pData, data, size);
-    ID3D11DeviceContext_Unmap(d3d11_ctx.immediate_context, buffer, 0);
+    ID3D11DeviceContext_Unmap(d3d11_ctx.immediate_context, (ID3D11Resource*)buffer, 0);
 }
 
 void mg_d3d11_bind_vertex_buffer(ID3D11Buffer *buffer)

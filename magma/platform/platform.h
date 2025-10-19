@@ -15,7 +15,8 @@ typedef enum mg_platform_flags
     MG_PLATFORM_FLAG_NONE = 0,
     //MG_PLATFORM_FLAG_FULLSCREEN = 1 << 0,
     MG_PLATFORM_FLAG_RESIZABLE = 1 << 1,
-    MG_PLATFORM_FLAG_HIDE_CURSOR = 1 << 2
+    MG_PLATFORM_FLAG_HIDE_CURSOR = 1 << 2,
+    MG_PLATFORM_FLAG_HIDE_WINDOW = 1 << 3
 }
 mg_platform_flags;
 
@@ -56,7 +57,9 @@ MG_API void                 mg_platform_initialize              (mg_platform_ini
 MG_API void                 mg_platform_shutdown                (void);
 
 MG_API void                 mg_platform_poll_events		        (void);
-MG_API double               mg_get_time                         (void);
+MG_API float                mg_get_time                         (void);
+
+MG_API void                 mg_platform_show_window             (void);
 
 MG_API mg_dynamic_library  *mg_platform_load_library            (const char *library_name);
 MG_API mg_proc_address     *mg_platform_get_proc_address        (mg_dynamic_library *library, const char *proc_name);

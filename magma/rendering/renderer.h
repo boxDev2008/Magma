@@ -251,7 +251,7 @@ typedef void *mg_framebuffer;
 
 typedef struct mg_render_pass_begin_info
 {
-    mg_vec4 render_area;
+    mg_vec4i render_area;
     mg_vec4 clear_value;
 }
 mg_render_pass_begin_info;

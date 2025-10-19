@@ -86,7 +86,7 @@ void mg_platform_poll_events(void)
 
 }
 
-double mg_get_time(void)
+float mg_get_time(void)
 {
     return emscripten_get_now() * 0.001;
 }

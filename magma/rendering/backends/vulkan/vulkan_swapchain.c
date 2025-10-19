@@ -14,8 +14,8 @@ VkExtent2D mg_vulkan_choose_swap_extent(const VkSurfaceCapabilitiesKHR *capabili
     else
     {
         VkExtent2D actual_extent = {width, height};
-        actual_extent.width = mg_math_clampf(actual_extent.width, capabilities->minImageExtent.width, capabilities->maxImageExtent.width);
-        actual_extent.height = mg_math_clampf(actual_extent.height, capabilities->minImageExtent.height, capabilities->maxImageExtent.height);
+        actual_extent.width = mg_math_clampi(actual_extent.width, capabilities->minImageExtent.width, capabilities->maxImageExtent.width);
+        actual_extent.height = mg_math_clampi(actual_extent.height, capabilities->minImageExtent.height, capabilities->maxImageExtent.height);
         return actual_extent;
     }
 }
@@ -34,7 +34,7 @@ void mg_vulkan_create_swapchain(mg_swapchain_config_info *config_info)
     VkSwapchainCreateInfoKHR create_info = {VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR};
     create_info.surface = vk_ctx.surface;
     create_info.minImageCount = image_count;
-    create_info.imageFormat = config_info->format;
+    create_info.imageFormat = (VkFormat)config_info->format;
     create_info.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
     create_info.imageExtent = extent;
     create_info.imageArrayLayers = 1;
@@ -44,7 +44,7 @@ void mg_vulkan_create_swapchain(mg_swapchain_config_info *config_info)
     create_info.pQueueFamilyIndices = NULL;
     create_info.preTransform = capabilities.currentTransform;
     create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-    create_info.presentMode = config_info->present_mode;
+    create_info.presentMode = (VkPresentModeKHR)config_info->present_mode;
     create_info.clipped = VK_TRUE;
     create_info.oldSwapchain = vk_ctx.swapchain.handle;
 
@@ -68,7 +68,7 @@ void mg_vulkan_create_swapchain(mg_swapchain_config_info *config_info)
         VkImageViewCreateInfo image_view_create_info = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
         image_view_create_info.image = vk_ctx.swapchain.images[i];
         image_view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        image_view_create_info.format = config_info->format;
+        image_view_create_info.format = (VkFormat)config_info->format;
         image_view_create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         image_view_create_info.subresourceRange.baseMipLevel = 0;
         image_view_create_info.subresourceRange.levelCount = 1;

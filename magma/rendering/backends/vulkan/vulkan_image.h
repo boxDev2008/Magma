@@ -12,7 +12,7 @@ void                mg_vulkan_update_image              (mg_vulkan_image *image,
 
 VkDescriptorSet     mg_vulkan_create_image_array  (void);
 void                mg_vulkan_destroy_image_array (VkDescriptorSet set);
-void                mg_vulkan_update_image_array  (VkDescriptorSet set, mg_vulkan_image **images, VkSampler *samplers, uint32_t count);
+void                mg_vulkan_update_image_array  (VkDescriptorSet set, mg_image *images, VkSampler *samplers, uint32_t count);
 void                mg_vulkan_bind_image_array    (VkDescriptorSet set);
 
 VkSampler           mg_vulkan_create_sampler            (mg_sampler_create_info *create_info);

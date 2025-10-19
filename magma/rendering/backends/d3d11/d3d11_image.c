@@ -39,7 +39,7 @@ mg_d3d11_image *mg_d3d11_create_image(mg_image_create_info *create_info)
         view_desc.Format = texture_desc.Format;
         view_desc.ViewDimension = mg_d3d11_get_srv_dimension(create_info->type);
         view_desc.Texture2D.MipLevels = 1;
-        ID3D11Device_CreateShaderResourceView(d3d11_ctx.device, image->texture, &view_desc, &image->view);
+        ID3D11Device_CreateShaderResourceView(d3d11_ctx.device, (ID3D11Resource*)image->texture, &view_desc, &image->view);
     }
     else image->view = NULL;
 
@@ -59,7 +59,7 @@ void mg_d3d11_update_image(mg_d3d11_image *image, mg_image_write_info *write_inf
     const uint32_t row_pitch = write_info->width * 4;
     ID3D11DeviceContext_UpdateSubresource(
         d3d11_ctx.immediate_context,
-        image->texture,
+        (ID3D11Resource*)image->texture,
         0,
         NULL,
         write_info->data,

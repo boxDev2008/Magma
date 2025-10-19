@@ -47,7 +47,7 @@ static void mg_opengl_bind_vertex_attributes(void)
             case MG_VERTEX_FORMAT_BYTE4N:  type = GL_BYTE;          size = 4; norm = GL_TRUE; break;
         }
 
-        glVertexAttribPointer(attr->location, size, type, norm, pipeline->vertex_layout.stride, (void*)attr->offset);
+        glVertexAttribPointer(attr->location, size, type, norm, pipeline->vertex_layout.stride, (const void*)(uintptr_t)attr->offset);
         glEnableVertexAttribArray(attr->location);
     }
 }

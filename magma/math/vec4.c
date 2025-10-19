@@ -41,7 +41,7 @@ float mg_vec4_dot(mg_vec4 a, mg_vec4 b)
 
 float mg_vec4_magnitude(mg_vec4 vec)
 {
-    return sqrt((vec.x * vec.x) + (vec.y * vec.y) + (vec.z * vec.z) + (vec.w * vec.w));
+    return sqrtf((vec.x * vec.x) + (vec.y * vec.y) + (vec.z * vec.z) + (vec.w * vec.w));
 }
 
 mg_vec4 mg_vec4_normalize(mg_vec4 vec)

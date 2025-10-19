@@ -280,7 +280,7 @@ void mg_imgui_draw(ImDrawData* draw_data)
     {
         const ImDrawList* cl = draw_data->CmdLists[cl_index];
 
-        uint32_t i;
+        int32_t i;
         for (i = 0; i < cl->VtxBuffer.size(); i++)
         {
             imgui_data->vertices[imgui_data->vb_offset] = cl->VtxBuffer[i];

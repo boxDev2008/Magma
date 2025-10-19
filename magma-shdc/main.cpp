@@ -274,7 +274,7 @@ int main(int argc, char **argv)
     const char *lang = nullptr;
     const char *name = nullptr;
 
-    for (uint32_t i = 1; i + 1 < argc; i++)
+    for (int32_t i = 1; i + 1 < argc; i++)
         if (!strcmp(argv[i], "--input") || !strcmp(argv[i], "-i"))
             input_file = argv[++i];
         else if (!strcmp(argv[i], "--output") || !strcmp(argv[i], "-o"))

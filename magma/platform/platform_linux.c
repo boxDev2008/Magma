@@ -462,11 +462,11 @@ void mg_platform_poll_events(void)
     }
 }
 
-double mg_get_time(void)
+float mg_get_time(void)
 {
     struct timespec now_time;
     clock_gettime(CLOCK_MONOTONIC, &now_time);
-    return (double)(now_time.tv_sec - start_time.tv_sec) + (now_time.tv_nsec - start_time.tv_nsec) * clock_frequency;
+    return (float)((now_time.tv_sec - start_time.tv_sec) + (now_time.tv_nsec - start_time.tv_nsec) * clock_frequency);
 }
 
 mg_dynamic_library *mg_platform_load_library(const char *library_name)

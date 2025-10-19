@@ -115,27 +115,21 @@ void mg_hlgfx_end_lit_scene_2d          (void);
 
 void mg_hlgfx_draw_rect_2d_internal     (mg_mat4 model, mg_vec4 color);
 void mg_hlgfx_draw_sprite_2d_internal   (mg_mat4 model, mg_vec4 color, const mg_sprite *sprite);
-//void mg_hlgfx_draw_text_2d_internal     (mg_mat4 model, mg_vec4 color, mg_text_alignment alignment, const char *text, mg_font *font);
+void mg_hlgfx_draw_sprite_2d_internal_ext(mg_mat4 model, mg_vec4 color, float grayscale, const mg_sprite *sprite);
 
 void mg_hlgfx_draw_rect_2d              (mg_vec2 position, mg_vec2 scale, mg_vec2 pivot, mg_vec4 color);
 void mg_hlgfx_draw_sprite_2d            (mg_vec2 position, mg_vec2 scale, mg_vec2 pivot, mg_vec4 color, const mg_sprite *sprite);
+void mg_hlgfx_draw_sprite_2d_ext        (mg_vec2 position, mg_vec2 scale, mg_vec2 pivot, mg_vec4 color, float grayscale, const mg_sprite *sprite);
 void mg_hlgfx_draw_vertex_colored_sprite_2d (mg_vec2 position, mg_vec2 scale, mg_vec2 pivot, mg_vec4 c0 , mg_vec4 c1 , mg_vec4 c2 , mg_vec4 c3, const mg_sprite *sprite);
 
 void mg_hlgfx_draw_text_2d              (mg_vec2 position, float scale, mg_vec4 color, mg_text_alignment alignment, mg_font *font, const char *fmt, ...);
 
-//void mg_hlgfx_draw_text_2d              (mg_vec2 position, mg_vec2 scale, mg_vec2 pivot, mg_vec4 color, mg_text_alignment alignment, const char *text, mg_font *font);
-
 void mg_hlgfx_draw_rotated_rect_2d		    (mg_vec2 position, mg_vec2 scale, mg_vec2 pivot, float rotation, mg_vec4 color);
 void mg_hlgfx_draw_rotated_sprite_2d	    (mg_vec2 position, mg_vec2 scale, mg_vec2 pivot, float rotation, mg_vec4 color, const mg_sprite *sprite);
+void mg_hlgfx_draw_rotated_sprite_2d_ext    (mg_vec2 position, mg_vec2 scale, mg_vec2 pivot, float rotation, mg_vec4 color, float grayscale, const mg_sprite *sprite);
 void mg_hlgfx_draw_rotated_vertex_colored_sprite_2d	    (mg_vec2 position, mg_vec2 scale, mg_vec2 pivot, float rotation, mg_vec4 c0, mg_vec4 c1, mg_vec4 c2, mg_vec4 c3, const mg_sprite *sprite);
 
-//void mg_hlgfx_draw_rotated_text_2d		(mg_vec2 position, mg_vec2 scale, mg_vec2 pivot, float rotation, mg_vec4 color, mg_text_alignment alignment, const char *text, mg_font *font);
-
-//void mg_hlgfx_draw_line_2d          (mg_vec2 point1, mg_vec2 point2, float width, mg_vec4 color);
-
 void mg_hlgfx_draw_point_light_2d       (mg_vec2 position, float scale, float intensity, mg_vec3 color);
-
-//void mg_hlgfx_draw_mesh             (mg_mat4 model, mg_mesh *mesh, mg_texture *texture);
 
 mg_texture      mg_hlgfx_add_texture            (uint32_t width, uint32_t height, mg_sampler_filter filter, mg_pixel_format format, void *data);
 mg_texture      mg_hlgfx_add_texture_from_file  (const char *file_name, mg_sampler_filter filter, mg_pixel_format format);

@@ -23,26 +23,13 @@
 
 #define MG_HLGFX_2D_MAX_LIGHT_COUNT 128
 
-/*typedef struct mg_world_ubo_2d
-{
-    mg_vec4 light_transform[MG_HLGFX_2D_MAX_LIGHT_COUNT];
-    mg_vec4 light_colors[MG_HLGFX_2D_MAX_LIGHT_COUNT];
-    mg_vec4 global_light_data;
-    //mg_vec4 shadow_data;
-    mg_vec4 resolution;
-    int32_t light_count;
-    int32_t flag_enable_vignette;
-    int32_t flag_enable_lights;
-    int32_t flag_enable_shadows;
-}
-mg_world_ubo_2d;*/
-
 typedef struct mg_batch_vertex
 {
     mg_vec2 position;
     mg_vec2 texcoord;
-    mg_vec4 color;
+    uint32_t color;
     float tex_id;
+    float grayscale;
 }
 mg_batch_vertex;
 
@@ -171,7 +158,7 @@ void mg_hlgfx_begin_lit_scene_2d(const mg_camera_info_2d *camera_info, mg_lit_sc
 	mgfx_bind_uniforms(0, sizeof(vs_ub_data), &vs_ub_data);
 
     rdata->lit_ub_data.light_count = 0;
-    rdata->lit_ub_data.resolution = (mg_vec4) { width, height, 0.0f, 0.0f };
+    rdata->lit_ub_data.resolution = (mg_vec4) { (float)width, (float)height, 0.0f, 0.0f };
     rdata->lit_ub_data.global_light_data = (mg_vec4) {
         lit_scene_info->global_light_color.r,
         lit_scene_info->global_light_color.g,
@@ -300,7 +287,7 @@ void mg_hlgfx_initialize(const mg_hlgfx_init_info *info)
 
 #pragma region BATCH_DATA
     {
-        mg_vertex_attribute_info vertex_attributes[4] = {
+        mg_vertex_attribute_info vertex_attributes[5] = {
             {
                 .location = 0,
                 .offset = 0,
@@ -314,19 +301,24 @@ void mg_hlgfx_initialize(const mg_hlgfx_init_info *info)
             {
                 .location = 2,
                 .offset = 4 * sizeof(float),
-                .format = MG_VERTEX_FORMAT_FLOAT4
+                .format = MG_VERTEX_FORMAT_UBYTE4N
             },
             {
                 .location = 3,
-                .offset = 8 * sizeof(float),
+                .offset = 5 * sizeof(float),
+                .format = MG_VERTEX_FORMAT_FLOAT
+            },
+            {
+                .location = 4,
+                .offset = 6 * sizeof(float),
                 .format = MG_VERTEX_FORMAT_FLOAT
             }
         };
         
         mg_vertex_layout_info vertex_layout = {
-            .stride = 9 * sizeof(float),
+            .stride = 7 * sizeof(float),
             .attributes = vertex_attributes,
-            .attribute_count = 4
+            .attribute_count = 5
         };
         
         mg_pipeline_create_info pipeline_create_info = {
@@ -466,7 +458,7 @@ void mg_hlgfx_begin(const mg_post_process_info *post_process_info, const mg_vec3
     mgfx_begin();
 
 	mg_render_pass_begin_info rp_info = {
-        .render_area = (mg_vec4) {0.0f, 0.0f, rdata->width, rdata->height},
+        .render_area = (mg_vec4i) {0, 0, rdata->width, rdata->height},
         .clear_value = (mg_vec4) {clear_color.x, clear_color.y, clear_color.z, 1.0f}
     };
 	mgfx_begin_render_pass(rdata->screen_data.rp, rdata->screen_data.fb, &rp_info);
@@ -486,7 +478,7 @@ void mg_hlgfx_end(void)
 	mgfx_end_render_pass();
 
     mg_render_pass_begin_info rp_info = {
-        .render_area = (mg_vec4) {0.0f, 0.0f, rdata->width, rdata->height},
+        .render_area = (mg_vec4i) {0, 0, rdata->width, rdata->height},
         .clear_value = (mg_vec4) {0.0f, 0.0f, 0.0f, 1.0f}
     };
     
@@ -502,6 +494,15 @@ void mg_hlgfx_end(void)
     mgfx_end();
 }
 
+static uint32_t mg_color_to_uint32(mg_vec4 v)
+{
+    v.x = mg_math_clampf(v.x * 255.0f, 0.0f, 255.0f);
+    v.y = mg_math_clampf(v.y * 255.0f, 0.0f, 255.0f);
+    v.z = mg_math_clampf(v.z * 255.0f, 0.0f, 255.0f);
+    v.w = mg_math_clampf(v.w * 255.0f, 0.0f, 255.0f);
+    return (uint32_t) v.x | ((uint32_t) v.y << 8) | ((uint32_t) v.z << 16) | ((uint32_t) v.w << 24);
+}
+
 void mg_hlgfx_draw_rect_2d_internal(mg_mat4 model, mg_vec4 color)
 {
     const mg_vec4 v1 = mg_mat4_multiply_vec4(model, (mg_vec4){ 0.0f, 0.0f, 0.0f, 1.0f });
@@ -509,15 +510,17 @@ void mg_hlgfx_draw_rect_2d_internal(mg_mat4 model, mg_vec4 color)
     const mg_vec4 v3 = mg_mat4_multiply_vec4(model, (mg_vec4){ 1.0f, 1.0f, 0.0f, 1.0f });
     const mg_vec4 v4 = mg_mat4_multiply_vec4(model, (mg_vec4){ 0.0f, 1.0f, 0.0f, 1.0f });
 
+    const uint32_t ncolor = mg_color_to_uint32(color);
+
     rdata->sprite_batch.quads[rdata->sprite_batch.quad_count++] = (mg_batch_quad){{
-        {v1.x, v1.y, 0.0f, 0.0f, color.r, color.g, color.b, color.a, -1},
-        {v2.x, v2.y, 1.0f, 0.0f, color.r, color.g, color.b, color.a, -1},
-        {v3.x, v3.y, 1.0f, 1.0f, color.r, color.g, color.b, color.a, -1},
-        {v4.x, v4.y, 0.0f, 1.0f, color.r, color.g, color.b, color.a, -1}
+        {v1.x, v1.y, 0.0f, 0.0f, ncolor, -1, -1},
+        {v2.x, v2.y, 1.0f, 0.0f, ncolor, -1, -1},
+        {v3.x, v3.y, 1.0f, 1.0f, ncolor, -1, -1},
+        {v4.x, v4.y, 0.0f, 1.0f, ncolor, -1, -1}
     }};
 }
 
-void mg_hlgfx_draw_sprite_2d_internal(mg_mat4 model, mg_vec4 color, const mg_sprite *sprite)
+void mg_hlgfx_draw_sprite_2d_internal_ext(mg_mat4 model, mg_vec4 color, float grayscale, const mg_sprite *sprite)
 {
     const uint8_t tex_id = sprite->texture->id;
 
@@ -526,35 +529,52 @@ void mg_hlgfx_draw_sprite_2d_internal(mg_mat4 model, mg_vec4 color, const mg_spr
     const mg_vec4 v3 = mg_mat4_multiply_vec4(model, (mg_vec4){ 1.0f, 1.0f, 0.0f, 1.0f });
     const mg_vec4 v4 = mg_mat4_multiply_vec4(model, (mg_vec4){ 0.0f, 1.0f, 0.0f, 1.0f });
 
+    const uint32_t ncolor = mg_color_to_uint32(color);
+
     rdata->sprite_batch.quads[rdata->sprite_batch.quad_count++] = (mg_batch_quad){{
-        {v1.x, v1.y, sprite->x, sprite->y, color.r, color.g, color.b, color.a, tex_id},
-        {v2.x, v2.y, sprite->x + sprite->width, sprite->y, color.r, color.g, color.b, color.a, tex_id},
-        {v3.x, v3.y, sprite->x + sprite->width, sprite->y + sprite->height, color.r, color.g, color.b, color.a, tex_id},
-        {v4.x, v4.y, sprite->x, sprite->y + sprite->height, color.r, color.g, color.b, color.a, tex_id}
+        {v1.x, v1.y, sprite->x, sprite->y, ncolor, tex_id, grayscale},
+        {v2.x, v2.y, sprite->x + sprite->width, sprite->y, ncolor, tex_id, grayscale},
+        {v3.x, v3.y, sprite->x + sprite->width, sprite->y + sprite->height, ncolor, tex_id, grayscale},
+        {v4.x, v4.y, sprite->x, sprite->y + sprite->height, ncolor, tex_id, grayscale}
     }};
+}
+
+void mg_hlgfx_draw_sprite_2d_internal(mg_mat4 model, mg_vec4 color, const mg_sprite *sprite)
+{
+    mg_hlgfx_draw_sprite_2d_internal_ext(model, color, 0.0f, sprite);
 }
 
 void mg_hlgfx_draw_rect_2d(mg_vec2 position, mg_vec2 scale, mg_vec2 pivot, mg_vec4 color)
 {
     const mg_vec2 pivot_offset = (mg_vec2) { pivot.x * scale.x, pivot.y * scale.y };
+    const uint32_t ncolor = mg_color_to_uint32(color);
+
     rdata->sprite_batch.quads[rdata->sprite_batch.quad_count++] = (mg_batch_quad){{
-        {position.x - pivot_offset.x, position.y - pivot_offset.y, 0.0f, 0.0f, color.r, color.g, color.b, color.a, -1},
-        {position.x + scale.x - pivot_offset.x, position.y - pivot_offset.y, 0.1f, 0.0f, color.r, color.g, color.b, color.a, -1},
-        {position.x + scale.x - pivot_offset.x, position.y + scale.y - pivot_offset.y, 1.0f, 1.0f, color.r, color.g, color.b, color.a, -1},
-        {position.x - pivot_offset.x, position.y + scale.y - pivot_offset.y, 0.0f, 1.0f, color.r, color.g, color.b, color.a, -1}
+        {position.x - pivot_offset.x, position.y - pivot_offset.y, 0.0f, 0.0f, ncolor, -1, -1},
+        {position.x + scale.x - pivot_offset.x, position.y - pivot_offset.y, 0.1f, 0.0f, ncolor, -1, -1},
+        {position.x + scale.x - pivot_offset.x, position.y + scale.y - pivot_offset.y, 1.0f, 1.0f, ncolor, -1, -1},
+        {position.x - pivot_offset.x, position.y + scale.y - pivot_offset.y, 0.0f, 1.0f, ncolor, -1, -1}
     }};
 }
 
-void mg_hlgfx_draw_sprite_2d(mg_vec2 position, mg_vec2 scale, mg_vec2 pivot, mg_vec4 color, const mg_sprite *sprite)
+void mg_hlgfx_draw_sprite_2d_ext(mg_vec2 position, mg_vec2 scale, mg_vec2 pivot, mg_vec4 color, float grayscale, const mg_sprite *sprite)
 {
     const mg_vec2 pivot_offset = (mg_vec2) { pivot.x * scale.x, pivot.y * scale.y };
+    const uint32_t ncolor = mg_color_to_uint32(color);
+
     const uint8_t tex_id = sprite->texture->id;
     rdata->sprite_batch.quads[rdata->sprite_batch.quad_count++] = (mg_batch_quad){{
-        {position.x - pivot_offset.x, position.y - pivot_offset.y, sprite->x, sprite->y, color.r, color.g, color.b, color.a, tex_id},
-        {position.x + scale.x - pivot_offset.x, position.y - pivot_offset.y, sprite->x + sprite->width, sprite->y, color.r, color.g, color.b, color.a, tex_id},
-        {position.x + scale.x - pivot_offset.x, position.y + scale.y - pivot_offset.y, sprite->x + sprite->width, sprite->y + sprite->height, color.r, color.g, color.b, color.a, tex_id},
-        {position.x - pivot_offset.x, position.y + scale.y - pivot_offset.y, sprite->x, sprite->y + sprite->height, color.r, color.g, color.b, color.a, tex_id}
+        {position.x - pivot_offset.x, position.y - pivot_offset.y, sprite->x, sprite->y, ncolor, tex_id, grayscale},
+        {position.x + scale.x - pivot_offset.x, position.y - pivot_offset.y, sprite->x + sprite->width, sprite->y, ncolor, tex_id, grayscale},
+        {position.x + scale.x - pivot_offset.x, position.y + scale.y - pivot_offset.y, sprite->x + sprite->width, sprite->y + sprite->height, ncolor, tex_id, grayscale},
+        {position.x - pivot_offset.x, position.y + scale.y - pivot_offset.y, sprite->x, sprite->y + sprite->height, ncolor, tex_id, grayscale}
     }};
+}
+
+
+void mg_hlgfx_draw_sprite_2d(mg_vec2 position, mg_vec2 scale, mg_vec2 pivot, mg_vec4 color, const mg_sprite *sprite)
+{
+    mg_hlgfx_draw_sprite_2d_ext(position, scale, pivot, color, 0.0f, sprite);
 }
 
 float mg_hlgfx_calculate_text_width(float scale, mg_font *font, const char *text)
@@ -591,6 +611,8 @@ void mg_hlgfx_draw_text_2d(mg_vec2 position, float scale, mg_vec4 color, mg_text
     else if (alignment == MG_TEXT_ALIGNMENT_RIGHT)
         position.x -= mg_hlgfx_calculate_text_width(scale, font, text);
 
+    const uint32_t ncolor = mg_color_to_uint32(color);
+
     while (*text)
     {
         if (*text >= 32 && *text < 128)
@@ -611,10 +633,10 @@ void mg_hlgfx_draw_text_2d(mg_vec2 position, float scale, mg_vec4 color, mg_text
             float t1 = b->y1 / 512.0f;
 
             rdata->sprite_batch.quads[rdata->sprite_batch.quad_count++] = (mg_batch_quad){{
-                {x0, y0, s0, t0, color.r, color.g, color.b, color.a, tex_id},
-                {x1, y0, s1, t0, color.r, color.g, color.b, color.a, tex_id},
-                {x1, y1, s1, t1, color.r, color.g, color.b, color.a, tex_id},
-                {x0, y1, s0, t1, color.r, color.g, color.b, color.a, tex_id}
+                {x0, y0, s0, t0, ncolor, tex_id, -1},
+                {x1, y0, s1, t0, ncolor, tex_id, -1},
+                {x1, y1, s1, t1, ncolor, tex_id, -1},
+                {x0, y1, s0, t1, ncolor, tex_id, -1}
             }};
 
             position.x += b->xadvance * scale;
@@ -628,10 +650,10 @@ void mg_hlgfx_draw_vertex_colored_sprite_2d(mg_vec2 position, mg_vec2 scale, mg_
     const mg_vec2 pivot_offset = (mg_vec2) { pivot.x * scale.x, pivot.y * scale.y };
     const uint8_t tex_id = sprite->texture->id;
     rdata->sprite_batch.quads[rdata->sprite_batch.quad_count++] = (mg_batch_quad){{
-        {position.x - pivot_offset.x, position.y - pivot_offset.y, sprite->x, sprite->y, c0.r, c0.g, c0.b, c0.a, tex_id},
-        {position.x + scale.x - pivot_offset.x, position.y - pivot_offset.y, sprite->x + sprite->width, sprite->y, c1.r, c1.g, c1.b, c1.a, tex_id},
-        {position.x + scale.x - pivot_offset.x, position.y + scale.y - pivot_offset.y, sprite->x + sprite->width, sprite->y + sprite->height, c3.r, c3.g, c3.b, c3.a, tex_id},
-        {position.x - pivot_offset.x, position.y + scale.y - pivot_offset.y, sprite->x, sprite->y + sprite->height, c3.r, c3.g, c3.b, c3.a, tex_id}
+        {position.x - pivot_offset.x, position.y - pivot_offset.y, sprite->x, sprite->y, mg_color_to_uint32(c0), tex_id, -1},
+        {position.x + scale.x - pivot_offset.x, position.y - pivot_offset.y, sprite->x + sprite->width, mg_color_to_uint32(c1), tex_id, -1},
+        {position.x + scale.x - pivot_offset.x, position.y + scale.y - pivot_offset.y, sprite->x + sprite->width, sprite->y + sprite->height, mg_color_to_uint32(c2), tex_id, -1},
+        {position.x - pivot_offset.x, position.y + scale.y - pivot_offset.y, sprite->x, sprite->y + sprite->height, mg_color_to_uint32(c3), tex_id, -1}
     }};
 }
 
@@ -645,14 +667,19 @@ void mg_hlgfx_draw_rotated_rect_2d(mg_vec2 position, mg_vec2 scale, mg_vec2 pivo
     mg_hlgfx_draw_rect_2d_internal(model, color);
 }
 
-void mg_hlgfx_draw_rotated_sprite_2d(mg_vec2 position, mg_vec2 scale, mg_vec2 pivot, float rotation, mg_vec4 color, const mg_sprite *sprite)
+void mg_hlgfx_draw_rotated_sprite_2d_ext(mg_vec2 position, mg_vec2 scale, mg_vec2 pivot, float rotation, mg_vec4 color, float grayscale, const mg_sprite *sprite)
 {
     mg_mat4 model = mg_mat4_identity();
     model = mg_mat4_translate(model, (mg_vec3) { -pivot.x, -pivot.y, 0.0f });
     model = mg_mat4_scale(model, (mg_vec3) { scale.x, scale.y, 1.0f });
     model = mg_mat4_rotate_z(model, rotation);
     model = mg_mat4_translate(model, (mg_vec3) { position.x, position.y, 0.0f });
-    mg_hlgfx_draw_sprite_2d_internal(model, color, sprite);
+    mg_hlgfx_draw_sprite_2d_internal_ext(model, color, grayscale, sprite);
+}
+
+void mg_hlgfx_draw_rotated_sprite_2d(mg_vec2 position, mg_vec2 scale, mg_vec2 pivot, float rotation, mg_vec4 color, const mg_sprite *sprite)
+{
+    mg_hlgfx_draw_rotated_sprite_2d_ext(position, scale, pivot, rotation, color, 0.0f, sprite);
 }
 
 void mg_hlgfx_draw_rotated_vertex_colored_sprite_2d(mg_vec2 position, mg_vec2 scale, mg_vec2 pivot, float rotation, mg_vec4 c0, mg_vec4 c1, mg_vec4 c2, mg_vec4 c3, const mg_sprite *sprite)
@@ -671,10 +698,10 @@ void mg_hlgfx_draw_rotated_vertex_colored_sprite_2d(mg_vec2 position, mg_vec2 sc
     const mg_vec4 v4 = mg_mat4_multiply_vec4(model, (mg_vec4){ 0.0f, 1.0f, 0.0f, 1.0f });
 
     rdata->sprite_batch.quads[rdata->sprite_batch.quad_count++] = (mg_batch_quad){{
-        {v1.x, v1.y, sprite->x, sprite->y, c0.r, c0.g, c0.b, c0.a, tex_id},
-        {v2.x, v2.y, sprite->x + sprite->width, sprite->y, c1.r, c1.g, c1.b, c1.a, tex_id},
-        {v3.x, v3.y, sprite->x + sprite->width, sprite->y + sprite->height, c2.r, c2.g, c2.b, c2.a, tex_id},
-        {v4.x, v4.y, sprite->x, sprite->y + sprite->height, c3.r, c3.g, c3.b, c3.a, tex_id}
+        {v1.x, v1.y, sprite->x, sprite->y, mg_color_to_uint32(c0), tex_id, -1},
+        {v2.x, v2.y, sprite->x + sprite->width, sprite->y, mg_color_to_uint32(c1), tex_id, -1},
+        {v3.x, v3.y, sprite->x + sprite->width, sprite->y + sprite->height, mg_color_to_uint32(c2), tex_id, -1},
+        {v4.x, v4.y, sprite->x, sprite->y + sprite->height, mg_color_to_uint32(c3), tex_id, -1}
     }};
 }
 
@@ -828,7 +855,7 @@ mg_font mg_hlgfx_add_font(void *ttf_data)
     uint32_t *bitmap = (uint32_t*)malloc(512 * 512 * sizeof(uint32_t));
     mg_font font;
 
-    stbtt_BakeFontBitmap(ttf_data, 0, 86.0, bitmap, 2048, 256, 32, 96, font.cdata);
+    stbtt_BakeFontBitmap(ttf_data, 0, 86.0, (uint8_t*)bitmap, 2048, 256, 32, 96, font.cdata);
 
     uint32_t* p = bitmap;
     uint32_t* end = bitmap + (512 * 512);

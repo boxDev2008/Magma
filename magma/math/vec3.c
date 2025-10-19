@@ -48,7 +48,7 @@ mg_vec3 mg_vec3_cross(mg_vec3 a, mg_vec3 b)
 
 float mg_vec3_magnitude(mg_vec3 vec)
 {
-    return sqrt((vec.x * vec.x) + (vec.y * vec.y) + (vec.z * vec.z));
+    return sqrtf((vec.x * vec.x) + (vec.y * vec.y) + (vec.z * vec.z));
 }
 
 mg_vec3 mg_vec3_normalize(mg_vec3 vec)

@@ -129,6 +129,7 @@ static GLenum mg_opengl_get_internal_format(mg_pixel_format format)
         case MG_PIXEL_FORMAT_D32_SFLOAT_S8_UINT:
             return GL_DEPTH32F_STENCIL8;
     }
+    return GL_RGBA8;
 }
 
 static GLenum mg_opengl_get_format(mg_pixel_format format)
@@ -196,6 +197,7 @@ static GLenum mg_opengl_get_format(mg_pixel_format format)
         case MG_PIXEL_FORMAT_D32_SFLOAT_S8_UINT:
             return GL_DEPTH_STENCIL;
     }
+    return GL_RGBA;
 }
 
 static GLint mg_opengl_get_filter(mg_sampler_filter filter)
@@ -205,6 +207,7 @@ static GLint mg_opengl_get_filter(mg_sampler_filter filter)
         case MG_SAMPLER_FILTER_NEAREST: return GL_NEAREST;
         case MG_SAMPLER_FILTER_LINEAR: return GL_LINEAR;
     }
+    return GL_NEAREST;
 }
 
 static GLint mg_opengl_get_address_mode(mg_sampler_address_mode address_mode)
@@ -222,6 +225,8 @@ static GLint mg_opengl_get_address_mode(mg_sampler_address_mode address_mode)
         return GL_CLAMP_TO_BORDER;
     case MG_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE:
         return GL_MIRROR_CLAMP_TO_EDGE;
+    default:
+        return GL_REPEAT;
 #else
     default:
         return GL_CLAMP_TO_EDGE;

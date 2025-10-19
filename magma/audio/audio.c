@@ -119,12 +119,12 @@ mg_sound *mg_audio_play_sound_internal(mg_sound_resource *resource)
 
     result = ma_sound_start(&p_sound->sound);
     
-    return &p_sound->sound;
+    return (mg_sound*)&p_sound->sound;
 }
 
 void mg_audio_play_sound(mg_sound_resource *resource, float volume, float pitch)
 {
-    mg_sound *sound = mg_audio_play_sound_internal(resource);
+    ma_sound *sound = (ma_sound*)mg_audio_play_sound_internal(resource);
     ma_sound_set_volume(sound, volume);
     ma_sound_set_pitch(sound, pitch);
 }

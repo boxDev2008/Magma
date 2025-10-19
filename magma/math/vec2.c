@@ -38,7 +38,7 @@ float mg_vec2_dot(mg_vec2 a, mg_vec2 b)
 
 float mg_vec2_magnitude(mg_vec2 vec)
 {
-    return sqrt((vec.x * vec.x) + (vec.y * vec.y));
+    return sqrtf((vec.x * vec.x) + (vec.y * vec.y));
 }
 
 mg_vec2 mg_vec2_normalize(mg_vec2 vec)

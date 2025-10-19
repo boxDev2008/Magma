@@ -13,25 +13,25 @@
 
 static mg_win32_platform *platform;
 
-static double clock_frequency;
+static float clock_frequency;
 static LARGE_INTEGER start_time;
 
 LRESULT CALLBACK win32_process_message(HWND hwnd, uint32_t msg, WPARAM w_param, LPARAM l_param);
 
-void mg_create_wide_string_from_utf8(const char *source, WCHAR *target)
+static void mg_create_wide_string_from_utf8(const char *source, WCHAR *target)
 {
     uint32_t count;
 
     count = MultiByteToWideChar(CP_UTF8, 0, source, -1, NULL, 0);
     if (!count)
     {
-        MessageBox(0, "Failed to convert string from UTF-8", "Error", MB_ICONEXCLAMATION | MB_OK);
+        MessageBoxA(0, (LPCSTR)"Failed to convert string from UTF-8", "Error", MB_ICONEXCLAMATION | MB_OK);
         return;
     }
 
     if (!MultiByteToWideChar(CP_UTF8, 0, source, -1, target, count))
     {
-        MessageBoxA(NULL, "Failed to convert string from UTF-8", "Error!", MB_ICONEXCLAMATION | MB_OK);
+        MessageBoxA(NULL, (LPCSTR)"Failed to convert string from UTF-8", "Error!", MB_ICONEXCLAMATION | MB_OK);
         return;
     }
 }
@@ -58,7 +58,7 @@ void mg_platform_initialize(mg_platform_init_info *init_info)
 
     if (!RegisterClassA(&wc))
     {
-        MessageBox(0, "Window registration failed", "Error", MB_ICONEXCLAMATION | MB_OK);
+        MessageBoxA(0, (LPCSTR)"Window registration failed", (LPCSTR)"Error", MB_ICONEXCLAMATION | MB_OK);
         return;
     }
 
@@ -84,12 +84,12 @@ void mg_platform_initialize(mg_platform_init_info *init_info)
     mg_create_wide_string_from_utf8(init_info->title, wide_title);
 
     HWND handle = CreateWindowExA(
-        window_ex_style, "magma_window_class", wide_title,
+        window_ex_style, (LPCSTR)"magma_window_class", (LPCSTR)wide_title,
         window_style, window_x, window_y, window_width, window_height,
         0, 0, platform->h_instance, platform);
 #else
     HWND handle = CreateWindowExA(
-        window_ex_style, "magma_window_class", init_info->title,
+        window_ex_style, (LPCSTR)"magma_window_class", (LPCSTR)init_info->title,
         window_style, window_x, window_y, window_width, window_height,
         0, 0, platform->h_instance, platform);
 #endif
@@ -102,16 +102,19 @@ void mg_platform_initialize(mg_platform_init_info *init_info)
     else
         platform->hwnd = handle;
 
-    uint32_t should_activate = 1;
-    int32_t show_window_command_flags = should_activate ? SW_SHOW : SW_SHOWNOACTIVATE;
-    ShowWindow(platform->hwnd, show_window_command_flags);
+    if (!(init_info->flags & MG_PLATFORM_FLAG_HIDE_WINDOW))
+    {
+        uint32_t should_activate = 1;
+        int32_t show_window_command_flags = should_activate ? SW_SHOW : SW_SHOWNOACTIVATE;
+        ShowWindow(platform->hwnd, show_window_command_flags);
+    }
 
     if (init_info->flags & MG_PLATFORM_FLAG_HIDE_CURSOR)
         ShowCursor(FALSE);
 
     LARGE_INTEGER frequency;
     QueryPerformanceFrequency(&frequency);
-    clock_frequency = 1.0 / (double)frequency.QuadPart;
+    clock_frequency = 1.0f / (float)frequency.QuadPart;
     QueryPerformanceCounter(&start_time);
 
     platform->window_width = init_info->width;
@@ -152,7 +155,7 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, uint32_t msg, WPARAM w_param, 
         break;
         case WM_CLOSE:
         {
-            mg_quit_event_data data = {platform};
+            mg_quit_event_data data = {(mg_platform*)platform};
             mg_event_call(MG_EVENT_CODE_QUIT, (void*)&data);
         }
         break;
@@ -184,7 +187,7 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, uint32_t msg, WPARAM w_param, 
         }
         break;
         case WM_CHAR:
-            mg_input_process_char((wchar_t)w_param);
+            mg_input_process_char((char)w_param);
         break;
         case WM_MOUSEMOVE:
         {
@@ -232,32 +235,36 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, uint32_t msg, WPARAM w_param, 
             mg_input_process_mouse_button(mouse_button, pressed);
         }
         break;
-        default:
-            return DefWindowProc(hwnd, msg, w_param, l_param);
     }
+    return DefWindowProc(hwnd, msg, w_param, l_param);
 }
 
-double mg_get_time(void)
+float mg_get_time(void)
 {
     LARGE_INTEGER now_time;
     QueryPerformanceCounter(&now_time);
-    return (double)(now_time.QuadPart - start_time.QuadPart) * clock_frequency;
+    return (float)(now_time.QuadPart - start_time.QuadPart) * clock_frequency;
+}
+
+void mg_platform_show_window(void)
+{
+    ShowWindow(platform->hwnd, SW_SHOW);
 }
 
 mg_dynamic_library *mg_platform_load_library(const char *library_name)
 {
-    return LoadLibraryA(library_name);
+    return (mg_dynamic_library*)LoadLibraryA(library_name);
 }
 
 mg_proc_address *mg_platform_get_proc_address(mg_dynamic_library *library, const char *proc_name)
 {
-    return (mg_proc_address*)GetProcAddress(library, proc_name);
+    return (mg_proc_address*)GetProcAddress((HMODULE)library, proc_name);
 }
 
 void mg_platform_unload_library(mg_dynamic_library *library)
 {
     if (library)
-        FreeLibrary(library);
+        FreeLibrary((HMODULE)library);
 }
 
 mg_platform *mg_platform_get_handle(void)

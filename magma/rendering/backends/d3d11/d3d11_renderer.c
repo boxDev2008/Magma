@@ -128,12 +128,12 @@ void mg_d3d11_renderer_configure_swapchain(mg_swapchain_config_info *config_info
 void mg_d3d11_renderer_viewport(int32_t x, int32_t y, uint32_t width, uint32_t height)
 {
     D3D11_VIEWPORT vp = { 0 };
-    vp.Width = width;
-    vp.Height = height;
+    vp.Width = (FLOAT)width;
+    vp.Height = (FLOAT)height;
     vp.MinDepth = 0.0f;
     vp.MaxDepth = 1.0f;
-    vp.TopLeftX = x;
-    vp.TopLeftY = y;
+    vp.TopLeftX = (FLOAT)x;
+    vp.TopLeftY = (FLOAT)y;
     ID3D11DeviceContext_RSSetViewports(d3d11_ctx.immediate_context, 1, &vp);
 }
 
@@ -160,9 +160,9 @@ void mg_d3d11_renderer_draw_indexed(uint32_t index_count, uint32_t first_index, 
 void mg_d3d11_renderer_bind_uniforms(uint32_t binding, size_t size, void *data)
 {
     D3D11_MAPPED_SUBRESOURCE mapped_resource;
-    ID3D11DeviceContext_Map(d3d11_ctx.immediate_context, d3d11_ctx.constant_buffers[binding], 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
+    ID3D11DeviceContext_Map(d3d11_ctx.immediate_context, (ID3D11Resource*)d3d11_ctx.constant_buffers[binding], 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
     memcpy(mapped_resource.pData, data, size);
-    ID3D11DeviceContext_Unmap(d3d11_ctx.immediate_context, d3d11_ctx.constant_buffers[binding], 0);
+    ID3D11DeviceContext_Unmap(d3d11_ctx.immediate_context, (ID3D11Resource*)d3d11_ctx.constant_buffers[binding], 0);
     //ID3D11DeviceContext_UpdateSubresource(d3d11_ctx.immediate_context,
         //(ID3D11Resource*)d3d11_ctx.constant_buffers[binding], 0, NULL, data, 0, 0);
 }

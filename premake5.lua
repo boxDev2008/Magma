@@ -20,15 +20,18 @@ project "Magma"
 
 	optimize "On"
 
+	filter "configurations:Release"
+		defines { "NDEBUG" }
+
+	defines { "MG_EXPORT"}
+
 	filter { "system:windows" }
 		includedirs { ".", "magma", "magma/vendor", VULKAN_SDK.."\\Include" }
 		libdirs { VULKAN_SDK.."\\Lib" }
-		defines { "NDEBUG" }
 
 	filter { "system:linux" }
 		includedirs { ".", "magma", "magma/vendor" }
 		links { "vulkan", "X11", "m" }
-		defines { "NDEBUG" }
 		buildoptions { "-fpermissive" }
 
 project "Magma-shdc"
@@ -88,11 +91,11 @@ project "Sandbox"
 	libdirs { "bin/%{cfg.buildcfg}" }
 
 	optimize "On"
+	
+	filter "configurations:Release"
+		defines { "NDEBUG" }
 
 	filter { "system:windows" }
 		links { "Magma" }
 	filter { "system:linux" }
 		links { "Magma", "EGL" }
-
-	filter "configurations:Release"
-		defines { "NDEBUG" }

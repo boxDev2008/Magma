@@ -390,7 +390,7 @@ void mg_vulkan_renderer_draw_indexed(uint32_t index_count, uint32_t first_index,
 
 void mg_vulkan_renderer_bind_uniforms(uint32_t binding, size_t size, void *data)
 {
-    const uint32_t alignment = vk_ctx.physical_device.properties.limits.minUniformBufferOffsetAlignment;
+    const uint32_t alignment = (const uint32_t)vk_ctx.physical_device.properties.limits.minUniformBufferOffsetAlignment;
     memcpy(vk_ctx.scratch_buffer.data + vk_ctx.scratch_buffer.offset, data, size);
     vk_ctx.scratch_buffer.bind_offsets[binding] = vk_ctx.scratch_buffer.offset;
     vk_ctx.scratch_buffer.offset = mg_stride_align(vk_ctx.scratch_buffer.offset + (uint32_t)size, alignment);

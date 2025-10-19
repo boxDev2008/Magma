@@ -4,10 +4,12 @@ in vec2 in_position;
 in vec2 in_tex_coord;
 in vec4 in_color;
 in float in_tex_id;
+in float in_grayscale;
 
 out vec2 frag_tex_coord;
 out vec4 frag_color;
 out float frag_tex_id;
+out float frag_grayscale;
 
 layout(binding = 0) uniform ViewData
 {
@@ -20,6 +22,7 @@ void main()
     frag_tex_coord = in_tex_coord;
     frag_color = in_color;
     frag_tex_id = in_tex_id;
+    frag_grayscale = in_grayscale;
 }
 
 @stage fragment
@@ -29,6 +32,7 @@ layout(set = 1, binding = 0) uniform sampler2D textures[8];
 in vec2 frag_tex_coord;
 in vec4 frag_color;
 in float frag_tex_id;
+in float frag_grayscale;
 
 out vec4 out_color;
 
@@ -47,5 +51,12 @@ void main()
     case 7: out_color = texture(textures[7], uv); break;
     default: out_color = frag_color; return;
     }
+
+    if (frag_grayscale > 0.0)
+    {
+        const float gray = dot(out_color.rgb, vec3(0.299, 0.587, 0.114));
+        out_color.rgb = mix(out_color.rgb, vec3(gray), frag_grayscale);
+    }
+
     out_color *= frag_color;
 }

@@ -131,8 +131,8 @@ mg_vulkan_image *mg_vulkan_create_image(mg_image_create_info *create_info)
 
     VkImageViewCreateInfo view_info = {VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
     view_info.image = image->image;
-    view_info.viewType = create_info->type;
-    view_info.format = create_info->format;
+    view_info.viewType = (VkImageViewType)create_info->type;
+    view_info.format = (VkFormat)create_info->format;
     view_info.subresourceRange.aspectMask =
         create_info->usage == MG_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT ?
         VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT :
@@ -230,12 +230,12 @@ VkSampler mg_vulkan_create_sampler(mg_sampler_create_info *create_info)
     VkSampler sampler;
 
     VkSamplerCreateInfo samplerInfo = {VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
-    samplerInfo.magFilter = create_info->mag_filter;
-    samplerInfo.minFilter = create_info->min_filter;
+    samplerInfo.magFilter = (VkFilter)create_info->mag_filter;
+    samplerInfo.minFilter = (VkFilter)create_info->min_filter;
 
-    samplerInfo.addressModeU = create_info->address_mode_u;
-    samplerInfo.addressModeV = create_info->address_mode_v;
-    samplerInfo.addressModeW = create_info->address_mode_w;
+    samplerInfo.addressModeU = (VkSamplerAddressMode)create_info->address_mode_u;
+    samplerInfo.addressModeV = (VkSamplerAddressMode)create_info->address_mode_v;
+    samplerInfo.addressModeW = (VkSamplerAddressMode)create_info->address_mode_w;
 
     samplerInfo.anisotropyEnable = VK_FALSE; // TODO (box): Make it customizable
     //samplerInfo.maxAnisotropy = vk_ctx.physical_device.properties.limits.maxSamplerAnisotropy;

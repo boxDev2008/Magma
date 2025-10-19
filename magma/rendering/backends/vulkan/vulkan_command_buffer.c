@@ -75,8 +75,8 @@ void mg_vulkan_command_buffer_set_viewport(VkCommandBuffer buffer, int32_t x, in
     VkViewport viewport = { 0 };
     viewport.width = (float)width;
     viewport.height = (float)height;
-    viewport.x = x;
-    viewport.y = y;
+    viewport.x = (float)x;
+    viewport.y = (float)y;
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
 

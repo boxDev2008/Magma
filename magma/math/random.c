@@ -13,5 +13,5 @@ float mg_random_rangef(float min, float max)
 
 int mg_random_rangei(int min, int max)
 {
-    return min + (max - min) * mg_randomf();
+    return (int)(min + (max - min) * mg_randomf());
 }

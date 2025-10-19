@@ -6,7 +6,7 @@
 VkRenderPass mg_vulkan_create_render_pass(mg_render_pass_create_info *create_info)
 {
     VkAttachmentDescription color_attachment = { 0 };
-    color_attachment.format = create_info->color_attachment.format;
+    color_attachment.format = (VkFormat)create_info->color_attachment.format;
     color_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
     color_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -37,7 +37,7 @@ VkRenderPass mg_vulkan_create_render_pass(mg_render_pass_create_info *create_inf
 
     if (create_info->has_depth_stencil_attachment)
     {
-        depth_attachment.format = create_info->depth_stencil_attachment.format;
+        depth_attachment.format = (VkFormat)create_info->depth_stencil_attachment.format;
         depth_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
         depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;

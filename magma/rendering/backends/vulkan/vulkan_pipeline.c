@@ -56,7 +56,7 @@ mg_vulkan_pipeline *mg_vulkan_create_pipeline(mg_pipeline_create_info *create_in
     {
         VkVertexInputAttributeDescription *desc = &attribute_descriptions[i];
         desc->location = create_info->vertex_layout.attributes[i].location;
-        desc->format = create_info->vertex_layout.attributes[i].format;
+        desc->format = (VkFormat)create_info->vertex_layout.attributes[i].format;
         desc->offset = create_info->vertex_layout.attributes[i].offset;
         desc->binding = 0;
     }
@@ -68,7 +68,7 @@ mg_vulkan_pipeline *mg_vulkan_create_pipeline(mg_pipeline_create_info *create_in
     vertex_input_info.pVertexAttributeDescriptions = attribute_descriptions;
 
     VkPipelineInputAssemblyStateCreateInfo input_assembly = {VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
-    input_assembly.topology = create_info->primitive_topology;
+    input_assembly.topology = (VkPrimitiveTopology)create_info->primitive_topology;
     input_assembly.primitiveRestartEnable = VK_FALSE;
 
     VkPipelineViewportStateCreateInfo viewport_state = {VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO};
@@ -78,10 +78,10 @@ mg_vulkan_pipeline *mg_vulkan_create_pipeline(mg_pipeline_create_info *create_in
     VkPipelineRasterizationStateCreateInfo rasterizer = {VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};
     rasterizer.depthClampEnable = VK_FALSE;
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
-    rasterizer.polygonMode = create_info->polygon_mode;
+    rasterizer.polygonMode = (VkPolygonMode)create_info->polygon_mode;
     rasterizer.lineWidth = 1.0f;
     rasterizer.cullMode = create_info->cull_mode;
-    rasterizer.frontFace = create_info->front_face;
+    rasterizer.frontFace = (VkFrontFace)create_info->front_face;
     rasterizer.depthBiasEnable = VK_FALSE;
 
     VkPipelineMultisampleStateCreateInfo multisampling = {VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO};
@@ -91,7 +91,7 @@ mg_vulkan_pipeline *mg_vulkan_create_pipeline(mg_pipeline_create_info *create_in
     VkPipelineDepthStencilStateCreateInfo depth_stencil = {VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO};
     depth_stencil.depthTestEnable = create_info->depth_stencil.depth_test_enable;
     depth_stencil.depthWriteEnable = create_info->depth_stencil.depth_write_enable;
-    depth_stencil.depthCompareOp = create_info->depth_stencil.depth_compare_op;
+    depth_stencil.depthCompareOp = (VkCompareOp)create_info->depth_stencil.depth_compare_op;
     depth_stencil.stencilTestEnable = create_info->depth_stencil.stencil_test_enable;
 
     VkPipelineColorBlendAttachmentState color_blend_attachment = { 0 };
@@ -99,12 +99,12 @@ mg_vulkan_pipeline *mg_vulkan_create_pipeline(mg_pipeline_create_info *create_in
     color_blend_attachment.blendEnable = create_info->color_blend.blend_enabled;
     if (create_info->color_blend.blend_enabled)
     {
-        color_blend_attachment.srcColorBlendFactor = create_info->color_blend.src_color_blend_factor;
-        color_blend_attachment.dstColorBlendFactor = create_info->color_blend.dst_color_blend_factor;
-        color_blend_attachment.colorBlendOp = create_info->color_blend.color_blend_op;
-        color_blend_attachment.srcAlphaBlendFactor = create_info->color_blend.src_alpha_blend_factor;
-        color_blend_attachment.dstAlphaBlendFactor = create_info->color_blend.dst_alpha_blend_factor;
-        color_blend_attachment.alphaBlendOp = create_info->color_blend.alpha_blend_op;
+        color_blend_attachment.srcColorBlendFactor = (VkBlendFactor)create_info->color_blend.src_color_blend_factor;
+        color_blend_attachment.dstColorBlendFactor = (VkBlendFactor)create_info->color_blend.dst_color_blend_factor;
+        color_blend_attachment.colorBlendOp = (VkBlendOp)create_info->color_blend.color_blend_op;
+        color_blend_attachment.srcAlphaBlendFactor = (VkBlendFactor)create_info->color_blend.src_alpha_blend_factor;
+        color_blend_attachment.dstAlphaBlendFactor = (VkBlendFactor)create_info->color_blend.dst_alpha_blend_factor;
+        color_blend_attachment.alphaBlendOp = (VkBlendOp)create_info->color_blend.alpha_blend_op;
     }
 
     VkPipelineColorBlendStateCreateInfo color_blending = {VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO};

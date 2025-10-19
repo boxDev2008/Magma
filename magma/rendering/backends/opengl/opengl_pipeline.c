@@ -29,6 +29,8 @@ static GLenum mg_opengl_get_blend_factor(mg_blend_factor factor)
         case MG_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA: return GL_ONE_MINUS_SRC1_ALPHA;
 #endif
     }
+
+    return GL_ZERO;
 }
 
 static GLenum mg_opengl_get_blend_op(mg_blend_op blend_op)
@@ -63,6 +65,7 @@ static GLenum mg_opengl_get_polygon_mode(mg_polygon_mode mode)
         case MG_POLYGON_MODE_LINE: return GL_LINE;
         case MG_POLYGON_MODE_POINT: return GL_POINT;
     }
+    return GL_FILL;
 }
 #endif
 
@@ -77,6 +80,7 @@ static GLenum mg_opengl_get_primitive_topology(mg_primitive_topology topology)
         case MG_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP: return GL_TRIANGLE_STRIP;
         case MG_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN: return GL_TRIANGLE_FAN;
     }
+    return GL_POINTS;
 }
 
 static GLenum mg_opengl_get_cull_mode(mg_cull_mode mode)
@@ -92,6 +96,7 @@ static GLenum mg_opengl_get_cull_mode(mg_cull_mode mode)
         case MG_CULL_MODE_FRONT_AND_BACK:
         return GL_FRONT_AND_BACK;
     }
+    return GL_NONE;
 }
 
 GLenum mg_opengl_get_compare_op(mg_compare_op compare_op)
@@ -107,6 +112,7 @@ GLenum mg_opengl_get_compare_op(mg_compare_op compare_op)
         case MG_COMPARE_OP_GREATER_OR_EQUAL: return GL_GEQUAL;
         case MG_COMPARE_OP_ALWAYS: return GL_ALWAYS;
     }
+    return GL_NEVER;
 }
 
 static GLenum mg_opengl_get_front_face(mg_front_face front_face)
@@ -116,20 +122,19 @@ static GLenum mg_opengl_get_front_face(mg_front_face front_face)
         case MG_FRONT_FACE_CCW: return GL_CW;
         case MG_FRONT_FACE_CW: return GL_CCW;
     }
+    return GL_CCW;
 }
-
-#include <stdio.h>
 
 mg_opengl_pipeline *mg_opengl_create_pipeline(mg_pipeline_create_info *create_info)
 {
     mg_opengl_pipeline *pipeline = (mg_opengl_pipeline*)malloc(sizeof(mg_opengl_pipeline));
 
     uint32_t vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertex_shader, 1, &create_info->shader.vertex.code, &create_info->shader.vertex.size);
+    glShaderSource(vertex_shader, 1, (const GLchar *const *)&create_info->shader.vertex.code, (const GLint *)&create_info->shader.vertex.size);
     glCompileShader(vertex_shader);
 
     uint32_t fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragment_shader, 1, &create_info->shader.fragment.code, &create_info->shader.fragment.size);
+    glShaderSource(fragment_shader, 1, (const GLchar *const *)&create_info->shader.fragment.code, (const GLint *)&create_info->shader.fragment.size);
     glCompileShader(fragment_shader);
 
     pipeline->program_id = glCreateProgram();

@@ -205,6 +205,7 @@ D3D11_CULL_MODE mg_d3d11_get_cull_mode(mg_cull_mode mode)
         case MG_CULL_MODE_BACK: return D3D11_CULL_BACK;
         case MG_CULL_MODE_FRONT_AND_BACK: return D3D11_CULL_NONE;
     }
+    return D3D11_CULL_NONE;
 }
 
 D3D11_COMPARISON_FUNC mg_d3d11_get_comparison_func(mg_compare_op func)
@@ -220,6 +221,7 @@ D3D11_COMPARISON_FUNC mg_d3d11_get_comparison_func(mg_compare_op func)
         case MG_COMPARE_OP_GREATER_OR_EQUAL: return D3D11_COMPARISON_GREATER_EQUAL;
         case MG_COMPARE_OP_ALWAYS: return D3D11_COMPARISON_ALWAYS;
     }
+    return D3D11_COMPARISON_NEVER;
 }
 
 D3D_SRV_DIMENSION mg_d3d11_get_srv_dimension(mg_image_type type)
@@ -230,6 +232,7 @@ D3D_SRV_DIMENSION mg_d3d11_get_srv_dimension(mg_image_type type)
         case MG_IMAGE_TYPE_3D: return D3D11_SRV_DIMENSION_TEXTURE3D;
         case MG_IMAGE_TYPE_CUBE: return D3D11_SRV_DIMENSION_TEXTURECUBE;
     }
+    return D3D_SRV_DIMENSION_TEXTURE2D;
 }
 
 D3D11_FILTER mg_d3d11_get_filter(mg_sampler_filter filter)
@@ -239,6 +242,7 @@ D3D11_FILTER mg_d3d11_get_filter(mg_sampler_filter filter)
         case MG_SAMPLER_FILTER_NEAREST: return D3D11_FILTER_MIN_MAG_MIP_POINT;
         case MG_SAMPLER_FILTER_LINEAR: return D3D11_FILTER_MIN_MAG_MIP_LINEAR;
     }
+    return D3D11_FILTER_MIN_MAG_MIP_POINT;
 }
 
 D3D11_TEXTURE_ADDRESS_MODE mg_d3d11_get_texture_address_mode(mg_sampler_address_mode mode)
@@ -251,6 +255,7 @@ D3D11_TEXTURE_ADDRESS_MODE mg_d3d11_get_texture_address_mode(mg_sampler_address_
         case MG_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER: return D3D11_TEXTURE_ADDRESS_BORDER;
         case MG_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE: return D3D11_TEXTURE_ADDRESS_MIRROR_ONCE;
     }
+    return D3D11_TEXTURE_ADDRESS_WRAP;
 }
 
 D3D11_BLEND mg_d3d11_get_blend_factor(mg_blend_factor factor)
@@ -277,6 +282,7 @@ D3D11_BLEND mg_d3d11_get_blend_factor(mg_blend_factor factor)
         case MG_BLEND_FACTOR_SRC1_ALPHA: return D3D11_BLEND_SRC1_ALPHA;
         case MG_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA: return D3D11_BLEND_INV_SRC1_ALPHA;
     }
+    return D3D11_BLEND_ZERO;
 }
 
 D3D11_BLEND_OP mg_d3d11_get_blend_op(mg_blend_op op)
@@ -289,6 +295,7 @@ D3D11_BLEND_OP mg_d3d11_get_blend_op(mg_blend_op op)
         case MG_BLEND_OP_MIN: return D3D11_BLEND_OP_MIN;
         case MG_BLEND_OP_MAX: return D3D11_BLEND_OP_MAX;
     }
+    return D3D11_BLEND_OP_ADD;
 }
 
 D3D11_PRIMITIVE_TOPOLOGY mg_d3d11_get_primitive_topology(mg_primitive_topology topology)
@@ -302,6 +309,7 @@ D3D11_PRIMITIVE_TOPOLOGY mg_d3d11_get_primitive_topology(mg_primitive_topology t
         case MG_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST: return D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
         case MG_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP: return D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
     }
+    return D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 }
 
 D3D11_FILL_MODE mg_d3d11_get_fill_mode(mg_polygon_mode mode)
@@ -312,6 +320,7 @@ D3D11_FILL_MODE mg_d3d11_get_fill_mode(mg_polygon_mode mode)
         case MG_POLYGON_MODE_POINT:
         case MG_POLYGON_MODE_LINE: return D3D11_FILL_WIREFRAME;
     }
+    return D3D11_FILL_SOLID;
 }
 
 #endif
