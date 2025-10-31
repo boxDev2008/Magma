@@ -61,6 +61,9 @@ MG_API float                mg_get_time                         (void);
 
 MG_API void                 mg_platform_show_window             (void);
 
+MG_API void                 mg_platform_get_primary_screen_size (uint32_t *width, uint32_t *height);
+MG_API void                 mg_platform_get_virtual_screen_size (uint32_t *width, uint32_t *height);
+
 MG_API mg_dynamic_library  *mg_platform_load_library            (const char *library_name);
 MG_API mg_proc_address     *mg_platform_get_proc_address        (mg_dynamic_library *library, const char *proc_name);
 MG_API void                 mg_platform_unload_library          (mg_dynamic_library *library);

@@ -1,6 +1,4 @@
 #include "opengl_buffer.h"
-
-#include <stdio.h>
 #include <stdlib.h>
 
 static GLenum mg_opengl_get_index_type(mg_index_type index_type)

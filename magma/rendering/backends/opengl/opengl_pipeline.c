@@ -156,7 +156,7 @@ mg_opengl_pipeline *mg_opengl_create_pipeline(mg_pipeline_create_info *create_in
     }
 
     if (create_info->shader.sampled_image_name)
-        glUniform1iv(glGetUniformLocation(pipeline->program_id, create_info->shader.sampled_image_name), MG_CONFIG_MAX_BINDABLE_IMAGES, gl_ctx.sampler_indices);
+        glUniform1iv(glGetUniformLocation(pipeline->program_id, create_info->shader.sampled_image_name), MG_CONFIG_MAX_BINDABLE_IMAGES, gl_ctx.sampled_image_indices);
 
     pipeline->vertex_layout.stride = create_info->vertex_layout.stride;
     pipeline->vertex_layout.attribute_count = create_info->vertex_layout.attribute_count;
@@ -172,8 +172,8 @@ mg_opengl_pipeline *mg_opengl_create_pipeline(mg_pipeline_create_info *create_in
     pipeline->cull_mode = mg_opengl_get_cull_mode(create_info->cull_mode);
     pipeline->front_face = mg_opengl_get_front_face(create_info->front_face);
 
-    pipeline->depth_stencil.depth_test_enable = create_info->depth_stencil.depth_test_enable;
-    pipeline->depth_stencil.stencil_test_enable = create_info->depth_stencil.stencil_test_enable;
+    pipeline->depth_stencil.depth_test_enabled = create_info->depth_stencil.depth_test_enabled;
+    pipeline->depth_stencil.stencil_test_enabled = create_info->depth_stencil.stencil_test_enabled;
     pipeline->depth_stencil.depth_compare_op = mg_opengl_get_compare_op(create_info->depth_stencil.depth_compare_op);
 
     return pipeline;
@@ -214,8 +214,8 @@ void mg_opengl_bind_pipeline(mg_opengl_pipeline *pipeline)
 #if !MG_PLATFORM_EMSCRIPTEN
     glPolygonMode(GL_FRONT_AND_BACK, pipeline->polygon_mode);
 #endif
-    pipeline->depth_stencil.depth_test_enable ? glEnable(GL_DEPTH_TEST) : glDisable(GL_DEPTH_TEST);
-    pipeline->depth_stencil.stencil_test_enable ? glEnable(GL_STENCIL_TEST) : glDisable(GL_STENCIL_TEST);
+    pipeline->depth_stencil.depth_test_enabled ? glEnable(GL_DEPTH_TEST) : glDisable(GL_DEPTH_TEST);
+    pipeline->depth_stencil.stencil_test_enabled ? glEnable(GL_STENCIL_TEST) : glDisable(GL_STENCIL_TEST);
     glDepthFunc(pipeline->depth_stencil.depth_compare_op);
 
     glUseProgram(pipeline->program_id);

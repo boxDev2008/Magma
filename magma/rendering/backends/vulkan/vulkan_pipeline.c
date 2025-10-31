@@ -1,5 +1,6 @@
 #include "vulkan_pipeline.h"
 #include "vulkan_renderer.h"
+#include "vulkan_resources.h"
 
 #include <stdlib.h>
 #include <assert.h>
@@ -89,10 +90,10 @@ mg_vulkan_pipeline *mg_vulkan_create_pipeline(mg_pipeline_create_info *create_in
     multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
     VkPipelineDepthStencilStateCreateInfo depth_stencil = {VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO};
-    depth_stencil.depthTestEnable = create_info->depth_stencil.depth_test_enable;
-    depth_stencil.depthWriteEnable = create_info->depth_stencil.depth_write_enable;
+    depth_stencil.depthTestEnable = create_info->depth_stencil.depth_test_enabled;
+    depth_stencil.depthWriteEnable = create_info->depth_stencil.depth_write_enabled;
     depth_stencil.depthCompareOp = (VkCompareOp)create_info->depth_stencil.depth_compare_op;
-    depth_stencil.stencilTestEnable = create_info->depth_stencil.stencil_test_enable;
+    depth_stencil.stencilTestEnable = create_info->depth_stencil.stencil_test_enabled;
 
     VkPipelineColorBlendAttachmentState color_blend_attachment = { 0 };
     color_blend_attachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
@@ -141,7 +142,7 @@ mg_vulkan_pipeline *mg_vulkan_create_pipeline(mg_pipeline_create_info *create_in
 
     pipeline_info.layout = pipeline->pipeline_layout;
     pipeline_info.renderPass = create_info->render_pass ?
-        create_info->render_pass : vk_ctx.render_pass;
+        ((mg_vulkan_render_pass*)create_info->render_pass)->render_pass : vk_ctx.render_pass;
     pipeline_info.subpass = 0;
 
     result = vkCreateGraphicsPipelines(vk_ctx.device.handle, VK_NULL_HANDLE, 1, &pipeline_info, NULL, &pipeline->pipeline);
@@ -155,9 +156,7 @@ mg_vulkan_pipeline *mg_vulkan_create_pipeline(mg_pipeline_create_info *create_in
 
 void mg_vulkan_destroy_pipeline(mg_vulkan_pipeline *pipeline)
 {
-    vkDestroyPipeline(vk_ctx.device.handle, pipeline->pipeline, NULL);
-    vkDestroyPipelineLayout(vk_ctx.device.handle, pipeline->pipeline_layout, NULL);
-    free(pipeline);
+    mg_vulkan_free_resource((mg_vulkan_resource){.type = MG_VULKAN_RESOURCE_TYPE_PIPELINE, .pipeline = pipeline});
 }
 
 void mg_vulkan_bind_pipeline(mg_vulkan_pipeline *pipeline)

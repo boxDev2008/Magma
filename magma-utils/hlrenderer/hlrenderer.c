@@ -47,7 +47,6 @@ typedef struct mg_hlgfx_data
 		mg_image color_img;
 		mg_image depth_img;
 		mg_image_array img_array;
-		mg_framebuffer fb;
 		mg_render_pass rp;
 		mg_pipeline pip;
 	}
@@ -179,7 +178,7 @@ void mg_hlgfx_initialize(const mg_hlgfx_init_info *info)
 
     mg_swapchain_config_info swapchain_info;
     swapchain_info.format = MG_PIXEL_FORMAT_B8G8R8A8_UNORM;
-    swapchain_info.present_mode = MG_PRESENT_MODE_FIFO;
+	swapchain_info.vsync = true;
     swapchain_info.width = info->width;
     swapchain_info.height = info->height;
 
@@ -187,7 +186,7 @@ void mg_hlgfx_initialize(const mg_hlgfx_init_info *info)
     renderer_info.type = info->type;
     renderer_info.swapchain_config_info = &swapchain_info;
 
-	mgfx_initialize(&renderer_info);
+    mgfx_initialize(&renderer_info);
 
     rdata->width = info->width;
     rdata->height = info->height;
@@ -205,12 +204,6 @@ void mg_hlgfx_initialize(const mg_hlgfx_init_info *info)
         
         rdata->screen_data.smp =
             mgfx_create_sampler(&sampler_create_info);
-
-		mg_render_pass_create_info render_pass_info = {
-			.color_attachment = {
-				.format = MG_PIXEL_FORMAT_R8G8B8A8_UNORM
-			}
-		};
 		
 		mg_image_create_info color_attachment_info = {
 			.format = MG_PIXEL_FORMAT_R8G8B8A8_UNORM,
@@ -231,13 +224,8 @@ void mg_hlgfx_initialize(const mg_hlgfx_init_info *info)
 			1
 		);
 		
-		render_pass_info.depth_stencil_attachment = (mg_attachment_info){
-			.format = MG_PIXEL_FORMAT_D24_UNORM_S8_UINT
-		};
-		render_pass_info.has_depth_stencil_attachment = true;
-		
 		mg_image_create_info depth_stencil_attachment_create_info = {
-			.format = MG_PIXEL_FORMAT_D24_UNORM_S8_UINT,
+			.format = MG_PIXEL_FORMAT_D32_SFLOAT,
 			.type = MG_IMAGE_TYPE_2D,
 			.usage = MG_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT,
 			.width = rdata->width,
@@ -247,20 +235,21 @@ void mg_hlgfx_initialize(const mg_hlgfx_init_info *info)
 		rdata->screen_data.depth_img =
 			mgfx_create_image(&depth_stencil_attachment_create_info);
 		
+		mg_render_pass_create_info render_pass_info = {
+			.color_attachment = {
+				.format = MG_PIXEL_FORMAT_R8G8B8A8_UNORM,
+                .image = rdata->screen_data.color_img
+			},
+            .depth_stencil_attachment = {
+                .format = MG_PIXEL_FORMAT_D24_UNORM_S8_UINT,
+                .image = rdata->screen_data.depth_img
+            },
+            .width = rdata->width,
+            .height = rdata->height
+		};
 		rdata->screen_data.rp =
 			mgfx_create_render_pass(&render_pass_info);
-		
-		mg_framebuffer_create_info framebuffer_info = {
-			.width = rdata->width,
-			.height = rdata->height,
-			.color_attachment = rdata->screen_data.color_img,
-			.depth_stencil_attachment = rdata->screen_data.depth_img,
-			.render_pass = rdata->screen_data.rp
-		};
-		
-		rdata->screen_data.fb =
-			mgfx_create_framebuffer(&framebuffer_info);
-		
+
 		mg_pipeline_create_info pipeline_create_info = {
 			.shader = get_post_process_shader(rdata->renderer_type),
 	
@@ -286,39 +275,17 @@ void mg_hlgfx_initialize(const mg_hlgfx_init_info *info)
 #pragma endregion
 
 #pragma region BATCH_DATA
-    {
-        mg_vertex_attribute_info vertex_attributes[5] = {
-            {
-                .location = 0,
-                .offset = 0,
-                .format = MG_VERTEX_FORMAT_FLOAT2
-            },
-            {
-                .location = 1,
-                .offset = 2 * sizeof(float),
-                .format = MG_VERTEX_FORMAT_FLOAT2
-            },
-            {
-                .location = 2,
-                .offset = 4 * sizeof(float),
-                .format = MG_VERTEX_FORMAT_UBYTE4N
-            },
-            {
-                .location = 3,
-                .offset = 5 * sizeof(float),
-                .format = MG_VERTEX_FORMAT_FLOAT
-            },
-            {
-                .location = 4,
-                .offset = 6 * sizeof(float),
-                .format = MG_VERTEX_FORMAT_FLOAT
-            }
-        };
-        
+    {        
         mg_vertex_layout_info vertex_layout = {
             .stride = 7 * sizeof(float),
-            .attributes = vertex_attributes,
-            .attribute_count = 5
+            .attribute_count = 5,
+            .attributes = {
+                { .location = 0, .offset = 0, .format = MG_VERTEX_FORMAT_FLOAT2 },
+                { .location = 1, .offset = 2 * sizeof(float), .format = MG_VERTEX_FORMAT_FLOAT2 },
+                { .location = 2, .offset = 4 * sizeof(float), .format = MG_VERTEX_FORMAT_UBYTE4N },
+                { .location = 3, .offset = 5 * sizeof(float), .format = MG_VERTEX_FORMAT_FLOAT },
+                { .location = 4, .offset = 6 * sizeof(float), .format = MG_VERTEX_FORMAT_FLOAT }
+            }
         };
         
         mg_pipeline_create_info pipeline_create_info = {
@@ -372,9 +339,7 @@ void mg_hlgfx_initialize(const mg_hlgfx_init_info *info)
 }
 
 void mg_hlgfx_shutdown(void)
-{
-    mgfx_wait();
-    
+{    
     mgfx_destroy_dynamic_vertex_buffer(rdata->sprite_batch.vb);
     mgfx_destroy_index_buffer(rdata->sprite_batch.ib);
     mgfx_destroy_pipeline(rdata->sprite_batch.pipeline);
@@ -383,7 +348,6 @@ void mg_hlgfx_shutdown(void)
 	if (rdata->sprite_batch.image_array)
     	mgfx_destroy_image_array(rdata->sprite_batch.image_array);
 
-	mgfx_destroy_framebuffer(rdata->screen_data.fb);
 	mgfx_destroy_image(rdata->screen_data.depth_img);
 	mgfx_destroy_image(rdata->screen_data.color_img);
 	mgfx_destroy_image_array(rdata->screen_data.img_array);
@@ -401,15 +365,12 @@ void mg_hlgfx_resize(int32_t width, int32_t height)
     rdata->width = width;
     rdata->height = height;
 
-    mgfx_wait();
-
     mg_swapchain_config_info config_info;
 	config_info.format = MG_PIXEL_FORMAT_B8G8R8A8_UNORM;
-	config_info.present_mode = MG_PRESENT_MODE_FIFO;
+	config_info.vsync = true;
 	config_info.width = width;
 	config_info.height = height;
 
-	mgfx_destroy_framebuffer(rdata->screen_data.fb);
     mgfx_destroy_image(rdata->screen_data.color_img);
 	mgfx_destroy_image(rdata->screen_data.depth_img);
 
@@ -426,26 +387,24 @@ void mg_hlgfx_resize(int32_t width, int32_t height)
 
     mgfx_update_image_array(rdata->screen_data.img_array, &rdata->screen_data.color_img, &rdata->screen_data.smp, 1);
 
-    mg_framebuffer_create_info framebuffer_create_info = {
-        .width = width,
-        .height = height,
-        .render_pass = rdata->screen_data.rp,
-        .color_attachment = rdata->screen_data.color_img,
-    };
-    
 	mg_image_create_info depth_stencil_attachment_create_info = {
-		.format = MG_PIXEL_FORMAT_D24_UNORM_S8_UINT,
+		.format = MG_PIXEL_FORMAT_D32_SFLOAT,
 		.type = MG_IMAGE_TYPE_2D,
 		.usage = MG_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT,
 		.width = width,
 		.height = height
 	};
 	
-	framebuffer_create_info.depth_stencil_attachment = rdata->screen_data.depth_img =
+	rdata->screen_data.depth_img =
 		mgfx_create_image(&depth_stencil_attachment_create_info);
-    
-    rdata->screen_data.fb =
-        mgfx_create_framebuffer(&framebuffer_create_info);
+
+    mg_render_pass_update_info resize_info = {
+        .color_image = rdata->screen_data.color_img,
+        .depth_stencil_image = rdata->screen_data.depth_img,
+        .width = width,
+        .height = height
+    };
+    mgfx_update_render_pass(rdata->screen_data.rp, &resize_info);
 
     mgfx_configure_swapchain(&config_info);        
 }
@@ -461,7 +420,7 @@ void mg_hlgfx_begin(const mg_post_process_info *post_process_info, const mg_vec3
         .render_area = (mg_vec4i) {0, 0, rdata->width, rdata->height},
         .clear_value = (mg_vec4) {clear_color.x, clear_color.y, clear_color.z, 1.0f}
     };
-	mgfx_begin_render_pass(rdata->screen_data.rp, rdata->screen_data.fb, &rp_info);
+	mgfx_begin_render_pass(rdata->screen_data.rp, &rp_info);
 	mgfx_viewport(0, 0, rdata->width, rdata->height);
 
     rdata->post_process_ub_data.vignette_data = (mg_vec4) {
@@ -660,20 +619,20 @@ void mg_hlgfx_draw_vertex_colored_sprite_2d(mg_vec2 position, mg_vec2 scale, mg_
 void mg_hlgfx_draw_rotated_rect_2d(mg_vec2 position, mg_vec2 scale, mg_vec2 pivot, float rotation, mg_vec4 color)
 {
     mg_mat4 model = mg_mat4_identity();
-    model = mg_mat4_translate(model, (mg_vec3) { -pivot.x, -pivot.y, 0.0f });
-    model = mg_mat4_scale(model, (mg_vec3) { scale.x, scale.y, 1.0f });
+    model = mg_mat4_translate(model, (mg_vec3){ position.x, position.y, 0.0f });
     model = mg_mat4_rotate_z(model, rotation);
-    model = mg_mat4_translate(model, (mg_vec3) { position.x, position.y, 0.0f });
+    model = mg_mat4_scale(model, (mg_vec3){ scale.x, scale.y, 1.0f });
+    model = mg_mat4_translate(model, (mg_vec3){ -pivot.x, -pivot.y, 0.0f });
     mg_hlgfx_draw_rect_2d_internal(model, color);
 }
 
 void mg_hlgfx_draw_rotated_sprite_2d_ext(mg_vec2 position, mg_vec2 scale, mg_vec2 pivot, float rotation, mg_vec4 color, float grayscale, const mg_sprite *sprite)
 {
     mg_mat4 model = mg_mat4_identity();
-    model = mg_mat4_translate(model, (mg_vec3) { -pivot.x, -pivot.y, 0.0f });
-    model = mg_mat4_scale(model, (mg_vec3) { scale.x, scale.y, 1.0f });
+    model = mg_mat4_translate(model, (mg_vec3){ position.x, position.y, 0.0f });
     model = mg_mat4_rotate_z(model, rotation);
-    model = mg_mat4_translate(model, (mg_vec3) { position.x, position.y, 0.0f });
+    model = mg_mat4_scale(model, (mg_vec3){ scale.x, scale.y, 1.0f });
+    model = mg_mat4_translate(model, (mg_vec3){ -pivot.x, -pivot.y, 0.0f });
     mg_hlgfx_draw_sprite_2d_internal_ext(model, color, grayscale, sprite);
 }
 
@@ -687,10 +646,10 @@ void mg_hlgfx_draw_rotated_vertex_colored_sprite_2d(mg_vec2 position, mg_vec2 sc
     const uint8_t tex_id = sprite->texture->id;
 
     mg_mat4 model = mg_mat4_identity();
-    model = mg_mat4_translate(model, (mg_vec3) { -pivot.x, -pivot.y, 0.0f });
-    model = mg_mat4_scale(model, (mg_vec3) { scale.x, scale.y, 1.0f });
+    model = mg_mat4_translate(model, (mg_vec3){ position.x, position.y, 0.0f });
     model = mg_mat4_rotate_z(model, rotation);
-    model = mg_mat4_translate(model, (mg_vec3) { position.x, position.y, 0.0f });
+    model = mg_mat4_scale(model, (mg_vec3){ scale.x, scale.y, 1.0f });
+    model = mg_mat4_translate(model, (mg_vec3){ -pivot.x, -pivot.y, 0.0f });
 
     const mg_vec4 v1 = mg_mat4_multiply_vec4(model, (mg_vec4){ 0.0f, 0.0f, 0.0f, 1.0f });
     const mg_vec4 v2 = mg_mat4_multiply_vec4(model, (mg_vec4){ 1.0f, 0.0f, 0.0f, 1.0f });
@@ -841,7 +800,6 @@ void mg_hlgfx_build_textures(void)
 
 void mg_hlgfx_destroy_textures(void)
 {
-    mgfx_wait();
     for (uint8_t i = 0; i < rdata->sprite_batch.image_count - 1; i++)
     {
         mgfx_destroy_image(rdata->sprite_batch.images[i]);

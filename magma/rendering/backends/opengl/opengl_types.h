@@ -45,8 +45,8 @@ typedef struct mg_opengl_pipeline
 
     struct
     {
-        bool depth_test_enable;
-        bool stencil_test_enable;
+        bool depth_test_enabled;
+        bool stencil_test_enabled;
         GLenum depth_compare_op;
     }
     depth_stencil;
@@ -79,19 +79,17 @@ typedef struct mg_opengl_image_array
 }
 mg_opengl_image_array;
 
-typedef struct mg_opengl_framebuffer
+typedef struct mg_opengl_render_pass
 {
-    GLuint id;
+    GLuint framebuffer_id;
 }
-mg_opengl_framebuffer;
-
-typedef struct mg_opengl_render_pass mg_opengl_render_pass;
+mg_opengl_render_pass;
 
 typedef struct mg_opengl_context
 {
     GLuint vao;
     GLuint uniform_buffers[MG_CONFIG_MAX_BINDABLE_UNIFORMS];
-    GLuint sampler_indices[MG_CONFIG_MAX_BINDABLE_IMAGES];
+    GLuint sampled_image_indices[MG_CONFIG_MAX_BINDABLE_IMAGES];
 
     GLenum index_type;
     //GLenum polygon_mode;

@@ -115,30 +115,4 @@ void mg_d3d11_bind_image_array(mg_d3d11_image_array *array)
     ID3D11DeviceContext_PSSetSamplers(d3d11_ctx.immediate_context, 0, array->count, array->samplers);
 }
 
-mg_d3d11_framebuffer *mg_d3d11_create_framebuffer(mg_framebuffer_create_info *create_info)
-{
-    mg_d3d11_framebuffer *framebuffer = (mg_d3d11_framebuffer*)malloc(sizeof(mg_d3d11_framebuffer));
-
-    mg_d3d11_image *color_attachment = (mg_d3d11_image*)create_info->color_attachment;
-    ID3D11Device_CreateRenderTargetView(d3d11_ctx.device, (ID3D11Resource*)color_attachment->texture, NULL, &framebuffer->color_attachment);
-
-    if (create_info->depth_stencil_attachment)
-    {
-        mg_d3d11_image *depth_stencil_attachment = (mg_d3d11_image*)create_info->depth_stencil_attachment;
-        ID3D11Device_CreateDepthStencilView(d3d11_ctx.device, (ID3D11Resource*)depth_stencil_attachment->texture, NULL, &framebuffer->depth_stencil_attachment);
-    }
-    else
-        framebuffer->depth_stencil_attachment = NULL;
-
-    return framebuffer;
-}
-
-void mg_d3d11_destroy_framebuffer(mg_d3d11_framebuffer *framebuffer)
-{
-    ID3D11RenderTargetView_Release(framebuffer->color_attachment);
-	if (framebuffer->depth_stencil_attachment)
-    	ID3D11DepthStencilView_Release(framebuffer->depth_stencil_attachment);
-    free(framebuffer);
-}
-
 #endif

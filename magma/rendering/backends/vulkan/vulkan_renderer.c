@@ -1,7 +1,7 @@
 #include "vulkan_renderer.h"
 #include "vulkan_swapchain.h"
+#include "vulkan_resources.h"
 #include "vulkan_command_buffer.h"
-#include "vulkan_render_pass.h"
 #include "vulkan_buffer.h"
 #include "vulkan_image.h"
 
@@ -19,7 +19,7 @@ static inline uint32_t mg_stride_align(uint32_t size, uint32_t alignment)
     return (size+(alignment-1)) & ~(alignment-1);
 }
 
-void mg_vulkan_create_instance(void)
+static void mg_vulkan_create_instance(void)
 {
     VkApplicationInfo app_info = {VK_STRUCTURE_TYPE_APPLICATION_INFO};
     app_info.apiVersion = VK_API_VERSION_1_3;
@@ -46,7 +46,7 @@ void mg_vulkan_create_instance(void)
     assert(result == VK_SUCCESS);
 }
 
-void mg_vulkan_get_physical_device(void)
+static void mg_vulkan_get_physical_device(void)
 {
     uint32_t device_count = 0;
     vkEnumeratePhysicalDevices(vk_ctx.instance, &device_count, NULL);
@@ -87,7 +87,7 @@ void mg_vulkan_get_physical_device(void)
     free(queue_families);
 }
 
-void mg_vulkan_create_device(void)
+static void mg_vulkan_create_device(void)
 {
     VkDeviceQueueCreateInfo queueCreateInfo = {VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};
     queueCreateInfo.queueFamilyIndex = vk_ctx.physical_device.graphics_family;
@@ -120,7 +120,7 @@ void mg_vulkan_create_device(void)
     vkGetDeviceQueue(vk_ctx.device.handle, vk_ctx.physical_device.graphics_family, 0, &vk_ctx.device.graphics_queue);
 }
 
-void mg_vulkan_create_command_pool(void)
+static void mg_vulkan_create_command_pool(void)
 {
     VkCommandPoolCreateInfo pool_info = {VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
     pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
@@ -130,7 +130,7 @@ void mg_vulkan_create_command_pool(void)
     assert(result == VK_SUCCESS);
 }
 
-void mg_vulkan_create_sync_objects(void)
+static void mg_vulkan_create_sync_objects(void)
 {
     VkSemaphoreCreateInfo semaphoreInfo = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
 
@@ -147,7 +147,7 @@ void mg_vulkan_create_sync_objects(void)
     assert(result == VK_SUCCESS);
 }
 
-void mg_vulkan_create_descriptor_pool(void)
+static void mg_vulkan_create_descriptor_pool(void)
 {
     VkDescriptorPoolSize pool_sizes[] = {
         {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, MG_CONFIG_MAX_BINDABLE_UNIFORMS},
@@ -164,7 +164,7 @@ void mg_vulkan_create_descriptor_pool(void)
     assert(result == VK_SUCCESS);
 }
 
-void mg_vulkan_create_descriptor_set_layouts(void)
+static void mg_vulkan_create_descriptor_set_layouts(void)
 {
     VkDescriptorSetLayoutCreateInfo layout_info = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
 
@@ -200,7 +200,7 @@ void mg_vulkan_create_descriptor_set_layouts(void)
     assert(result == VK_SUCCESS);
 }
 
-void mg_vulkan_create_scratch_buffer(void)
+static void mg_vulkan_create_scratch_buffer(void)
 {
     mg_vulkan_allocate_buffer(MG_CONFIG_MAX_SCRATCH_BUFFER_SIZE, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
@@ -254,23 +254,20 @@ void mg_vulkan_renderer_initialize(mgfx_init_info *init_info)
 
     mg_vulkan_create_sync_objects();
 
-	mg_render_pass_create_info render_pass_info;
-	render_pass_info.color_attachment.format = MG_PIXEL_FORMAT_B8G8R8A8_SRGB;
-	render_pass_info.depth_stencil_attachment.format = MG_PIXEL_FORMAT_D32_SFLOAT;
-	render_pass_info.has_depth_stencil_attachment = true;
-
-    vk_ctx.render_pass = mg_vulkan_create_render_pass(&render_pass_info);
     mg_vulkan_create_swapchain(init_info->swapchain_config_info);
 
     mg_vulkan_create_descriptor_set_layouts();
 	mg_vulkan_create_descriptor_pool();
 
     mg_vulkan_create_scratch_buffer();
+    mg_create_stack(&vk_ctx.freed_resources, sizeof(mg_vulkan_resource), MG_CONFIG_MAX_DEVICE_ALLOCATIONS);
 }
 
 void mg_vulkan_renderer_shutdown(void)
 {
     vkDeviceWaitIdle(vk_ctx.device.handle);
+
+    mg_vulkan_recycle();
 
     vkDestroyDescriptorSetLayout(vk_ctx.device.handle, vk_ctx.layouts.image_sampler_layout, NULL);
     vkDestroyDescriptorSetLayout(vk_ctx.device.handle, vk_ctx.layouts.scratch_buffer_layout, NULL);
@@ -283,7 +280,7 @@ void mg_vulkan_renderer_shutdown(void)
 
     mg_vulkan_cleanup_swapchain();
 
-    mg_vulkan_destroy_render_pass(vk_ctx.render_pass);
+    vkDestroyRenderPass(vk_ctx.device.handle, vk_ctx.render_pass, NULL);
 
     vkDestroySemaphore(vk_ctx.device.handle, vk_ctx.sync_objects.image_available_semaphore, NULL);
     vkDestroySemaphore(vk_ctx.device.handle, vk_ctx.sync_objects.image_rendered_semaphore, NULL);
@@ -295,6 +292,8 @@ void mg_vulkan_renderer_shutdown(void)
     vkDestroyDevice(vk_ctx.device.handle, NULL);
     vkDestroySurfaceKHR(vk_ctx.instance, vk_ctx.surface, NULL);
     vkDestroyInstance(vk_ctx.instance, NULL);
+
+    mg_destroy_stack(&vk_ctx.freed_resources);
 }
 
 void mg_vulkan_renderer_begin(void)
@@ -345,11 +344,8 @@ void mg_vulkan_renderer_end(void)
     present_info.pImageIndices = &vk_ctx.image_index;
 
     vkQueuePresentKHR(vk_ctx.device.graphics_queue, &present_info);
-}
 
-void mg_vulkan_renderer_wait(void)
-{
-    vkDeviceWaitIdle(vk_ctx.device.handle);
+    mg_vulkan_recycle();
 }
 
 void mg_vulkan_renderer_viewport(int32_t x, int32_t y, uint32_t width, uint32_t height)
@@ -362,22 +358,6 @@ void mg_vulkan_renderer_scissor(int32_t x, int32_t y, uint32_t width, uint32_t h
     mg_vulkan_command_buffer_set_scissor(vk_ctx.command_buffer, x, y, width, height);
 }
 
-/*void mg_vulkan_renderer_bind_descriptors(void)
-{
-    if (vk_ctx.update_image_array)
-    {
-        VkWriteDescriptorSet write = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-        write.dstBinding = 0;
-        write.dstArrayElement = 0;
-        write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        write.descriptorCount = MG_CONFIG_MAX_BINDABLE_IMAGES;
-        write.pBufferInfo = 0;
-        write.pImageInfo = vk_ctx.image_sampler_infos;
-        vk_ctx.extensions.vkCmdPushDescriptorSetKHR(vk_ctx.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_ctx.binds.pipeline->pipeline_layout, 1, 1, &write);
-        vk_ctx.update_image_array = false;
-    }
-}*/
-
 void mg_vulkan_renderer_draw(uint32_t vertex_count, uint32_t first_vertex)
 {
     vkCmdDraw(vk_ctx.command_buffer, vertex_count, 1, first_vertex, 0);
@@ -386,6 +366,16 @@ void mg_vulkan_renderer_draw(uint32_t vertex_count, uint32_t first_vertex)
 void mg_vulkan_renderer_draw_indexed(uint32_t index_count, uint32_t first_index, int32_t first_vertex)
 {
     vkCmdDrawIndexed(vk_ctx.command_buffer, index_count, 1, first_index, first_vertex, 0);
+}
+
+void mg_vulkan_renderer_draw_instanced(uint32_t vertex_count, uint32_t first_vertex, uint32_t instance_count, uint32_t first_instance)
+{
+    vkCmdDraw(vk_ctx.command_buffer, vertex_count, instance_count, first_vertex, first_instance);
+}
+
+void mg_vulkan_renderer_draw_indexed_instanced(uint32_t index_count, uint32_t first_index, int32_t first_vertex, uint32_t instance_count, uint32_t first_instance)
+{
+    vkCmdDrawIndexed(vk_ctx.command_buffer, index_count, instance_count, first_index, first_vertex, first_instance);
 }
 
 void mg_vulkan_renderer_bind_uniforms(uint32_t binding, size_t size, void *data)

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "base.h"
+#include "memory/stack.h"
 
 #include "../../renderer.h"
 
@@ -9,14 +10,6 @@
 #endif
 
 #include <vulkan/vulkan.h>
-
-typedef struct mg_vulkan_sampler
-{
-    VkSamplerAddressMode address_mode;
-    VkFilter filter;
-    VkSampler sampler;
-}
-mg_vulkan_sampler;
 
 typedef struct mg_vulkan_image
 {
@@ -51,6 +44,39 @@ typedef struct mg_vulkan_pipeline
 }
 mg_vulkan_pipeline;
 
+typedef struct mg_vulkan_render_pass
+{
+    VkRenderPass render_pass;
+    VkFramebuffer framebuffer;
+}
+mg_vulkan_render_pass;
+
+typedef enum mg_vulkan_resource_type
+{
+    MG_VULKAN_RESOURCE_TYPE_BUFFER,
+    MG_VULKAN_RESOURCE_TYPE_DYNAMIC_BUFFER,
+    MG_VULKAN_RESOURCE_TYPE_IMAGE,
+    MG_VULKAN_RESOURCE_TYPE_PIPELINE,
+    MG_VULKAN_RESOURCE_TYPE_RENDER_PASS,
+    MG_VULKAN_RESOURCE_TYPE_SAMPLER
+}
+mg_vulkan_resource_type;
+
+typedef struct mg_vulkan_resource
+{
+    mg_vulkan_resource_type type;
+    union
+    {
+        mg_vulkan_buffer *buffer;
+        mg_vulkan_dynamic_buffer *dynamic_buffer;
+        mg_vulkan_image *image;
+        mg_vulkan_pipeline *pipeline;
+        mg_vulkan_render_pass *render_pass;
+        VkSampler sampler;
+    };
+}
+mg_vulkan_resource;
+
 typedef struct mg_vulkan_context
 {
     VkInstance instance;
@@ -75,10 +101,11 @@ typedef struct mg_vulkan_context
     struct
     {
         VkSwapchainKHR handle;
+        VkFormat color_format;
 
-        VkImage *images;
-        VkImageView *image_views;
-        VkFramebuffer *framebuffers;
+        VkImage images[4];
+        VkImageView image_views[4];
+        VkFramebuffer framebuffers[4];
 
         VkImage depth_image;
         VkDeviceMemory depth_image_memory;
@@ -114,6 +141,8 @@ typedef struct mg_vulkan_context
         mg_vulkan_pipeline *pipeline;
     }
     binds;
+
+    mg_stack freed_resources;
 
     struct
     {

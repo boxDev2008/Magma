@@ -18,7 +18,7 @@
 
 mg_opengl_context gl_ctx;
 
-const char *BACK_BUFFER_VERT =
+static const char *BACK_BUFFER_VERT =
 #if MG_PLATFORM_EMSCRIPTEN
     "#version 300 es\n"
     "precision mediump float;"
@@ -45,7 +45,7 @@ const char *BACK_BUFFER_VERT =
         "tex_coord = tex_coords[gl_VertexID];"
     "}\0";
 
-const char *BACK_BUFFER_FRAG =
+static const char *BACK_BUFFER_FRAG =
 #if MG_PLATFORM_EMSCRIPTEN
     "#version 300 es\n"
     "precision mediump float;"
@@ -103,7 +103,7 @@ void mg_opengl_renderer_initialize(mgfx_init_info *init_info)
     glGenBuffers(MG_CONFIG_MAX_BINDABLE_UNIFORMS, gl_ctx.uniform_buffers);
 
     for (uint32_t i = 0; i < MG_CONFIG_MAX_BINDABLE_IMAGES; i++)
-        gl_ctx.sampler_indices[i] = i;
+        gl_ctx.sampled_image_indices[i] = i;
 }
 
 void mg_opengl_renderer_shutdown(void)
@@ -141,11 +141,6 @@ void mg_opengl_renderer_end(void)
     mg_opengl_platform_swapbuffers();
 }
 
-void mg_opengl_renderer_wait(void)
-{
-
-}
-
 void mg_opengl_renderer_viewport(int32_t x, int32_t y, uint32_t width, uint32_t height)
 {
     glViewport(x, y, width, height);
@@ -168,6 +163,21 @@ void mg_opengl_renderer_draw_indexed(uint32_t index_count, uint32_t first_index,
 	glDrawElementsBaseVertex(gl_ctx.primitive_topology, index_count, gl_ctx.index_type, (void*)(uintptr_t)(first_index * index_size), first_vertex);
 #else
     glDrawElements(gl_ctx.primitive_topology, index_count, gl_ctx.index_type, (void*)(uintptr_t)(first_index * index_size));
+#endif
+}
+
+void mg_opengl_renderer_draw_instanced(uint32_t vertex_count, uint32_t first_vertex, uint32_t instance_count, uint32_t first_instance)
+{
+    glDrawArraysInstanced(gl_ctx.primitive_topology, first_vertex, vertex_count, instance_count);
+}
+
+void mg_opengl_renderer_draw_indexed_instanced(uint32_t index_count, uint32_t first_index, int32_t first_vertex, uint32_t instance_count, uint32_t first_instance)
+{
+    const int index_size = (gl_ctx.index_type == GL_UNSIGNED_SHORT) ? 2 : 4;
+#if !MG_PLATFORM_EMSCRIPTEN
+    glDrawElementsInstancedBaseVertex(gl_ctx.primitive_topology, index_count, gl_ctx.index_type, (void*)(uintptr_t)(first_index * index_size), instance_count, first_vertex);
+#else
+    glDrawElementsInstanced(gl_ctx.primitive_topology, index_count, gl_ctx.index_type, (void*)(uintptr_t)(first_index * index_size), instance_count);
 #endif
 }
 
@@ -194,16 +204,7 @@ void mg_opengl_configure_swapchain(mg_swapchain_config_info *config_info)
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, config_info->width, config_info->height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
     }
 
-    switch (config_info->present_mode)
-    {
-    case MG_PRESENT_MODE_IMMEDIATE:
-    case MG_PRESENT_MODE_MAILBOX:
-        mg_opengl_platform_set_vsync(false);
-        break;
-    default:
-        mg_opengl_platform_set_vsync(true);
-        break;
-    }
+    mg_opengl_platform_set_vsync(config_info->vsync);
 }
 
 void mg_opengl_renderer_bind_uniforms(uint32_t binding, size_t size, void *data)

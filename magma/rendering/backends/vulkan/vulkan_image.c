@@ -1,5 +1,6 @@
 #include "vulkan_image.h"
 #include "vulkan_buffer.h"
+#include "vulkan_resources.h"
 #include "vulkan_command_buffer.h"
 
 #include <stdlib.h>
@@ -150,10 +151,7 @@ mg_vulkan_image *mg_vulkan_create_image(mg_image_create_info *create_info)
 
 void mg_vulkan_destroy_image(mg_vulkan_image *image)
 {
-    vkDestroyImage(vk_ctx.device.handle, image->image, NULL);
-    vkFreeMemory(vk_ctx.device.handle, image->memory, NULL);
-    vkDestroyImageView(vk_ctx.device.handle, image->view, NULL);
-    free(image);
+    mg_vulkan_free_resource((mg_vulkan_resource){.type = MG_VULKAN_RESOURCE_TYPE_IMAGE, .image = image});
 }
 
 void mg_vulkan_update_image(mg_vulkan_image *image, mg_image_write_info *write_info)
@@ -259,43 +257,5 @@ VkSampler mg_vulkan_create_sampler(mg_sampler_create_info *create_info)
 
 void mg_vulkan_destroy_sampler(VkSampler sampler)
 {
-    vkDestroySampler(vk_ctx.device.handle, sampler, NULL);
-}
-
-VkFramebuffer mg_vulkan_create_framebuffer(mg_framebuffer_create_info *create_info)
-{
-    VkFramebufferCreateInfo framebuffer_create_info = {VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
-    mg_vulkan_image *color_attachment = (mg_vulkan_image*)create_info->color_attachment;
-
-    VkImageView attachments[2];
-    attachments[0] = color_attachment->view;
-
-    if (create_info->depth_stencil_attachment)
-    {
-        mg_vulkan_image *depth_stencil_attachment =
-            (mg_vulkan_image*)create_info->depth_stencil_attachment;
-        attachments[1] = depth_stencil_attachment->view;
-        framebuffer_create_info.attachmentCount = 2;
-    }
-    else
-        framebuffer_create_info.attachmentCount = 1;
-
-    framebuffer_create_info.pAttachments = attachments;
-
-    framebuffer_create_info.renderPass = create_info->render_pass;
-    framebuffer_create_info.width = create_info->width;
-    framebuffer_create_info.height = create_info->height;
-    framebuffer_create_info.layers = 1;
-
-    VkFramebuffer framebuffer;
-
-    VkResult result = vkCreateFramebuffer(vk_ctx.device.handle, &framebuffer_create_info, NULL, &framebuffer);
-    assert(result == VK_SUCCESS);
-
-    return framebuffer;
-}
-
-void mg_vulkan_destroy_framebuffer(VkFramebuffer framebuffer)
-{
-    vkDestroyFramebuffer(vk_ctx.device.handle, framebuffer, NULL);
+    mg_vulkan_free_resource((mg_vulkan_resource){.type = MG_VULKAN_RESOURCE_TYPE_SAMPLER, .sampler = sampler});
 }

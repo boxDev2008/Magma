@@ -48,17 +48,6 @@ void mg_d3d11_renderer_initialize(mgfx_init_info *init_info)
     ID3D11Device_CreateRenderTargetView(d3d11_ctx.device, (ID3D11Resource*)pBackBuffer, NULL, &d3d11_ctx.target_view);
     ID3D11Buffer_Release(pBackBuffer);
 
-    switch (swapchain_info->present_mode)
-    {
-        case MG_PRESENT_MODE_IMMEDIATE:
-        case MG_PRESENT_MODE_MAILBOX:
-            d3d11_ctx.vsync = false;
-            break;
-        default:
-            d3d11_ctx.vsync = true;
-            break;
-    }
-
     for (uint32_t i = 0; i < MG_CONFIG_MAX_BINDABLE_UNIFORMS; i++)
     {
         D3D11_BUFFER_DESC buffer_desc = { 0 };
@@ -68,6 +57,8 @@ void mg_d3d11_renderer_initialize(mgfx_init_info *init_info)
         buffer_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
         ID3D11Device_CreateBuffer(d3d11_ctx.device, &buffer_desc, NULL, &d3d11_ctx.constant_buffers[i]);
     }
+
+    d3d11_ctx.vsync = swapchain_info->vsync;
 }
 
 void mg_d3d11_renderer_shutdown(void)
@@ -92,11 +83,6 @@ void mg_d3d11_renderer_end(void)
     IDXGISwapChain_Present(d3d11_ctx.swapchain, d3d11_ctx.vsync, 0);
 }
 
-void mg_d3d11_renderer_wait(void)
-{
-    
-}
-
 void mg_d3d11_renderer_configure_swapchain(mg_swapchain_config_info *config_info)
 {
     ID3D11RenderTargetView_Release(d3d11_ctx.target_view);
@@ -113,16 +99,7 @@ void mg_d3d11_renderer_configure_swapchain(mg_swapchain_config_info *config_info
     ID3D11Device_CreateRenderTargetView(d3d11_ctx.device, (ID3D11Resource*)pBackBuffer, NULL, &d3d11_ctx.target_view);
     ID3D11Buffer_Release(pBackBuffer);
 
-    switch (config_info->present_mode)
-    {
-        case MG_PRESENT_MODE_IMMEDIATE:
-        case MG_PRESENT_MODE_MAILBOX:
-            d3d11_ctx.vsync = false;
-            break;
-        default:
-            d3d11_ctx.vsync = true;
-            break;
-    }
+    d3d11_ctx.vsync = config_info->vsync;
 }
 
 void mg_d3d11_renderer_viewport(int32_t x, int32_t y, uint32_t width, uint32_t height)
@@ -155,6 +132,16 @@ void mg_d3d11_renderer_draw(uint32_t vertex_count, uint32_t first_vertex)
 void mg_d3d11_renderer_draw_indexed(uint32_t index_count, uint32_t first_index, int32_t first_vertex)
 {
     ID3D11DeviceContext_DrawIndexed(d3d11_ctx.immediate_context, index_count, first_index, first_vertex);
+}
+
+void mg_d3d11_renderer_draw_instanced(uint32_t vertex_count, uint32_t first_vertex, uint32_t instance_count, uint32_t first_instance)
+{
+    ID3D11DeviceContext_DrawInstanced(d3d11_ctx.immediate_context, vertex_count, instance_count, first_vertex, first_instance);
+}
+
+void mg_d3d11_renderer_draw_indexed_instanced(uint32_t index_count, uint32_t first_index, int32_t first_vertex, uint32_t instance_count, uint32_t first_instance)
+{
+    ID3D11DeviceContext_DrawIndexedInstanced(d3d11_ctx.immediate_context, index_count, instance_count, first_index, first_vertex, first_instance);
 }
 
 void mg_d3d11_renderer_bind_uniforms(uint32_t binding, size_t size, void *data)

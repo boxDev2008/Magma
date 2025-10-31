@@ -10,10 +10,6 @@
 extern "C" {
 #endif
 
-#ifndef MG_CONFIG_MAX_IMAGE_ARRAYS
-    #define MG_CONFIG_MAX_IMAGE_ARRAYS 1024
-#endif
-
 #ifndef MG_CONFIG_MAX_BINDABLE_IMAGES
     #define MG_CONFIG_MAX_BINDABLE_IMAGES 8
 #endif
@@ -22,8 +18,20 @@ extern "C" {
     #define MG_CONFIG_MAX_BINDABLE_UNIFORMS 4
 #endif
 
+#ifndef MG_CONFIG_MAX_BINDABLE_STORAGE_BUFFERS
+    #define MG_CONFIG_MAX_BINDABLE_STORAGE_BUFFERS 4
+#endif
+
 #ifndef MG_CONFIG_MAX_VERTEX_ATTRIBUTES
     #define MG_CONFIG_MAX_VERTEX_ATTRIBUTES 8
+#endif
+
+#ifndef MG_CONFIG_MAX_IMAGE_ARRAYS
+    #define MG_CONFIG_MAX_IMAGE_ARRAYS (1 << 10)
+#endif
+
+#ifndef MG_CONFIG_MAX_DEVICE_ALLOCATIONS
+    #define MG_CONFIG_MAX_DEVICE_ALLOCATIONS (1 << 14)
 #endif
 
 #ifndef MG_CONFIG_MAX_UNIFORM_UPDATE_SIZE
@@ -225,6 +233,7 @@ typedef void *mg_image_array;
 typedef struct mg_attachment_info
 {
     mg_pixel_format format;
+    mg_image image;
 }
 mg_attachment_info;
 
@@ -232,22 +241,19 @@ typedef struct mg_render_pass_create_info
 {
     mg_attachment_info color_attachment;
     mg_attachment_info depth_stencil_attachment;
-    bool has_depth_stencil_attachment;
+    uint32_t width, height;
 }
 mg_render_pass_create_info;
 
-typedef void *mg_render_pass;
-
-typedef struct mg_framebuffer_create_info
+typedef struct mg_render_pass_update_info
 {
-    mg_render_pass render_pass;
-    mg_image color_attachment;
-    mg_image depth_stencil_attachment;
+    mg_image color_image;
+    mg_image depth_stencil_image;
     uint32_t width, height;
 }
-mg_framebuffer_create_info;
+mg_render_pass_update_info;
 
-typedef void *mg_framebuffer;
+typedef void *mg_render_pass;
 
 typedef struct mg_render_pass_begin_info
 {
@@ -408,9 +414,9 @@ mg_compare_op;
 
 typedef struct mg_depth_stencil_state
 {
-    bool depth_test_enable;
-    bool depth_write_enable;
-    bool stencil_test_enable;
+    bool depth_test_enabled;
+    bool depth_write_enabled;
+    bool stencil_test_enabled;
 
     mg_compare_op depth_compare_op;
 }
@@ -463,7 +469,7 @@ typedef struct mg_vertex_layout_info
 {
     uint32_t stride;
     uint32_t attribute_count;
-    mg_vertex_attribute_info *attributes;
+    mg_vertex_attribute_info attributes[MG_CONFIG_MAX_VERTEX_ATTRIBUTES];
 }
 mg_vertex_layout_info;
 
@@ -515,20 +521,11 @@ mg_pipeline_create_info;
 
 typedef void *mg_pipeline;
 
-typedef enum mg_present_mode
-{
-    MG_PRESENT_MODE_IMMEDIATE = 0,
-    MG_PRESENT_MODE_MAILBOX = 1,
-    MG_PRESENT_MODE_FIFO = 2,
-    MG_PRESENT_MODE_FIFO_RELAXED = 3
-}
-mg_present_mode;
-
 typedef struct mg_swapchain_config_info
 {
     mg_pixel_format format;
-    mg_present_mode present_mode;
     uint32_t width, height;
+    bool vsync;
 }
 mg_swapchain_config_info;
 
@@ -545,19 +542,20 @@ MG_API inline void                     mgfx_shutdown                        (voi
 MG_API inline void                     mgfx_begin                     		(void);
 MG_API inline void                     mgfx_end                       		(void);
 
-MG_API inline void                     mgfx_wait                            (void);
-
 MG_API inline void                     mgfx_viewport                        (int32_t x, int32_t y, uint32_t width, uint32_t height);
 MG_API inline void                     mgfx_scissor                         (int32_t x, int32_t y, uint32_t width, uint32_t height);
 
 MG_API inline void                      mgfx_draw                           (uint32_t vertex_count, uint32_t first_vertex);
 MG_API inline void                      mgfx_draw_indexed                   (uint32_t index_count, uint32_t first_index, uint32_t vertex_offset);
+MG_API inline void                      mgfx_draw_instanced                 (uint32_t vertex_count, uint32_t first_vertex, uint32_t instance_count, uint32_t first_instance);
+MG_API inline void                      mgfx_draw_indexed_instanced         (uint32_t index_count, uint32_t first_index, uint32_t vertex_offset, uint32_t instance_count, uint32_t first_instance);
 
 MG_API inline void                      mgfx_configure_swapchain            (mg_swapchain_config_info *config_info);
 
 MG_API inline mg_render_pass            mgfx_create_render_pass             (mg_render_pass_create_info *create_info);
 MG_API inline void                      mgfx_destroy_render_pass            (mg_render_pass render_pass);
-MG_API inline void                      mgfx_begin_render_pass              (mg_render_pass render_pass, mg_framebuffer framebuffer, mg_render_pass_begin_info *begin_info);
+MG_API inline void                      mgfx_update_render_pass             (mg_render_pass render_pass, mg_render_pass_update_info *resize_info);
+MG_API inline void                      mgfx_begin_render_pass              (mg_render_pass render_pass, mg_render_pass_begin_info *begin_info);
 MG_API inline void                      mgfx_begin_default_render_pass      (mg_render_pass_begin_info *begin_info);
 MG_API inline void                      mgfx_end_render_pass                (void);
 
@@ -597,9 +595,6 @@ MG_API inline void                      mgfx_bind_image_array               (mg_
 
 MG_API inline mg_sampler                mgfx_create_sampler                 (mg_sampler_create_info *create_info);
 MG_API inline void                      mgfx_destroy_sampler                (mg_sampler sampler);
-
-MG_API inline mg_framebuffer            mgfx_create_framebuffer             (mg_framebuffer_create_info *create_info);
-MG_API inline void                      mgfx_destroy_framebuffer            (mg_framebuffer framebuffer);
 
 MG_API inline mg_renderer_type          mgfx_get_type                       (void);
 

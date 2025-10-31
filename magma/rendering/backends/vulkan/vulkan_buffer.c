@@ -1,4 +1,5 @@
 #include "vulkan_buffer.h"
+#include "vulkan_resources.h"
 #include "vulkan_command_buffer.h"
 
 #include <stdlib.h>
@@ -82,10 +83,7 @@ mg_vulkan_buffer *mg_vulkan_create_buffer(size_t size, void *data, VkBufferUsage
 
 void mg_vulkan_destroy_buffer(mg_vulkan_buffer *buffer)
 {
-    vkDestroyBuffer(vk_ctx.device.handle, buffer->buffer, NULL);
-    vkFreeMemory(vk_ctx.device.handle, buffer->memory, NULL);
-
-    free(buffer);
+    mg_vulkan_free_resource((mg_vulkan_resource){.type = MG_VULKAN_RESOURCE_TYPE_BUFFER, .buffer = buffer});
 }
 
 mg_vulkan_dynamic_buffer *mg_vulkan_create_dynamic_buffer(size_t size, VkBufferUsageFlags usage)
@@ -104,10 +102,7 @@ mg_vulkan_dynamic_buffer *mg_vulkan_create_dynamic_buffer(size_t size, VkBufferU
 
 void mg_vulkan_destroy_dynamic_buffer(mg_vulkan_dynamic_buffer *buffer)
 {
-    vkDestroyBuffer(vk_ctx.device.handle, buffer->buffer, NULL);
-    vkFreeMemory(vk_ctx.device.handle, buffer->memory, NULL);
-
-    free(buffer);
+    mg_vulkan_free_resource((mg_vulkan_resource){.type = MG_VULKAN_RESOURCE_TYPE_DYNAMIC_BUFFER, .dynamic_buffer = buffer});
 }
 
 mg_vulkan_vertex_buffer *mg_vulkan_create_vertex_buffer(size_t size, void *data)

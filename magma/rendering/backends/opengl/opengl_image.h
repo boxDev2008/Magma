@@ -13,6 +13,3 @@ void                            mg_opengl_bind_image_array    (mg_opengl_image_a
 
 mg_opengl_sampler		   *mg_opengl_create_sampler		(mg_sampler_create_info *create_info);
 void						mg_opengl_destroy_sampler		(mg_opengl_sampler *sampler);
-
-mg_opengl_framebuffer	   *mg_opengl_create_framebuffer	(mg_framebuffer_create_info *create_info);
-void						mg_opengl_destroy_framebuffer	(mg_opengl_framebuffer *framebuffer);

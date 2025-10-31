@@ -22,14 +22,13 @@ typedef struct mg_app_init_info
 }
 mg_app_init_info;
 
-MG_API void mg_app_run(mg_app_init_info *info, int32_t argc, char* const* argv);
+MG_API void mg_app_run(const mg_app_init_info *info, int32_t argc, char* const* argv);
 MG_API void mg_app_close(void);
 
-#define MG_APP_DEFINE_ENTRY(info, ...)\
+#define MG_APP_DEFINE_ENTRY(info) \
 int32_t main(int32_t argc, char* const* argv)\
 {\
-    mg_app_init_info init_info = info, __VA_ARGS__;\
-    mg_app_run(&init_info, argc, argv);\
+    mg_app_run(&info, argc, argv);\
     return 0;\
 }
 

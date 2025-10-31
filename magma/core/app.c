@@ -9,7 +9,7 @@
 #endif
 
 static bool app_running;
-static mg_app_init_info* app_info;
+static const mg_app_init_info* app_info;
 
 static struct {
     float last, current, delta;
@@ -35,7 +35,7 @@ static void mg_app_main_loop(void)
     app_time.last = app_time.current;
 }
 
-void mg_app_run(mg_app_init_info *info, int32_t argc, char* const* argv)
+void mg_app_run(const mg_app_init_info *info, int32_t argc, char* const* argv)
 {
     mg_platform_init_info init_info;
     init_info.title = info->name;

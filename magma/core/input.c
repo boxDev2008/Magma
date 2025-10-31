@@ -100,8 +100,6 @@ void mg_input_get_mouse_position(int32_t *x, int32_t *y)
     *y = input_state.mouse.y;
 }
 
-#include <stdio.h>
-
 mg_gamepad_state mg_input_get_gamepad_state(uint8_t index)
 {
     mg_gamepad_state state = { 0 };

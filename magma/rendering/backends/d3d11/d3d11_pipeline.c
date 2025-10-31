@@ -90,8 +90,8 @@ mg_d3d11_pipeline *mg_d3d11_create_pipeline(mg_pipeline_create_info *create_info
     ID3D11Device_CreateRasterizerState(d3d11_ctx.device, &rasterDesc, &pipeline->raster_state);
 
     D3D11_DEPTH_STENCIL_DESC depthStencilStateDesc = { 0 };
-    depthStencilStateDesc.DepthEnable = create_info->depth_stencil.depth_test_enable;
-    depthStencilStateDesc.StencilEnable = create_info->depth_stencil.stencil_test_enable;
+    depthStencilStateDesc.DepthEnable = create_info->depth_stencil.depth_test_enabled;
+    depthStencilStateDesc.StencilEnable = create_info->depth_stencil.stencil_test_enabled;
     depthStencilStateDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
     depthStencilStateDesc.DepthFunc = mg_d3d11_get_comparison_func(create_info->depth_stencil.depth_compare_op);
     ID3D11Device_CreateDepthStencilState(d3d11_ctx.device, &depthStencilStateDesc, &pipeline->depth_stencil_state);

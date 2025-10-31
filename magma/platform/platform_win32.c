@@ -251,6 +251,18 @@ void mg_platform_show_window(void)
     ShowWindow(platform->hwnd, SW_SHOW);
 }
 
+void mg_platform_get_primary_screen_size(uint32_t *width, uint32_t *height)
+{
+    *width = GetSystemMetrics(SM_CXSCREEN);
+    *height = GetSystemMetrics(SM_CYSCREEN);
+}
+
+void mg_platform_get_virtual_screen_size(uint32_t *width, uint32_t *height)
+{
+    *width = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+    *height = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+}
+
 mg_dynamic_library *mg_platform_load_library(const char *library_name)
 {
     return (mg_dynamic_library*)LoadLibraryA(library_name);

@@ -25,7 +25,7 @@ void on_resize(mg_resized_event_data *data)
 
     mg_swapchain_config_info config_info = {
         .format = MG_PIXEL_FORMAT_B8G8R8A8_SRGB,
-        .present_mode = MG_PRESENT_MODE_FIFO,
+        .vsync = true,
         .width = data->width,
         .height = data->height
     };
@@ -36,7 +36,7 @@ void on_resize(mg_resized_event_data *data)
     window_h = data->height;
 }
 
-void on_initialize(int32_t argc, char* const* argv, uint32_t width, uint32_t height, mg_platform *platform)
+void on_initialize(int32_t argc, char* const* argv, uint32_t width, uint32_t height)
 {
     mg_event_connect(MG_EVENT_CODE_RESIZED, (mg_event)on_resize);
 	mg_event_connect(MG_EVENT_CODE_MOUSE_MOVED, (mg_event)on_mouse_moved);
@@ -49,13 +49,12 @@ void on_initialize(int32_t argc, char* const* argv, uint32_t width, uint32_t hei
 
 	mg_swapchain_config_info swapchain_config = {
         .format = MG_PIXEL_FORMAT_B8G8R8A8_SRGB,
-        .present_mode = MG_PRESENT_MODE_FIFO,
+        .vsync = true,
         .width = width,
         .height = height
     };
     
     mgfx_init_info renderer_init_info = {
-        .platform = platform,
         .type = MG_RENDERER_TYPE_OPENGL,
         .swapchain_config_info = &swapchain_config
     };
@@ -103,13 +102,14 @@ void on_update(float delta_time)
 	mgfx_end();
 }
 
-MG_APP_DEFINE_ENTRY({
+static const mg_app_init_info app_info = {
     .name = "ImGui example",
-    .width = window_w,
-    .height = window_h,
+    .width = 1280,
+    .height = 720,
     .events = {
         .initialize = on_initialize,
         .shutdown = on_shutdown,
         .update = on_update
     }
-});
+};
+MG_APP_DEFINE_ENTRY(app_info);

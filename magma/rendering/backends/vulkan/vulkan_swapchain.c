@@ -1,5 +1,6 @@
 #include "vulkan_renderer.h"
 #include "vulkan_image.h"
+#include "vulkan_render_pass.h"
 #include "vulkan_types.h"
 
 #include "math/math.h"
@@ -7,7 +8,7 @@
 #include <stdlib.h>
 #include <assert.h>
 
-VkExtent2D mg_vulkan_choose_swap_extent(const VkSurfaceCapabilitiesKHR *capabilities, int32_t width, int32_t height)
+static VkExtent2D mg_vulkan_choose_swap_extent(const VkSurfaceCapabilitiesKHR *capabilities, int32_t width, int32_t height)
 {
     if (capabilities->currentExtent.width != UINT32_MAX)
         return capabilities->currentExtent;
@@ -20,12 +21,47 @@ VkExtent2D mg_vulkan_choose_swap_extent(const VkSurfaceCapabilitiesKHR *capabili
     }
 }
 
+static VkFormat mg_vulkan_find_supported_format(const VkFormat *candidates, uint32_t count, VkImageTiling tiling, VkFormatFeatureFlags features)
+{
+    for (uint32_t i = 0; i < count; i++)
+    {
+        VkFormat format = candidates[i];
+
+        VkFormatProperties props;
+        vkGetPhysicalDeviceFormatProperties(vk_ctx.physical_device.handle, format, &props);
+
+        if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features)
+            return format;
+        else if (tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & features) == features)
+            return format;
+    }
+    return VK_FORMAT_UNDEFINED;
+}
+
+#include <stdio.h>
+
 void mg_vulkan_create_swapchain(mg_swapchain_config_info *config_info)
 {
+    const VkFormat depth_format = mg_vulkan_find_supported_format(
+        (VkFormat[]){VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT}, 3,
+        VK_IMAGE_TILING_OPTIMAL,
+        VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
+    );
+
+    const bool is_initial_creation = (vk_ctx.swapchain.handle == VK_NULL_HANDLE);
+
+    if (vk_ctx.swapchain.color_format != (VkFormat)config_info->format)
+    {
+        if (vk_ctx.render_pass)
+            vkDestroyRenderPass(vk_ctx.device.handle, vk_ctx.render_pass, NULL);
+        vk_ctx.render_pass = mg_vulkan_create_render_pass_internal(config_info->format, depth_format);
+        vk_ctx.swapchain.color_format = (VkFormat)config_info->format;
+    }
+
     VkSurfaceCapabilitiesKHR capabilities;
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vk_ctx.physical_device.handle, vk_ctx.surface, &capabilities);
 
-    VkExtent2D extent = mg_vulkan_choose_swap_extent(&capabilities, config_info->width, config_info->height);
+    VkExtent2D extent = mg_vulkan_choose_swap_extent(&capabilities, config_info->width * 4, config_info->height * 4);
 
     uint32_t image_count = capabilities.minImageCount + 1;
     if (capabilities.maxImageCount > 0 && image_count > capabilities.maxImageCount)
@@ -44,31 +80,42 @@ void mg_vulkan_create_swapchain(mg_swapchain_config_info *config_info)
     create_info.pQueueFamilyIndices = NULL;
     create_info.preTransform = capabilities.currentTransform;
     create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-    create_info.presentMode = (VkPresentModeKHR)config_info->present_mode;
+    create_info.presentMode = config_info->vsync ? VK_PRESENT_MODE_FIFO_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR;
     create_info.clipped = VK_TRUE;
     create_info.oldSwapchain = vk_ctx.swapchain.handle;
 
+    VkSwapchainKHR old_swapchain = vk_ctx.swapchain.handle;
     VkResult result = vkCreateSwapchainKHR(vk_ctx.device.handle, &create_info, NULL, &vk_ctx.swapchain.handle);
     assert(result == VK_SUCCESS);
 
-	if (create_info.oldSwapchain)
-    	vkDestroySwapchainKHR(vk_ctx.device.handle, create_info.oldSwapchain, NULL);
+    if (old_swapchain)
+        vkDestroySwapchainKHR(vk_ctx.device.handle, old_swapchain, NULL);
 
     vkGetSwapchainImagesKHR(vk_ctx.device.handle, vk_ctx.swapchain.handle, &image_count, NULL);
-    vk_ctx.swapchain.image_count = image_count;
+    
+    if (!is_initial_creation)
+    {
+        vkDestroyImageView(vk_ctx.device.handle, vk_ctx.swapchain.depth_image_view, NULL);
+        vkDestroyImage(vk_ctx.device.handle, vk_ctx.swapchain.depth_image, NULL);
+        vkFreeMemory(vk_ctx.device.handle, vk_ctx.swapchain.depth_image_memory, NULL);
 
-    vk_ctx.swapchain.images = (VkImage*) realloc(vk_ctx.swapchain.images, image_count * sizeof(VkImage));
+        for (uint32_t i = 0; i < vk_ctx.swapchain.image_count; i++)
+        {
+            vkDestroyFramebuffer(vk_ctx.device.handle, vk_ctx.swapchain.framebuffers[i], NULL);
+            vkDestroyImageView(vk_ctx.device.handle, vk_ctx.swapchain.image_views[i], NULL);
+        }
+    }
+    
+    vk_ctx.swapchain.image_count = image_count;
     vkGetSwapchainImagesKHR(vk_ctx.device.handle, vk_ctx.swapchain.handle, &image_count, vk_ctx.swapchain.images);
 
-    vk_ctx.swapchain.image_views = (VkImageView*) realloc(vk_ctx.swapchain.image_views, image_count * sizeof(VkImageView));
-
-	uint32_t i;
+    uint32_t i;
     for (i = 0; i < image_count; i++)
     {
         VkImageViewCreateInfo image_view_create_info = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
         image_view_create_info.image = vk_ctx.swapchain.images[i];
         image_view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        image_view_create_info.format = (VkFormat)config_info->format;
+        image_view_create_info.format = (VkFormat)vk_ctx.swapchain.color_format;
         image_view_create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         image_view_create_info.subresourceRange.baseMipLevel = 0;
         image_view_create_info.subresourceRange.levelCount = 1;
@@ -79,15 +126,15 @@ void mg_vulkan_create_swapchain(mg_swapchain_config_info *config_info)
         assert(result == VK_SUCCESS);
     }
 
-    mg_vulkan_allocate_image(config_info->width, config_info->height,
-		VK_IMAGE_TYPE_2D, VK_FORMAT_D32_SFLOAT, VK_IMAGE_TILING_OPTIMAL,
-		VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		&vk_ctx.swapchain.depth_image, &vk_ctx.swapchain.depth_image_memory);
+    mg_vulkan_allocate_image(extent.width, extent.height,
+        VK_IMAGE_TYPE_2D, depth_format, VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        &vk_ctx.swapchain.depth_image, &vk_ctx.swapchain.depth_image_memory);
 
     VkImageViewCreateInfo view_info = {VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
     view_info.image = vk_ctx.swapchain.depth_image;
     view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    view_info.format = VK_FORMAT_D32_SFLOAT;
+    view_info.format = depth_format;
     view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
     view_info.subresourceRange.baseMipLevel = 0;
     view_info.subresourceRange.levelCount = 1;
@@ -97,7 +144,6 @@ void mg_vulkan_create_swapchain(mg_swapchain_config_info *config_info)
     result = vkCreateImageView(vk_ctx.device.handle, &view_info, NULL, &vk_ctx.swapchain.depth_image_view);
     assert(result == VK_SUCCESS);
 
-    vk_ctx.swapchain.framebuffers = (VkFramebuffer*) realloc(vk_ctx.swapchain.framebuffers, image_count * sizeof(VkFramebuffer));
     for (i = 0; i < image_count; i++)
     {
         VkFramebufferCreateInfo framebuffer_create_info = {VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
@@ -127,25 +173,10 @@ void mg_vulkan_cleanup_swapchain(void)
     vkFreeMemory(vk_ctx.device.handle, vk_ctx.swapchain.depth_image_memory, NULL);
 
     vkDestroySwapchainKHR(vk_ctx.device.handle, vk_ctx.swapchain.handle, NULL);
-
-    free(vk_ctx.swapchain.framebuffers);
-    free(vk_ctx.swapchain.image_views);
-    free(vk_ctx.swapchain.images);
 }
 
 void mg_vulkan_configure_swapchain(mg_swapchain_config_info *config_info)
 {
     vkDeviceWaitIdle(vk_ctx.device.handle);
-
-    for (uint32_t i = 0; i < vk_ctx.swapchain.image_count; i++)
-    {
-        vkDestroyFramebuffer(vk_ctx.device.handle, vk_ctx.swapchain.framebuffers[i], NULL);
-        vkDestroyImageView(vk_ctx.device.handle, vk_ctx.swapchain.image_views[i], NULL);
-    }
-
-    vkDestroyImageView(vk_ctx.device.handle, vk_ctx.swapchain.depth_image_view, NULL);
-    vkDestroyImage(vk_ctx.device.handle, vk_ctx.swapchain.depth_image, NULL);
-    vkFreeMemory(vk_ctx.device.handle, vk_ctx.swapchain.depth_image_memory, NULL);
-
     mg_vulkan_create_swapchain(config_info);
 }

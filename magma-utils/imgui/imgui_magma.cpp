@@ -193,30 +193,16 @@ void mg_imgui_initialize(void)
 
 	io.Fonts->SetTexID((ImTextureID)imgui_data->img_array);
 
-    mg_vertex_attribute_info vertex_attributes[] = {
-        {
-            .location = 0,
-            .offset = offsetof(ImDrawVert, pos),
-            .format = MG_VERTEX_FORMAT_FLOAT2,
-        },
-        {
-            .location = 1,
-            .offset = offsetof(ImDrawVert, uv),
-            .format = MG_VERTEX_FORMAT_FLOAT2,
-        },
-        {
-            .location = 2, 
-            .offset = offsetof(ImDrawVert, col),
-            .format = MG_VERTEX_FORMAT_UBYTE4N
-        }
-    };
-
     mg_pipeline_create_info pipeline_create_info = {
         .shader = get_imgui_shader(mgfx_get_type()),
         .vertex_layout = {
             .stride = sizeof(ImDrawVert),
             .attribute_count = 3,
-            .attributes = vertex_attributes,
+            .attributes = {
+            { .location = 0, .offset = offsetof(ImDrawVert, pos), .format = MG_VERTEX_FORMAT_FLOAT2, },
+            { .location = 1, .offset = offsetof(ImDrawVert, uv), .format = MG_VERTEX_FORMAT_FLOAT2, },
+            { .location = 2,  .offset = offsetof(ImDrawVert, col), .format = MG_VERTEX_FORMAT_UBYTE4N }
+        },
         },
     
         .primitive_topology = MG_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
@@ -241,7 +227,6 @@ void mg_imgui_initialize(void)
 
 void mg_imgui_shutdown(void)
 {
-	mgfx_wait();
     mgfx_destroy_pipeline(imgui_data->pipeline);
     mgfx_destroy_image_array(imgui_data->img_array);
     mgfx_destroy_sampler(imgui_data->smp);

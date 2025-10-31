@@ -1,4 +1,5 @@
 #include "opengl_image.h"
+#include "opengl_renderer.h"
 
 #include <stdlib.h>
 #include <assert.h>
@@ -117,15 +118,11 @@ static GLenum mg_opengl_get_internal_format(mg_pixel_format format)
             return GL_RGBA16;
 #endif
 
-        case MG_PIXEL_FORMAT_D32_SFLOAT:
-            return GL_DEPTH_COMPONENT32F;
-
         case MG_PIXEL_FORMAT_D16_UNORM_S8_UINT:
-            return GL_DEPTH24_STENCIL8;
-
         case MG_PIXEL_FORMAT_D24_UNORM_S8_UINT:
             return GL_DEPTH24_STENCIL8;
 
+        case MG_PIXEL_FORMAT_D32_SFLOAT:
         case MG_PIXEL_FORMAT_D32_SFLOAT_S8_UINT:
             return GL_DEPTH32F_STENCIL8;
     }
@@ -321,31 +318,4 @@ void mg_opengl_bind_image_array(mg_opengl_image_array *array)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, sampler->min_filter);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, sampler->mag_filter);
     }
-}
-
-mg_opengl_framebuffer *mg_opengl_create_framebuffer(mg_framebuffer_create_info *create_info)
-{
-    mg_opengl_framebuffer *framebuffer = (mg_opengl_framebuffer*)malloc(sizeof(mg_opengl_framebuffer));
-
-    glGenFramebuffers(1, &framebuffer->id);
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer->id);
-
-    mg_opengl_image *color_attachment = (mg_opengl_image*)create_info->color_attachment;
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, color_attachment->texture_target, color_attachment->texture_id, 0);
-
-    if (create_info->depth_stencil_attachment)
-    {
-        mg_opengl_image *depth_stencil_attachment = (mg_opengl_image*)create_info->depth_stencil_attachment;
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, color_attachment->texture_target, depth_stencil_attachment->texture_id, 0);  
-    }
-
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-    return framebuffer;
-}
-
-void mg_opengl_destroy_framebuffer(mg_opengl_framebuffer *framebuffer)
-{
-    glDeleteFramebuffers(1, &framebuffer->id);
-    free(framebuffer);
 }

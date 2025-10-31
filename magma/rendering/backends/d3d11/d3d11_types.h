@@ -26,13 +26,6 @@ typedef struct mg_d3d11_image_array
 }
 mg_d3d11_image_array;
 
-typedef struct mg_d3d11_framebuffer
-{
-    ID3D11RenderTargetView *color_attachment;
-    ID3D11DepthStencilView *depth_stencil_attachment;
-}
-mg_d3d11_framebuffer;
-
 typedef struct mg_d3d11_pipeline
 {
     ID3D11InputLayout *vertex_layout;
@@ -46,7 +39,12 @@ typedef struct mg_d3d11_pipeline
 }
 mg_d3d11_pipeline;
 
-typedef struct mg_d3d11_render_pass mg_d3d11_render_pass;
+typedef struct mg_d3d11_render_pass
+{
+    ID3D11RenderTargetView *color_attachment;
+    ID3D11DepthStencilView *depth_stencil_attachment;
+}
+mg_d3d11_render_pass;
 
 typedef struct mg_d3d11_context
 {
