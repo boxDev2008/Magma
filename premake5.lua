@@ -7,7 +7,7 @@ end
 
 workspace "Magma"
 	configurations { "Release" }
-	startproject "Sandbox"
+	startproject "SandboxApp"
 
 project "Magma"
 	kind "SharedLib"
@@ -25,12 +25,16 @@ project "Magma"
 
 	defines { "MG_EXPORT"}
 
+	includedirs {
+		"magma",
+		"magma/vendor"
+	}
+
 	filter { "system:windows" }
-		includedirs { ".", "magma", "magma/vendor", VULKAN_SDK.."\\Include" }
+		includedirs { VULKAN_SDK.."\\Include" }
 		libdirs { VULKAN_SDK.."\\Lib" }
 
 	filter { "system:linux" }
-		includedirs { ".", "magma", "magma/vendor" }
 		links { "vulkan", "X11", "m" }
 		buildoptions { "-fpermissive" }
 
@@ -73,7 +77,7 @@ project "Magma-shdc"
 	filter "configurations:Release"
 		defines { "NDEBUG" }
 
-project "Sandbox"
+project "SandboxApp"
 	kind "ConsoleApp"
 	language "C"
 	targetdir "bin/%{cfg.buildcfg}"

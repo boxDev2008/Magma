@@ -548,7 +548,7 @@ MG_API inline void                     mgfx_scissor                         (int
 MG_API inline void                      mgfx_draw                           (uint32_t vertex_count, uint32_t first_vertex);
 MG_API inline void                      mgfx_draw_indexed                   (uint32_t index_count, uint32_t first_index, uint32_t vertex_offset);
 MG_API inline void                      mgfx_draw_instanced                 (uint32_t vertex_count, uint32_t first_vertex, uint32_t instance_count, uint32_t first_instance);
-MG_API inline void                      mgfx_draw_indexed_instanced         (uint32_t index_count, uint32_t first_index, uint32_t vertex_offset, uint32_t instance_count, uint32_t first_instance);
+MG_API inline void                      mgfx_draw_indexed_instanced         (uint32_t index_count, uint32_t first_index, int32_t vertex_offset, uint32_t instance_count, uint32_t first_instance);
 
 MG_API inline void                      mgfx_configure_swapchain            (mg_swapchain_config_info *config_info);
 

@@ -1,3 +1,3 @@
 cd bin/Release
-"Sandbox.exe"
+"SandboxApp.exe"
 cd ../..
