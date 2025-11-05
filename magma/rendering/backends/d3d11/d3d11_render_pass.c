@@ -36,14 +36,17 @@ void mg_d3d11_update_render_pass(mg_d3d11_render_pass *render_pass, mg_render_pa
     ID3D11RenderTargetView_Release(render_pass->color_attachment);
     ID3D11Device_CreateRenderTargetView(d3d11_ctx.device, (ID3D11Resource*)color_attachment->texture, NULL, &render_pass->color_attachment);
 
+    if (render_pass->depth_stencil_attachment)
+    {
+        ID3D11DepthStencilView_Release(render_pass->depth_stencil_attachment);
+        render_pass->depth_stencil_attachment = NULL;
+    }
+
     if (resize_info->depth_stencil_image)
     {
         mg_d3d11_image *depth_stencil_attachment = (mg_d3d11_image*)resize_info->depth_stencil_image;
-    	ID3D11DepthStencilView_Release(render_pass->depth_stencil_attachment);
         ID3D11Device_CreateDepthStencilView(d3d11_ctx.device, (ID3D11Resource*)depth_stencil_attachment->texture, NULL, &render_pass->depth_stencil_attachment);
     }
-    else
-        render_pass->depth_stencil_attachment = NULL;
 }
 
 void mg_d3d11_begin_render_pass(mg_d3d11_render_pass *render_pass, mg_render_pass_begin_info *begin_info)
