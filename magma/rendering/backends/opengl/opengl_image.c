@@ -259,11 +259,22 @@ void mg_opengl_destroy_image(mg_opengl_image *image)
     free(image);
 }
 
-void mg_opengl_update_image(mg_opengl_image *image, mg_image_write_info *write_info)
+void mg_opengl_update_image(mg_opengl_image *image, mg_image_update_info *write_info)
 {
 	glBindTexture(image->texture_target, image->texture_id);
 	glTexImage2D(image->texture_target, 0, mg_opengl_get_internal_format(write_info->format),
         write_info->width, write_info->height, 0, mg_opengl_get_format(write_info->format), GL_UNSIGNED_BYTE, write_info->data);
+}
+
+void mg_opengl_bind_image(mg_opengl_image *image, mg_opengl_sampler *sampler, uint32_t binding)
+{
+    glActiveTexture(GL_TEXTURE0 + binding);
+    glBindTexture(image->texture_target, image->texture_id);
+    glTexParameteri(image->texture_target, GL_TEXTURE_MIN_FILTER, sampler->min_filter);
+    glTexParameteri(image->texture_target, GL_TEXTURE_MAG_FILTER, sampler->mag_filter);
+    glTexParameteri(image->texture_target, GL_TEXTURE_WRAP_S, sampler->address_mode_u);
+    glTexParameteri(image->texture_target, GL_TEXTURE_WRAP_T, sampler->address_mode_v);
+    glTexParameteri(image->texture_target, GL_TEXTURE_WRAP_R, sampler->address_mode_w);
 }
 
 mg_opengl_sampler *mg_opengl_create_sampler(mg_sampler_create_info *create_info)
@@ -283,39 +294,4 @@ mg_opengl_sampler *mg_opengl_create_sampler(mg_sampler_create_info *create_info)
 void mg_opengl_destroy_sampler(mg_opengl_sampler *sampler)
 {
     free(sampler);
-}
-
-mg_opengl_image_array *mg_opengl_create_image_array(void)
-{
-    return (mg_opengl_image_array*)malloc(sizeof(mg_opengl_image_array));
-}
-
-void mg_opengl_destroy_image_array(mg_opengl_image_array *array)
-{
-    free(array);
-}
-
-void mg_opengl_update_image_array(mg_opengl_image_array *array, mg_opengl_image **images, mg_opengl_sampler **samplers, uint32_t count)
-{
-    assert(count < MG_CONFIG_MAX_BINDABLE_IMAGES);
-    array->images = images;
-    array->samplers = samplers;
-    array->count = count;
-}
-
-void mg_opengl_bind_image_array(mg_opengl_image_array *array)
-{
-    for (uint32_t i = 0; i < array->count; i++)
-    {
-        mg_opengl_image *image = array->images[i];
-        mg_opengl_sampler *sampler = array->samplers[i];
-
-        glActiveTexture(GL_TEXTURE0 + i);
-        glBindTexture(image->texture_target, image->texture_id);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, sampler->address_mode_u);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, sampler->address_mode_v);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, sampler->address_mode_w);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, sampler->min_filter);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, sampler->mag_filter);
-    }
 }

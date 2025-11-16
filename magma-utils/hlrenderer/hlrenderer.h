@@ -13,6 +13,18 @@
 extern "C" {
 #endif
 
+#ifndef MG_HLGFX_FONT_TEXTURE_WIDTH
+    #define MG_HLGFX_FONT_TEXTURE_WIDTH 1024
+#endif
+
+#ifndef MG_HLGFX_FONT_TEXTURE_HEIGHT
+    #define MG_HLGFX_FONT_TEXTURE_HEIGHT 512
+#endif
+
+#ifndef MG_HLGFX_2D_MAX_GEOMETRY_COUNT
+    #define MG_HLGFX_2D_MAX_GEOMETRY_COUNT (1 << 14)
+#endif
+
 /*typedef enum mg_world_flags_2d
 {
     MG_WORLD_FLAG_2D_ENABLE_VIGNETTE = 0x1,
@@ -135,9 +147,6 @@ mg_texture      mg_hlgfx_add_texture            (uint32_t width, uint32_t height
 mg_texture      mg_hlgfx_add_texture_from_file  (const char *file_name, mg_sampler_filter filter, mg_pixel_format format);
 mg_font         mg_hlgfx_add_font               (void *data);
 mg_font         mg_hlgfx_add_font_from_file     (const char* file_name);
-
-void         mg_hlgfx_build_textures            (void);
-void         mg_hlgfx_destroy_textures          (void);
 
 #ifdef __cplusplus
 }

@@ -42,6 +42,7 @@ MG_API mg_vec2  mg_vec2_new         (float x, float y);
 MG_API mg_vec2  mg_vec2_add         (mg_vec2 a, mg_vec2 b);
 MG_API mg_vec2  mg_vec2_subtract    (mg_vec2 a, mg_vec2 b);
 MG_API mg_vec2  mg_vec2_multiply    (mg_vec2 a, mg_vec2 b);
+MG_API mg_vec2  mg_vec2_scale       (mg_vec2 a, float scale);
 MG_API mg_vec2  mg_vec2_lerp        (mg_vec2 a, mg_vec2 b, float by);
 
 MG_API float    mg_vec2_dot         (mg_vec2 a, mg_vec2 b);

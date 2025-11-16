@@ -38,8 +38,6 @@ static VkFormat mg_vulkan_find_supported_format(const VkFormat *candidates, uint
     return VK_FORMAT_UNDEFINED;
 }
 
-#include <stdio.h>
-
 void mg_vulkan_create_swapchain(mg_swapchain_config_info *config_info)
 {
     const VkFormat depth_format = mg_vulkan_find_supported_format(
@@ -52,9 +50,9 @@ void mg_vulkan_create_swapchain(mg_swapchain_config_info *config_info)
 
     if (vk_ctx.swapchain.color_format != (VkFormat)config_info->format)
     {
-        if (vk_ctx.render_pass)
-            vkDestroyRenderPass(vk_ctx.device.handle, vk_ctx.render_pass, NULL);
-        vk_ctx.render_pass = mg_vulkan_create_render_pass_internal(config_info->format, depth_format);
+        if (vk_ctx.default_render_pass)
+            vkDestroyRenderPass(vk_ctx.device.handle, vk_ctx.default_render_pass, NULL);
+        vk_ctx.default_render_pass = mg_vulkan_create_render_pass_internal(config_info->format, depth_format);
         vk_ctx.swapchain.color_format = (VkFormat)config_info->format;
     }
 
@@ -148,7 +146,7 @@ void mg_vulkan_create_swapchain(mg_swapchain_config_info *config_info)
     {
         VkFramebufferCreateInfo framebuffer_create_info = {VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
         framebuffer_create_info.attachmentCount = 2;
-        framebuffer_create_info.renderPass = vk_ctx.render_pass;
+        framebuffer_create_info.renderPass = vk_ctx.default_render_pass;
         VkImageView attachments[2] = { vk_ctx.swapchain.image_views[i], vk_ctx.swapchain.depth_image_view };
         framebuffer_create_info.pAttachments = attachments;
         framebuffer_create_info.width = extent.width;

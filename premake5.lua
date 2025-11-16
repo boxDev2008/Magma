@@ -20,15 +20,15 @@ project "Magma"
 
 	optimize "On"
 
-	filter "configurations:Release"
-		defines { "NDEBUG" }
-
-	defines { "MG_EXPORT"}
+	defines { "MG_EXPORT" }
 
 	includedirs {
 		"magma",
 		"magma/vendor"
 	}
+
+	filter "configurations:Release"
+		defines { "NDEBUG" }
 
 	filter { "system:windows" }
 		includedirs { VULKAN_SDK.."\\Include" }

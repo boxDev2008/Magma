@@ -11,9 +11,9 @@ void on_resize(mg_resized_event_data *data)
 
     mg_swapchain_config_info config_info = {
         .format = MG_PIXEL_FORMAT_B8G8R8A8_SRGB,
-        .vsync = true,
         .width = data->width,
-        .height = data->height
+        .height = data->height,
+        .vsync = true
     };
 
     mgfx_configure_swapchain(&config_info);
@@ -25,9 +25,9 @@ void on_initialize(int32_t argc, char* const* argv, uint32_t width, uint32_t hei
 
 	mg_swapchain_config_info swapchain_config = {
         .format = MG_PIXEL_FORMAT_B8G8R8A8_SRGB,
-        .vsync = true,
         .width = width,
-        .height = height
+        .height = height,
+        .vsync = true
     };
     
     mgfx_init_info renderer_init_info = {

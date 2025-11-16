@@ -44,8 +44,8 @@ void mg_vulkan_end_single_time_commands(VkCommandBuffer commandBuffer)
     submit_info.commandBufferCount = 1;
     submit_info.pCommandBuffers = &commandBuffer;
 
-    vkQueueSubmit(vk_ctx.device.graphics_queue, 1, &submit_info, VK_NULL_HANDLE);
-    vkQueueWaitIdle(vk_ctx.device.graphics_queue);
+    vkQueueSubmit(vk_ctx.device.graphics_compute_queue, 1, &submit_info, VK_NULL_HANDLE);
+    vkQueueWaitIdle(vk_ctx.device.graphics_compute_queue);
 
     vkFreeCommandBuffers(vk_ctx.device.handle, vk_ctx.command_pool, 1, &commandBuffer);
 }
@@ -80,14 +80,7 @@ void mg_vulkan_command_buffer_set_viewport(VkCommandBuffer buffer, int32_t x, in
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
 
-    VkRect2D scissor = { 0 };
-    scissor.offset.x = x;
-    scissor.offset.y = y;
-    scissor.extent.width = width;
-    scissor.extent.height = height;
-
     vkCmdSetViewport(buffer, 0, 1, &viewport);
-    vkCmdSetScissor(buffer, 0, 1, &scissor);
 }
 
 void mg_vulkan_command_buffer_set_scissor(VkCommandBuffer buffer, int32_t x, int32_t y, uint32_t width, uint32_t height)

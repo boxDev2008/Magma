@@ -17,10 +17,6 @@
 #include <stdlib.h>
 #include <math.h>
 
-#ifndef MG_HLGFX_2D_MAX_GEOMETRY_COUNT
-    #define MG_HLGFX_2D_MAX_GEOMETRY_COUNT (1 << 14)
-#endif
-
 #define MG_HLGFX_2D_MAX_LIGHT_COUNT 128
 
 typedef struct mg_batch_vertex
@@ -46,7 +42,6 @@ typedef struct mg_hlgfx_data
     	mg_sampler smp;
 		mg_image color_img;
 		mg_image depth_img;
-		mg_image_array img_array;
 		mg_render_pass rp;
 		mg_pipeline pip;
 	}
@@ -74,8 +69,8 @@ typedef struct mg_hlgfx_data
         mg_pipeline pipeline;
         mg_pipeline lit_pipeline;
 
-        mg_dynamic_vertex_buffer vb;
-        mg_index_buffer ib;
+        mg_buffer vb;
+        mg_buffer ib;
         
         mg_batch_quad quads[MG_HLGFX_2D_MAX_GEOMETRY_COUNT];
         uint32_t quad_count;
@@ -83,7 +78,6 @@ typedef struct mg_hlgfx_data
 
         mg_image images[MG_CONFIG_MAX_BINDABLE_IMAGES];
         mg_sampler samplers[MG_CONFIG_MAX_BINDABLE_IMAGES];
-        mg_image_array image_array;
         uint8_t image_count;
     }
     sprite_batch;
@@ -97,12 +91,12 @@ static mg_hlgfx_data *rdata;
 
 void mg_hlgfx_submit_sprite_batch(void)
 {
-    mgfx_update_dynamic_vertex_buffer(rdata->sprite_batch.vb,
+    mgfx_update_buffer(rdata->sprite_batch.vb,
         rdata->sprite_batch.quad_count * sizeof(mg_batch_quad), rdata->sprite_batch.quads);
-    mgfx_bind_dynamic_vertex_buffer(rdata->sprite_batch.vb);
+    mgfx_bind_vertex_buffer(rdata->sprite_batch.vb);
     mgfx_bind_index_buffer(rdata->sprite_batch.ib, MG_INDEX_TYPE_UINT32);
-	if (rdata->sprite_batch.image_array)
-    	mgfx_bind_image_array(rdata->sprite_batch.image_array);
+    for (uint8_t i = 0; i < rdata->sprite_batch.image_count; i++)
+        mgfx_bind_image(rdata->sprite_batch.images[i], rdata->sprite_batch.samplers[i], i);
 
     uint32_t offset = rdata->sprite_batch.quad_count * 6;
 
@@ -215,14 +209,6 @@ void mg_hlgfx_initialize(const mg_hlgfx_init_info *info)
 		
 		rdata->screen_data.color_img =
 			mgfx_create_image(&color_attachment_info);
-	
-		rdata->screen_data.img_array = mgfx_create_image_array();
-		mgfx_update_image_array(
-			rdata->screen_data.img_array,
-			&rdata->screen_data.color_img,
-			&rdata->screen_data.smp,
-			1
-		);
 		
 		mg_image_create_info depth_stencil_attachment_create_info = {
 			.format = MG_PIXEL_FORMAT_D32_SFLOAT,
@@ -241,7 +227,7 @@ void mg_hlgfx_initialize(const mg_hlgfx_init_info *info)
                 .image = rdata->screen_data.color_img
 			},
             .depth_stencil_attachment = {
-                .format = MG_PIXEL_FORMAT_D24_UNORM_S8_UINT,
+                .format = MG_PIXEL_FORMAT_D32_SFLOAT,
                 .image = rdata->screen_data.depth_img
             },
             .width = rdata->width,
@@ -278,7 +264,6 @@ void mg_hlgfx_initialize(const mg_hlgfx_init_info *info)
     {        
         mg_vertex_layout_info vertex_layout = {
             .stride = 7 * sizeof(float),
-            .attribute_count = 5,
             .attributes = {
                 { .location = 0, .offset = 0, .format = MG_VERTEX_FORMAT_FLOAT2 },
                 { .location = 1, .offset = 2 * sizeof(float), .format = MG_VERTEX_FORMAT_FLOAT2 },
@@ -297,7 +282,7 @@ void mg_hlgfx_initialize(const mg_hlgfx_init_info *info)
             .polygon_mode = MG_POLYGON_MODE_FILL,
             .cull_mode = MG_CULL_MODE_NONE,
             .front_face = MG_FRONT_FACE_CW,
-            
+
             .color_blend = {
                 .blend_enabled = true,
                 .src_color_blend_factor = MG_BLEND_FACTOR_SRC_ALPHA,
@@ -318,8 +303,12 @@ void mg_hlgfx_initialize(const mg_hlgfx_init_info *info)
         rdata->sprite_batch.lit_pipeline =
             mgfx_create_pipeline(&pipeline_create_info);
 
-        rdata->sprite_batch.vb =
-            mgfx_create_dynamic_vertex_buffer(MG_HLGFX_2D_MAX_GEOMETRY_COUNT * sizeof(mg_batch_quad));
+        const mg_buffer_create_info vb_create_info = {
+            .usage = MG_BUFFER_USAGE_INDEX,
+            .access = MG_ACCESS_TYPE_CPU,
+            .size = MG_HLGFX_2D_MAX_GEOMETRY_COUNT * sizeof(mg_batch_quad)
+        };
+        rdata->sprite_batch.vb = mgfx_create_buffer(&vb_create_info);
         
         uint32_t indices[MG_HLGFX_2D_MAX_GEOMETRY_COUNT * 6];
         
@@ -332,25 +321,34 @@ void mg_hlgfx_initialize(const mg_hlgfx_init_info *info)
             indices[i * 6 + 4] = i * 4 + 2;
             indices[i * 6 + 5] = i * 4 + 3;
         }
-        rdata->sprite_batch.ib =
-            mgfx_create_index_buffer(sizeof(indices), indices);
+        const mg_buffer_create_info ib_create_info = {
+            .usage = MG_BUFFER_USAGE_INDEX,
+            .access = MG_ACCESS_TYPE_GPU,
+            .size = sizeof(indices),
+            .data = indices
+        };
+        rdata->sprite_batch.ib = mgfx_create_buffer(&ib_create_info);
     }
 #pragma endregion
 }
 
 void mg_hlgfx_shutdown(void)
-{    
-    mgfx_destroy_dynamic_vertex_buffer(rdata->sprite_batch.vb);
-    mgfx_destroy_index_buffer(rdata->sprite_batch.ib);
+{
+    for (uint8_t i = 0; i < rdata->sprite_batch.image_count; i++)
+    {
+        mgfx_destroy_image(rdata->sprite_batch.images[i]);
+        mgfx_destroy_sampler(rdata->sprite_batch.samplers[i]);
+    }
+
+    rdata->sprite_batch.image_count = 0;
+
+    mgfx_destroy_buffer(rdata->sprite_batch.vb);
+    mgfx_destroy_buffer(rdata->sprite_batch.ib);
     mgfx_destroy_pipeline(rdata->sprite_batch.pipeline);
     mgfx_destroy_pipeline(rdata->sprite_batch.lit_pipeline);
 
-	if (rdata->sprite_batch.image_array)
-    	mgfx_destroy_image_array(rdata->sprite_batch.image_array);
-
 	mgfx_destroy_image(rdata->screen_data.depth_img);
 	mgfx_destroy_image(rdata->screen_data.color_img);
-	mgfx_destroy_image_array(rdata->screen_data.img_array);
 	mgfx_destroy_pipeline(rdata->screen_data.pip);
 	mgfx_destroy_render_pass(rdata->screen_data.rp);
     mgfx_destroy_sampler(rdata->screen_data.smp);
@@ -385,8 +383,6 @@ void mg_hlgfx_resize(int32_t width, int32_t height)
     rdata->screen_data.color_img =
         mgfx_create_image(&color_attachment_info);
 
-    mgfx_update_image_array(rdata->screen_data.img_array, &rdata->screen_data.color_img, &rdata->screen_data.smp, 1);
-
 	mg_image_create_info depth_stencil_attachment_create_info = {
 		.format = MG_PIXEL_FORMAT_D32_SFLOAT,
 		.type = MG_IMAGE_TYPE_2D,
@@ -398,13 +394,13 @@ void mg_hlgfx_resize(int32_t width, int32_t height)
 	rdata->screen_data.depth_img =
 		mgfx_create_image(&depth_stencil_attachment_create_info);
 
-    mg_render_pass_update_info resize_info = {
+    mg_render_pass_update_info update_info = {
         .color_image = rdata->screen_data.color_img,
         .depth_stencil_image = rdata->screen_data.depth_img,
         .width = width,
         .height = height
     };
-    mgfx_update_render_pass(rdata->screen_data.rp, &resize_info);
+    mgfx_update_render_pass(rdata->screen_data.rp, &update_info);
 
     mgfx_configure_swapchain(&config_info);        
 }
@@ -416,13 +412,11 @@ void mg_hlgfx_begin(const mg_post_process_info *post_process_info, const mg_vec3
 
     mgfx_begin();
 
-	mg_render_pass_begin_info rp_info = {
+	mg_render_pass_bind_info rp_info = {
         .render_area = (mg_vec4i) {0, 0, rdata->width, rdata->height},
         .clear_value = (mg_vec4) {clear_color.x, clear_color.y, clear_color.z, 1.0f}
     };
-	mgfx_begin_render_pass(rdata->screen_data.rp, &rp_info);
-	mgfx_viewport(0, 0, rdata->width, rdata->height);
-
+	mgfx_bind_render_pass(rdata->screen_data.rp, &rp_info);
     rdata->post_process_ub_data.vignette_data = (mg_vec4) {
         post_process_info->vignette_color.x,
         post_process_info->vignette_color.y,
@@ -434,22 +428,16 @@ void mg_hlgfx_begin(const mg_post_process_info *post_process_info, const mg_vec3
 
 void mg_hlgfx_end(void)
 {
-	mgfx_end_render_pass();
-
-    mg_render_pass_begin_info rp_info = {
+    mg_render_pass_bind_info rp_info = {
         .render_area = (mg_vec4i) {0, 0, rdata->width, rdata->height},
         .clear_value = (mg_vec4) {0.0f, 0.0f, 0.0f, 1.0f}
     };
     
-    mgfx_begin_default_render_pass(&rp_info);
-    mgfx_viewport(0, 0, rdata->width, rdata->height);
-
+    mgfx_bind_render_pass(0, &rp_info);
 	mgfx_bind_pipeline(rdata->screen_data.pip);
-	mgfx_bind_image_array(rdata->screen_data.img_array);
+    mgfx_bind_image(rdata->screen_data.color_img, rdata->screen_data.smp, 0);
     mgfx_bind_uniforms(0, sizeof(rdata->post_process_ub_data), &rdata->post_process_ub_data);
 	mgfx_draw(4, 0);
-    
-    mgfx_end_render_pass();
     mgfx_end();
 }
 
@@ -571,6 +559,8 @@ void mg_hlgfx_draw_text_2d(mg_vec2 position, float scale, mg_vec4 color, mg_text
         position.x -= mg_hlgfx_calculate_text_width(scale, font, text);
 
     const uint32_t ncolor = mg_color_to_uint32(color);
+    const float inv_width = 1.0f / MG_HLGFX_FONT_TEXTURE_WIDTH;
+    const float inv_height = 1.0f / MG_HLGFX_FONT_TEXTURE_HEIGHT;
 
     while (*text)
     {
@@ -586,10 +576,10 @@ void mg_hlgfx_draw_text_2d(mg_vec2 position, float scale, mg_vec4 color, mg_text
             float x1 = x0 + w;
             float y1 = y0 + h;
 
-            float s0 = (b->x0 + 2) / 2048.0f;
-            float t0 = b->y0 / 512.0f;
-            float s1 = (b->x1 - 2) / 2048.0f;
-            float t1 = b->y1 / 512.0f;
+            float s0 = (b->x0) * inv_width;
+            float t0 = b->y0 * inv_height;
+            float s1 = (b->x1) * inv_width;
+            float t1 = b->y1 * inv_height;
 
             rdata->sprite_batch.quads[rdata->sprite_batch.quad_count++] = (mg_batch_quad){{
                 {x0, y0, s0, t0, ncolor, tex_id, -1},
@@ -664,40 +654,11 @@ void mg_hlgfx_draw_rotated_vertex_colored_sprite_2d(mg_vec2 position, mg_vec2 sc
     }};
 }
 
-// TODO (box): Fix this
-/*void mg_hlgfx_draw_reflective_rect(mg_vec2 position, mg_vec2 scale, mg_vec4 color)
-{
-    if (rdata->frame_data.bind_id != 3)
-    {
-        mgfx_bind_pipeline(rdata->sprite_data.pipeline);
-        mgfx_bind_vertex_buffer(rdata->sprite_data.vertex_buffer);
-        rdata->frame_data.bind_id = 3;
-    }
-
-    mgfx_bind_image(rdata->world_data.image, rdata->sprite_data.pipeline);
-
-    mg_mat4 model = mg_mat4_identity();
-    model = mg_mat4_scale(model, (mg_vec3){ scale.x, scale.y, 1.0f });
-    model = mg_mat4_translate(model, (mg_vec3){ position.x, position.y, 0.0f });
-
-    rdata->sprite_data.push_constant.model = model;
-    rdata->sprite_data.push_constant.color = color;
-    rdata->sprite_data.push_constant.rect =
-        (mg_vec4) { 0, 0, 0.3f, 0.3f };
-
-    mgfx_push_constants(sizeof(rdata->sprite_data.push_constant), &rdata->sprite_data.push_constant);
-
-    mgfx_draw_indexed(6, 0);
-}*/
-
 void mg_hlgfx_draw_point_light_2d(mg_vec2 position, float scale, float intensity, mg_vec3 color)
 {
     if (rdata->lit_ub_data.light_count >= MG_HLGFX_2D_MAX_LIGHT_COUNT)
         return;
-    
-    //if (rdata->renderer_type == MG_RENDERER_TYPE_DIRECT3D11)
-        //position.y = position.y * -1.0f + 1.0f;
-    
+
     rdata->lit_ub_data.light_transform[rdata->lit_ub_data.light_count] =
     (mg_vec4) { position.x, position.y, scale, intensity };
     rdata->lit_ub_data.light_colors[rdata->lit_ub_data.light_count] =
@@ -706,35 +667,9 @@ void mg_hlgfx_draw_point_light_2d(mg_vec2 position, float scale, float intensity
     rdata->lit_ub_data.light_count++;
 }
 
-/*void mg_hlgfx_draw_mesh(mg_mat4 model, mg_mesh *mesh, mg_texture *texture)
-{
-    if (rdata->frame_data.bind_id != 5)
-    {
-        mgfx_bind_pipeline(rdata->mesh_data.pipeline);
-        rdata->frame_data.bind_id = 5;
-    }
-    
-    if (rdata->frame_data.prev_layer != rdata->current_layer)
-    {
-        mgfx_bind_uniform_buffer(rdata->current_layer->global_ub);
-        rdata->frame_data.prev_layer = rdata->current_layer;
-    }
-
-    mgfx_bind_vertex_buffer(mesh->vertex_buffer);
-    mgfx_bind_index_buffer(mesh->index_buffer, MG_INDEX_TYPE_UINT32);
-
-    //mgfx_bind_image_array(texture->image_array);
-
-    rdata->mesh_data.push_constant.model = model;
-    rdata->mesh_data.push_constant.color = mg_vec4_new(1.0f, 1.0f, 1.0f, 1.0f);
-    mgfx_push_constants(sizeof(rdata->mesh_data.push_constant), &rdata->mesh_data.push_constant);
-    
-    mgfx_draw_indexed(mesh->index_count, 0);
-}*/
-
 mg_texture mg_hlgfx_add_texture(uint32_t width, uint32_t height, mg_sampler_filter filter, mg_pixel_format format, void *data)
 {
-    assert (rdata->sprite_batch.image_count < MG_CONFIG_MAX_BINDABLE_IMAGES);
+    assert(rdata->sprite_batch.image_count < MG_CONFIG_MAX_BINDABLE_IMAGES);
 
     mg_texture texture;
     texture.width = width;
@@ -760,7 +695,7 @@ mg_texture mg_hlgfx_add_texture(uint32_t width, uint32_t height, mg_sampler_filt
 
     rdata->sprite_batch.samplers[texture.id] = mgfx_create_sampler(&sampler_create_info);
 
-    mg_image_write_info texture_image_write_info = {
+    mg_image_update_info texture_image_write_info = {
         .format = format,
         .width = width,
         .height = height,
@@ -786,45 +721,32 @@ mg_texture mg_hlgfx_add_texture_from_file(const char *file_name, mg_sampler_filt
     return texture;
 }
 
-void mg_hlgfx_build_textures(void)
-{
-	static bool built = false;
-	if (!built)
-	{
-		rdata->sprite_batch.image_array = mgfx_create_image_array();
-		built = true;
-	}
-
-    mgfx_update_image_array(rdata->sprite_batch.image_array, rdata->sprite_batch.images, rdata->sprite_batch.samplers, rdata->sprite_batch.image_count);
-}
-
-void mg_hlgfx_destroy_textures(void)
-{
-    for (uint8_t i = 0; i < rdata->sprite_batch.image_count - 1; i++)
-    {
-        mgfx_destroy_image(rdata->sprite_batch.images[i]);
-        mgfx_destroy_sampler(rdata->sprite_batch.samplers[i]);
-    }
-    rdata->sprite_batch.image_count = 0;
-}
-
 mg_font mg_hlgfx_add_font(void *ttf_data)
 {
-    uint32_t *bitmap = (uint32_t*)malloc(512 * 512 * sizeof(uint32_t));
+    const uint32_t pixels = MG_HLGFX_FONT_TEXTURE_WIDTH * MG_HLGFX_FONT_TEXTURE_HEIGHT;
+
+    uint8_t* buffer = (uint8_t*)malloc(pixels * 4);
     mg_font font;
 
-    stbtt_BakeFontBitmap(ttf_data, 0, 86.0, (uint8_t*)bitmap, 2048, 256, 32, 96, font.cdata);
+    uint8_t* mono = buffer;
+    stbtt_BakeFontBitmap(ttf_data, 0, 86.0f, mono, MG_HLGFX_FONT_TEXTURE_WIDTH, MG_HLGFX_FONT_TEXTURE_HEIGHT, 32, 96, font.cdata);
 
-    uint32_t* p = bitmap;
-    uint32_t* end = bitmap + (512 * 512);
-    while (p < end)
+    uint32_t* rgba = (uint32_t*)buffer;
+    for (int i = pixels - 1; i >= 0; --i)
     {
-        uint32_t a = *p;
-        *p++ = (a >> 24 > 200) ? 0xFFFFFFFF : 0x00FFFFFF;
+        uint8_t a = mono[i] > 128 ? 255 : 0;
+        rgba[i] = (a << 24) | 0x00FFFFFF;
     }
 
-    font.texture = mg_hlgfx_add_texture(512, 512, MG_SAMPLER_FILTER_NEAREST, MG_PIXEL_FORMAT_R8G8B8A8_UNORM, bitmap);
-    free(bitmap);
+    font.texture = mg_hlgfx_add_texture(
+        MG_HLGFX_FONT_TEXTURE_WIDTH,
+        MG_HLGFX_FONT_TEXTURE_HEIGHT,
+        MG_SAMPLER_FILTER_NEAREST,
+        MG_PIXEL_FORMAT_R8G8B8A8_UNORM,
+        rgba
+    );
+
+    free(buffer);
     return font;
 }
 

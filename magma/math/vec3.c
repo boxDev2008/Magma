@@ -27,6 +27,11 @@ mg_vec3 mg_vec3_multiply(mg_vec3 a, mg_vec3 b)
     return mg_vec3_new(a.x * b.x, a.y * b.y, a.z * b.z);
 }
 
+mg_vec3 mg_vec3_scale(mg_vec3 a, float scale)
+{
+    return mg_vec3_new(a.x * scale, a.y * scale, a.z * scale);
+}
+
 mg_vec3 mg_vec3_lerp(mg_vec3 a, mg_vec3 b, float by)
 {
     return mg_vec3_new(mg_math_lerpf(a.x, b.x, by), mg_math_lerpf(a.y, b.y, by), mg_math_lerpf(a.z, b.z, by));

@@ -29,7 +29,10 @@ void main()
 
 @stage fragment
 
-layout(set = 1, binding = 0) uniform sampler2D textures[8];
+layout(set = 1, binding = 0) uniform sampler2D texture0;
+layout(set = 1, binding = 1) uniform sampler2D texture1;
+layout(set = 1, binding = 2) uniform sampler2D texture2;
+layout(set = 1, binding = 3) uniform sampler2D texture3;
 
 in vec2 frag_position;
 in vec2 frag_tex_coord;
@@ -76,14 +79,10 @@ void main()
 
     switch (int(frag_tex_id))
     {
-    case 0: out_color = texture(textures[0], uv); break;
-    case 1: out_color = texture(textures[1], uv); break;
-    case 2: out_color = texture(textures[2], uv); break;
-    case 3: out_color = texture(textures[3], uv); break;
-    case 4: out_color = texture(textures[4], uv); break;
-    case 5: out_color = texture(textures[5], uv); break;
-    case 6: out_color = texture(textures[6], uv); break;
-    case 7: out_color = texture(textures[7], uv); break;
+    case 0: out_color = texture(texture0, uv); break;
+    case 1: out_color = texture(texture1, uv); break;
+    case 2: out_color = texture(texture2, uv); break;
+    case 3: out_color = texture(texture3, uv); break;
     default: out_color = frag_color * vec4(lit_color, 1.0); return;
     }
 

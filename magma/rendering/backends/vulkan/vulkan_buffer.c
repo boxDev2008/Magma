@@ -51,32 +51,29 @@ void mg_vulkan_copy_buffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSiz
     mg_vulkan_end_single_time_commands(command_buffer);
 }
 
-mg_vulkan_buffer *mg_vulkan_create_buffer(size_t size, void *data, VkBufferUsageFlags usage)
+mg_vulkan_buffer *mg_vulkan_create_buffer(mg_buffer_create_info *create_info)
 {
     mg_vulkan_buffer *buffer = (mg_vulkan_buffer*)malloc(sizeof(mg_vulkan_buffer));
 
-    VkBuffer staging_buffer;
-    VkDeviceMemory staging_memory;
+    if (create_info->access == MG_ACCESS_TYPE_GPU)
+    {
+        mg_vulkan_allocate_buffer(create_info->size,
+        VK_BUFFER_USAGE_TRANSFER_DST_BIT | (VkBufferUsageFlags)create_info->usage,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        &buffer->buffer, &buffer->memory);
+    }
+    else
+    {
+        mg_vulkan_allocate_buffer(create_info->size, (VkBufferUsageFlags)create_info->usage,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        &buffer->buffer, &buffer->memory);
 
-    mg_vulkan_allocate_buffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-    &staging_buffer, &staging_memory);
+        vkMapMemory(vk_ctx.device.handle, buffer->memory, 0, create_info->size, 0, &buffer->data);
+    }
 
-    mg_vulkan_allocate_buffer(size,
-    VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage,
-    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-    &buffer->buffer, &buffer->memory);
-
-    void *_data;
-
-    vkMapMemory(vk_ctx.device.handle, staging_memory, 0, size, 0, &_data);
-    memcpy(_data, data, size);
-    vkUnmapMemory(vk_ctx.device.handle, staging_memory);
-
-    mg_vulkan_copy_buffer(staging_buffer, buffer->buffer, size);
-
-    vkDestroyBuffer(vk_ctx.device.handle, staging_buffer, NULL);
-    vkFreeMemory(vk_ctx.device.handle, staging_memory, NULL);
+    buffer->is_cpu = create_info->access == MG_ACCESS_TYPE_CPU;
+    if (create_info->data)
+        mg_vulkan_update_buffer(buffer, create_info->size, create_info->data);
 
     return buffer;
 }
@@ -86,95 +83,40 @@ void mg_vulkan_destroy_buffer(mg_vulkan_buffer *buffer)
     mg_vulkan_free_resource((mg_vulkan_resource){.type = MG_VULKAN_RESOURCE_TYPE_BUFFER, .buffer = buffer});
 }
 
-mg_vulkan_dynamic_buffer *mg_vulkan_create_dynamic_buffer(size_t size, VkBufferUsageFlags usage)
+void mg_vulkan_update_buffer(mg_vulkan_buffer *buffer, size_t size, void *data)
 {
-    mg_vulkan_dynamic_buffer *buffer =
-        (mg_vulkan_dynamic_buffer*)malloc(sizeof(mg_vulkan_dynamic_buffer));
+    if (buffer->is_cpu)
+        memcpy(buffer->data, data, size);
+    else
+    {
+        VkBuffer staging_buffer;
+        VkDeviceMemory staging_memory;
 
-    mg_vulkan_allocate_buffer(size, usage,
-    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-    &buffer->buffer, &buffer->memory);
+        mg_vulkan_allocate_buffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        &staging_buffer, &staging_memory);
 
-    vkMapMemory(vk_ctx.device.handle, buffer->memory, 0, size, 0, &buffer->data);
+        void *_data;
 
-    return buffer;
+        vkMapMemory(vk_ctx.device.handle, staging_memory, 0, size, 0, &_data);
+        memcpy(_data, data, size);
+        vkUnmapMemory(vk_ctx.device.handle, staging_memory);
+
+        mg_vulkan_copy_buffer(staging_buffer, buffer->buffer, size);
+
+        vkDestroyBuffer(vk_ctx.device.handle, staging_buffer, NULL);
+        vkFreeMemory(vk_ctx.device.handle, staging_memory, NULL);
+    }
 }
 
-void mg_vulkan_destroy_dynamic_buffer(mg_vulkan_dynamic_buffer *buffer)
-{
-    mg_vulkan_free_resource((mg_vulkan_resource){.type = MG_VULKAN_RESOURCE_TYPE_DYNAMIC_BUFFER, .dynamic_buffer = buffer});
-}
-
-mg_vulkan_vertex_buffer *mg_vulkan_create_vertex_buffer(size_t size, void *data)
-{
-    return mg_vulkan_create_buffer(size, data, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-}
-
-void mg_vulkan_destroy_vertex_buffer(mg_vulkan_vertex_buffer *buffer)
-{
-    mg_vulkan_destroy_buffer(buffer);
-}
-
-mg_vulkan_index_buffer *mg_vulkan_create_index_buffer (size_t size, void *data)
-{
-    return mg_vulkan_create_buffer(size, data, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
-}
-
-void mg_vulkan_destroy_index_buffer(mg_vulkan_index_buffer *buffer)
-{
-    mg_vulkan_destroy_buffer(buffer);
-}
-
-mg_vulkan_dynamic_vertex_buffer *mg_vulkan_create_dynamic_vertex_buffer(size_t size)
-{
-    return mg_vulkan_create_dynamic_buffer(size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-}
-
-void mg_vulkan_destroy_dynamic_vertex_buffer(mg_vulkan_dynamic_vertex_buffer *buffer)
-{
-    mg_vulkan_destroy_dynamic_buffer(buffer);
-}
-
-void mg_vulkan_update_dynamic_vertex_buffer(mg_vulkan_dynamic_vertex_buffer *buffer, size_t size, void *data)
-{
-    memcpy(buffer->data, data, size);
-}
-
-mg_vulkan_dynamic_index_buffer *mg_vulkan_create_dynamic_index_buffer(size_t size)
-{
-    return mg_vulkan_create_dynamic_buffer(size, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
-}
-
-void mg_vulkan_destroy_dynamic_index_buffer(mg_vulkan_dynamic_index_buffer *buffer)
-{
-    mg_vulkan_destroy_dynamic_buffer(buffer);
-}
-
-void mg_vulkan_update_dynamic_index_buffer(mg_vulkan_dynamic_index_buffer *buffer, size_t size, void *data)
-{
-    memcpy(buffer->data, data, size);
-}
-
-void mg_vulkan_bind_vertex_buffer(mg_vulkan_vertex_buffer *buffer)
+void mg_vulkan_bind_vertex_buffer(mg_vulkan_buffer *buffer)
 {
     VkBuffer vertex_buffers[] = {buffer->buffer};
     VkDeviceSize offsets[] = {0};
     vkCmdBindVertexBuffers(vk_ctx.command_buffer, 0, 1, vertex_buffers, offsets);
 }
 
-void mg_vulkan_bind_dynamic_vertex_buffer(mg_vulkan_dynamic_vertex_buffer *buffer)
-{
-    VkBuffer vertex_buffers[] = {buffer->buffer};
-    VkDeviceSize offsets[] = {0};
-    vkCmdBindVertexBuffers(vk_ctx.command_buffer, 0, 1, vertex_buffers, offsets);
-}
-
-void mg_vulkan_bind_index_buffer(mg_vulkan_index_buffer *buffer, mg_index_type index_type)
-{
-    vkCmdBindIndexBuffer(vk_ctx.command_buffer, buffer->buffer, 0, index_type);
-}
-
-void mg_vulkan_bind_dynamic_index_buffer(mg_vulkan_dynamic_index_buffer *buffer, mg_index_type index_type)
+void mg_vulkan_bind_index_buffer(mg_vulkan_buffer *buffer, mg_index_type index_type)
 {
     vkCmdBindIndexBuffer(vk_ctx.command_buffer, buffer->buffer, 0, index_type);
 }

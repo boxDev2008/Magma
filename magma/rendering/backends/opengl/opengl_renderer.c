@@ -181,6 +181,11 @@ void mg_opengl_renderer_draw_indexed_instanced(uint32_t index_count, uint32_t fi
 #endif
 }
 
+void mg_opengl_renderer_dispatch(uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z)
+{
+    glDispatchCompute(group_count_x, group_count_y, group_count_z);
+}
+
 void mg_opengl_configure_swapchain(mg_swapchain_config_info *config_info)
 {
     glBindTexture(GL_TEXTURE_2D, gl_ctx.back_buffer.color_attachment);

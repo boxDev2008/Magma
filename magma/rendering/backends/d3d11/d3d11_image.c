@@ -21,28 +21,23 @@ mg_d3d11_image *mg_d3d11_create_image(mg_image_create_info *create_info)
     switch (create_info->usage)
     {
     case MG_IMAGE_USAGE_COLOR_ATTACHMENT:
-        texture_desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+        texture_desc.BindFlags = D3D11_BIND_RENDER_TARGET;
         break;
     case MG_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT:
         texture_desc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
         break;
-    default:
-        texture_desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-        break;
     }
 
-    ID3D11Device_CreateTexture2D(d3d11_ctx.device, &texture_desc, NULL, &image->texture);
+    texture_desc.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
 
-    if (create_info->usage != MG_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT)
-    {
-        D3D11_SHADER_RESOURCE_VIEW_DESC view_desc = { 0 };
-        view_desc.Format = texture_desc.Format;
-        view_desc.ViewDimension = mg_d3d11_get_srv_dimension(create_info->type);
-        view_desc.Texture2D.MipLevels = 1;
-        ID3D11Device_CreateShaderResourceView(d3d11_ctx.device, (ID3D11Resource*)image->texture, &view_desc, &image->view);
-    }
-    else image->view = NULL;
+    ID3D11Device_CreateTexture2D(d3d11_ctx.device, &texture_desc, NULL, (ID3D11Texture2D**)&image->texture);
 
+    D3D11_SHADER_RESOURCE_VIEW_DESC view_desc = { 0 };
+    view_desc.Format = mg_d3d11_get_srv_format(create_info->format);
+    view_desc.ViewDimension = mg_d3d11_get_srv_dimension(create_info->type);
+    view_desc.Texture2D.MipLevels = 1;
+    ID3D11Device_CreateShaderResourceView(d3d11_ctx.device, (ID3D11Resource*)image->texture, &view_desc, &image->view);
+    
     return image;
 }
 
@@ -54,7 +49,7 @@ void mg_d3d11_destroy_image(mg_d3d11_image *image)
     free(image);
 }
 
-void mg_d3d11_update_image(mg_d3d11_image *image, mg_image_write_info *write_info)
+void mg_d3d11_update_image(mg_d3d11_image *image, mg_image_update_info *write_info)
 {
     const uint32_t row_pitch = write_info->width * 4;
     ID3D11DeviceContext_UpdateSubresource(
@@ -66,6 +61,12 @@ void mg_d3d11_update_image(mg_d3d11_image *image, mg_image_write_info *write_inf
         row_pitch,
         0
     );
+}
+
+void mg_d3d11_bind_image(mg_d3d11_image *image, ID3D11SamplerState *sampler, uint32_t binding)
+{
+    ID3D11DeviceContext_PSSetShaderResources(d3d11_ctx.immediate_context, binding, 1, &image->view);
+    ID3D11DeviceContext_PSSetSamplers(d3d11_ctx.immediate_context, binding, 1, &sampler);
 }
 
 ID3D11SamplerState *mg_d3d11_create_sampler(mg_sampler_create_info *create_info)
@@ -87,32 +88,6 @@ ID3D11SamplerState *mg_d3d11_create_sampler(mg_sampler_create_info *create_info)
 void mg_d3d11_destroy_sampler(ID3D11SamplerState *sampler)
 {
     ID3D11SamplerState_Release(sampler);
-}
-
-mg_d3d11_image_array *mg_d3d11_create_image_array(void)
-{
-    return (mg_d3d11_image_array*)malloc(sizeof(mg_d3d11_image_array));
-}
-
-void mg_d3d11_destroy_image_array(mg_d3d11_image_array *array)
-{
-    free(array);
-}
-
-void mg_d3d11_update_image_array(mg_d3d11_image_array *array, mg_d3d11_image **images, ID3D11SamplerState **samplers, uint32_t count)
-{
-    array->count = count;
-    for (uint32_t i = 0; i < count; i++)
-    {
-        array->views[i] = images[i]->view;
-        array->samplers[i] = samplers[i];
-    }
-}
-
-void mg_d3d11_bind_image_array(mg_d3d11_image_array *array)
-{
-    ID3D11DeviceContext_PSSetShaderResources(d3d11_ctx.immediate_context, 0, array->count, array->views);
-    ID3D11DeviceContext_PSSetSamplers(d3d11_ctx.immediate_context, 0, array->count, array->samplers);
 }
 
 #endif

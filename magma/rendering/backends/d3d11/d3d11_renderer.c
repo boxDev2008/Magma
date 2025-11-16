@@ -3,8 +3,6 @@
 #if MG_PLATFORM_WINDOWS
 
 #include "d3d11_utils.h"
-#include <guiddef.h>
-#include <math.h>
 
 #pragma comment (lib, "dxgi")
 #pragma comment (lib, "d3d11")
@@ -21,8 +19,6 @@ void mg_d3d11_renderer_initialize(mgfx_init_info *init_info)
     sd.BufferDesc.Width = swapchain_info->width;
     sd.BufferDesc.Height = swapchain_info->height;
     sd.BufferDesc.Format = mg_d3d11_get_pixel_format(swapchain_info->format);
-    //sd.BufferDesc.RefreshRate.Numerator = 60;
-    //sd.BufferDesc.RefreshRate.Denominator = 1;
     sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     sd.OutputWindow = ((mg_win32_platform*)mg_platform_get_handle())->hwnd;
     sd.SampleDesc.Count = 1;
@@ -142,6 +138,11 @@ void mg_d3d11_renderer_draw_instanced(uint32_t vertex_count, uint32_t first_vert
 void mg_d3d11_renderer_draw_indexed_instanced(uint32_t index_count, uint32_t first_index, int32_t first_vertex, uint32_t instance_count, uint32_t first_instance)
 {
     ID3D11DeviceContext_DrawIndexedInstanced(d3d11_ctx.immediate_context, index_count, instance_count, first_index, first_vertex, first_instance);
+}
+
+void mg_d3d11_renderer_dispatch(uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z)
+{
+    ID3D11DeviceContext_Dispatch(d3d11_ctx.immediate_context, group_count_x, group_count_y, group_count_z);
 }
 
 void mg_d3d11_renderer_bind_uniforms(uint32_t binding, size_t size, void *data)

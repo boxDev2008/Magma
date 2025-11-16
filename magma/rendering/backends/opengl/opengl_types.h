@@ -13,19 +13,21 @@
 typedef struct mg_opengl_buffer
 {
     GLuint id;
+    GLenum target;
+    GLenum usage;
 }
-mg_opengl_buffer,
-mg_opengl_vertex_buffer, mg_opengl_index_buffer;
+mg_opengl_buffer;
 
-typedef struct mg_opengl_dynamic_buffer
+typedef enum mg_opengl_pipeline_type
 {
-    GLuint id;
+    MG_OPENGL_PIPELINE_TYPE_GRAPHICS,
+    MG_OPENGL_PIPELINE_TYPE_COMPUTE
 }
-mg_opengl_dynamic_buffer,
-mg_opengl_dynamic_vertex_buffer, mg_opengl_dynamic_index_buffer;
+mg_opengl_pipeline_type;
 
 typedef struct mg_opengl_pipeline
 {
+    mg_opengl_pipeline_type type;
     GLuint program_id;
     GLuint sampler_image_location;
 
@@ -47,6 +49,7 @@ typedef struct mg_opengl_pipeline
     {
         bool depth_test_enabled;
         bool stencil_test_enabled;
+        bool depth_write_enabled;
         GLenum depth_compare_op;
     }
     depth_stencil;
@@ -70,14 +73,6 @@ typedef struct mg_opengl_sampler
     GLint address_mode_w;
 }
 mg_opengl_sampler;
-
-typedef struct mg_opengl_image_array
-{
-    mg_opengl_image **images;
-    mg_opengl_sampler **samplers;
-    uint32_t count;
-}
-mg_opengl_image_array;
 
 typedef struct mg_opengl_render_pass
 {

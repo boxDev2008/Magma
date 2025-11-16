@@ -5,10 +5,6 @@
 
 #include "../../renderer.h"
 
-#if MG_PLATFORM_WINDOWS
-#define VK_USE_PLATFORM_WIN32_KHR
-#endif
-
 #include <vulkan/vulkan.h>
 
 typedef struct mg_vulkan_image
@@ -23,24 +19,16 @@ typedef struct mg_vulkan_buffer
 {
     VkBuffer buffer;
     VkDeviceMemory memory;
-}
-mg_vulkan_buffer,
-mg_vulkan_vertex_buffer, mg_vulkan_index_buffer;
-
-typedef struct mg_vulkan_dynamic_buffer
-{
-    VkBuffer buffer;
-    VkDeviceMemory memory;
-
+    bool is_cpu;
     void *data;
 }
-mg_vulkan_dynamic_buffer,
-mg_vulkan_dynamic_vertex_buffer, mg_vulkan_dynamic_index_buffer;
+mg_vulkan_buffer;
 
 typedef struct mg_vulkan_pipeline
 {
 	VkPipelineLayout pipeline_layout;
     VkPipeline pipeline;
+    VkPipelineBindPoint bind_point;
 }
 mg_vulkan_pipeline;
 
@@ -54,7 +42,6 @@ mg_vulkan_render_pass;
 typedef enum mg_vulkan_resource_type
 {
     MG_VULKAN_RESOURCE_TYPE_BUFFER,
-    MG_VULKAN_RESOURCE_TYPE_DYNAMIC_BUFFER,
     MG_VULKAN_RESOURCE_TYPE_IMAGE,
     MG_VULKAN_RESOURCE_TYPE_PIPELINE,
     MG_VULKAN_RESOURCE_TYPE_RENDER_PASS,
@@ -68,7 +55,6 @@ typedef struct mg_vulkan_resource
     union
     {
         mg_vulkan_buffer *buffer;
-        mg_vulkan_dynamic_buffer *dynamic_buffer;
         mg_vulkan_image *image;
         mg_vulkan_pipeline *pipeline;
         mg_vulkan_render_pass *render_pass;
@@ -76,6 +62,46 @@ typedef struct mg_vulkan_resource
     };
 }
 mg_vulkan_resource;
+
+typedef struct mg_vulkan_descriptor_binding
+{
+    uint32_t binding;
+    union
+    {
+        struct
+        {
+            VkImageView image_view;
+            VkSampler sampler;
+        };
+        VkBuffer buffer;
+    };
+}
+mg_vulkan_descriptor_binding;
+
+typedef struct mg_vulkan_descriptor_set_key
+{
+    mg_vulkan_descriptor_binding bindings[MG_CONFIG_MAX_BINDABLE_IMAGES];
+    uint32_t binding_count;
+    uint64_t hash;
+}
+mg_vulkan_descriptor_set_key;
+
+typedef struct mg_vulkan_cached_descriptor_set
+{
+    mg_vulkan_descriptor_set_key key;
+}
+mg_vulkan_cached_descriptor_set;
+
+typedef struct mg_vulkan_descriptor_cache
+{    
+    VkDescriptorSet sets[MG_CONFIG_MAX_DESCRIPTOR_CACHE];
+    mg_vulkan_cached_descriptor_set cache[MG_CONFIG_MAX_DESCRIPTOR_CACHE];
+    uint32_t cache_size;
+
+    mg_vulkan_descriptor_binding pending_image_bindings[MG_CONFIG_MAX_BINDABLE_IMAGES];
+    uint32_t pending_image_binding_count;
+}
+mg_vulkan_descriptor_cache;
 
 typedef struct mg_vulkan_context
 {
@@ -85,16 +111,16 @@ typedef struct mg_vulkan_context
     struct
     {
         VkPhysicalDevice handle;
-        uint32_t graphics_family;
         VkPhysicalDeviceProperties properties;
         VkPhysicalDeviceFeatures features;
+        uint32_t queue_family;
     }
     physical_device;
 
     struct
     {
         VkDevice handle;
-        VkQueue graphics_queue;
+        VkQueue graphics_compute_queue;
     }
     device;
 
@@ -112,6 +138,7 @@ typedef struct mg_vulkan_context
         VkImageView depth_image_view;
 
         uint32_t image_count;
+        int32_t image_index;
     }
     swapchain;
 
@@ -123,7 +150,8 @@ typedef struct mg_vulkan_context
     }
     sync_objects;
 
-    VkRenderPass render_pass;
+    bool inside_render_pass;
+    VkRenderPass default_render_pass;
 
     VkCommandPool command_pool;
     VkCommandBuffer command_buffer;
@@ -133,16 +161,11 @@ typedef struct mg_vulkan_context
     {
         VkDescriptorSetLayout scratch_buffer_layout;
         VkDescriptorSetLayout image_sampler_layout;
+        VkDescriptorSetLayout storage_buffer_layout;
     }
     layouts;
 
-    struct
-    {
-        mg_vulkan_pipeline *pipeline;
-    }
-    binds;
-
-    mg_stack freed_resources;
+    mg_vulkan_pipeline *current_pipeline;
 
     struct
     {
@@ -157,6 +180,7 @@ typedef struct mg_vulkan_context
     }
     scratch_buffer;
 
-    int32_t image_index;
+    mg_vulkan_descriptor_cache descriptor_cache;
+    mg_stack freed_resources;
 }
 mg_vulkan_context;

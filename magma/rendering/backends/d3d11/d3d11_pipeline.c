@@ -6,6 +6,7 @@
 #include "d3d11_buffer.h"
 
 #include <d3dcommon.h>
+#include <d3dcompiler.h>
 
 #include <stdio.h>
 
@@ -13,9 +14,32 @@ mg_d3d11_pipeline *mg_d3d11_create_pipeline(mg_pipeline_create_info *create_info
 {
     mg_d3d11_pipeline *pipeline = (mg_d3d11_pipeline*)malloc(sizeof(mg_d3d11_pipeline));
 
+    ID3DBlob* error_blob = NULL;
+
+    if (create_info->shader.compute.size)
+    {
+        ID3DBlob* cs_blob = NULL;
+        mg_shader_source *cs = &create_info->shader.compute;
+
+        D3DCompile(cs->code, cs->size, NULL, NULL, NULL,
+            "main", "cs_5_0", 0, 0, &cs_blob, &error_blob
+        );
+
+        ID3D11Device_CreateComputeShader(
+            d3d11_ctx.device,
+            ID3D10Blob_GetBufferPointer(cs_blob),
+            ID3D10Blob_GetBufferSize(cs_blob),
+            NULL,
+            &pipeline->compute_shader
+        );
+
+        ID3D10Blob_Release(cs_blob);
+        pipeline->type = MG_D3D11_PIPELINE_TYPE_COMPUTE;
+        return pipeline;
+    }
+
     ID3DBlob* vs_blob = NULL;
     ID3DBlob* ps_blob = NULL;
-    ID3DBlob* error_blob = NULL;
 
     mg_shader_source *vs = &create_info->shader.vertex;
     mg_shader_source *fg = &create_info->shader.fragment;
@@ -52,12 +76,15 @@ mg_d3d11_pipeline *mg_d3d11_create_pipeline(mg_pipeline_create_info *create_info
         &pipeline->pixel_shader
     );
 
-    const uint32_t attribute_count = create_info->vertex_layout.attribute_count;
 
-	if (attribute_count)
+	if (create_info->vertex_layout.attributes[0].format)
 	{
         D3D11_INPUT_ELEMENT_DESC layout[MG_CONFIG_MAX_VERTEX_ATTRIBUTES];
-		for (uint32_t i = 0; i < attribute_count; i++)
+
+        uint32_t i;
+		for (i = 0;
+            i < MG_CONFIG_MAX_VERTEX_ATTRIBUTES &&
+            create_info->vertex_layout.attributes[i].format; i++)
 		{
 			mg_vertex_attribute_info *attribute = &create_info->vertex_layout.attributes[i];
 			layout[i].SemanticName = "TEXCOORD";
@@ -72,7 +99,7 @@ mg_d3d11_pipeline *mg_d3d11_create_pipeline(mg_pipeline_create_info *create_info
 		ID3D11Device_CreateInputLayout(
 			d3d11_ctx.device,
 			layout,
-			attribute_count,
+			i,
 			vs_buffer_ptr,
 			vs_buffer_size,
 			&pipeline->vertex_layout
@@ -92,7 +119,10 @@ mg_d3d11_pipeline *mg_d3d11_create_pipeline(mg_pipeline_create_info *create_info
     D3D11_DEPTH_STENCIL_DESC depthStencilStateDesc = { 0 };
     depthStencilStateDesc.DepthEnable = create_info->depth_stencil.depth_test_enabled;
     depthStencilStateDesc.StencilEnable = create_info->depth_stencil.stencil_test_enabled;
-    depthStencilStateDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+    depthStencilStateDesc.DepthWriteMask =
+        create_info->depth_stencil.depth_write_enabled ?
+        D3D11_DEPTH_WRITE_MASK_ALL :
+        D3D11_DEPTH_WRITE_MASK_ZERO;
     depthStencilStateDesc.DepthFunc = mg_d3d11_get_comparison_func(create_info->depth_stencil.depth_compare_op);
     ID3D11Device_CreateDepthStencilState(d3d11_ctx.device, &depthStencilStateDesc, &pipeline->depth_stencil_state);
 
@@ -116,6 +146,8 @@ mg_d3d11_pipeline *mg_d3d11_create_pipeline(mg_pipeline_create_info *create_info
     ID3D10Blob_Release(vs_blob);
     ID3D10Blob_Release(ps_blob);
 
+    pipeline->type = MG_D3D11_PIPELINE_TYPE_GRAPHICS;
+
     return pipeline;
 }
 
@@ -134,6 +166,14 @@ void mg_d3d11_destroy_pipeline(mg_d3d11_pipeline *pipeline)
 void mg_d3d11_bind_pipeline(mg_d3d11_pipeline *pipeline)
 {
     ID3D11DeviceContext *context = d3d11_ctx.immediate_context;
+    d3d11_ctx.current_pipeline = pipeline;
+
+    if (pipeline->type == MG_D3D11_PIPELINE_TYPE_COMPUTE)
+    {
+        ID3D11DeviceContext_CSSetShader(context, pipeline->compute_shader, NULL, 0);
+        return;
+    }
+
     ID3D11DeviceContext_VSSetShader(context, pipeline->vertex_shader, NULL, 0);
     ID3D11DeviceContext_PSSetShader(context, pipeline->pixel_shader, NULL, 0);
 
@@ -145,8 +185,6 @@ void mg_d3d11_bind_pipeline(mg_d3d11_pipeline *pipeline)
 
     const float blend_factor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
     ID3D11DeviceContext_OMSetBlendState(context, pipeline->blend_state, blend_factor, 0xffffffff);
-
-    d3d11_ctx.binds.pipeline = pipeline;
 }
 
 #endif

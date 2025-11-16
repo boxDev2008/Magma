@@ -10,7 +10,7 @@
 static uint32_t window_w = 1280;
 static uint32_t window_h = 720;
 
-static void on_mouse_moved(mg_mouse_moved_event_data *data)        	{ ImGui::GetIO().AddMousePosEvent(data->x, data->y); }
+static void on_mouse_moved(mg_mouse_moved_event_data *data)        	{ ImGui::GetIO().AddMousePosEvent((float)data->x, (float)data->y); }
 static void on_mouse_wheel(mg_mouse_wheel_event_data *data)        	{ ImGui::GetIO().AddMouseWheelEvent(0, data->delta); }
 static void on_mouse_pressed(mg_mouse_button_event_data *data)     	{ ImGui::GetIO().AddMouseButtonEvent(data->button, true); }
 static void on_mouse_released(mg_mouse_button_event_data *data)    	{ ImGui::GetIO().AddMouseButtonEvent(data->button, false); }
@@ -24,10 +24,10 @@ void on_resize(mg_resized_event_data *data)
         return;
 
     mg_swapchain_config_info config_info = {
-        .format = MG_PIXEL_FORMAT_B8G8R8A8_SRGB,
-        .vsync = true,
+        .format = MG_PIXEL_FORMAT_B8G8R8A8_UNORM,
         .width = data->width,
-        .height = data->height
+        .height = data->height,
+        .vsync = true
     };
 
     mgfx_configure_swapchain(&config_info);
@@ -48,10 +48,10 @@ void on_initialize(int32_t argc, char* const* argv, uint32_t width, uint32_t hei
 	mg_event_connect(MG_EVENT_CODE_CHAR, (mg_event)on_char);
 
 	mg_swapchain_config_info swapchain_config = {
-        .format = MG_PIXEL_FORMAT_B8G8R8A8_SRGB,
-        .vsync = true,
+        .format = MG_PIXEL_FORMAT_B8G8R8A8_UNORM,
         .width = width,
-        .height = height
+        .height = height,
+        .vsync = true
     };
     
     mgfx_init_info renderer_init_info = {
@@ -89,23 +89,22 @@ void on_update(float delta_time)
     
     ImGui::ShowDemoWindow();
     
-    mg_render_pass_begin_info render_pass_begin_info = {
-        .render_area = mg_vec4_new(0.f, 0.f, window_w, window_h),
-        .clear_value = mg_vec4_new(1.0f, 0.0f, 0.0f, 1.0f)
+    mg_render_pass_bind_info render_pass_bind_info = {
+        .render_area = mg_vec4i_new(0, 0, window_w, window_h),
+        .clear_value = mg_vec4_new(0.0f, 0.0f, 0.0f, 1.0f)
     };
 
-    mgfx_begin_default_render_pass(&render_pass_begin_info);
+    mgfx_bind_render_pass(NULL, &render_pass_bind_info);
     mgfx_viewport(0, 0, window_w, window_h);
     ImGui::Render();
     mg_imgui_draw(ImGui::GetDrawData());
-    mgfx_end_render_pass();
 	mgfx_end();
 }
 
 static const mg_app_init_info app_info = {
     .name = "ImGui example",
-    .width = 1280,
-    .height = 720,
+    .width = window_w,
+    .height = window_h,
     .events = {
         .initialize = on_initialize,
         .shutdown = on_shutdown,

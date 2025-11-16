@@ -5,6 +5,7 @@
 #if MG_PLATFORM_WINDOWS
     #define VK_USE_PLATFORM_WIN32_KHR
     #define MG_VULKAN_SURFACE_EXTENSION_NAME VK_KHR_WIN32_SURFACE_EXTENSION_NAME
+    #include <vulkan/vulkan_win32.h>
 #elif MG_PLATFORM_LINUX
 	#include <vulkan/vulkan_xlib.h>
     #define VK_USE_PLATFORM_XLIB_KHR
@@ -27,5 +28,7 @@ void mg_vulkan_renderer_draw_indexed            (uint32_t index_count, uint32_t 
 
 void mg_vulkan_renderer_draw_instanced          (uint32_t vertex_count, uint32_t first_vertex, uint32_t instance_count, uint32_t first_instance);
 void mg_vulkan_renderer_draw_indexed_instanced  (uint32_t index_count, uint32_t first_index, int32_t first_vertex, uint32_t instance_count, uint32_t first_instance);
+
+void mg_vulkan_renderer_dispatch        (uint32_t x, uint32_t y, uint32_t z);
 
 void mg_vulkan_renderer_bind_uniforms   (uint32_t binding, size_t size, void *data);

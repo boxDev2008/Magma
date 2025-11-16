@@ -147,13 +147,13 @@ DXGI_FORMAT mg_d3d11_get_pixel_format(mg_pixel_format format)
             return DXGI_FORMAT_UNKNOWN;
 
         case MG_PIXEL_FORMAT_D32_SFLOAT:
-            return DXGI_FORMAT_D32_FLOAT;
+            return DXGI_FORMAT_R32_TYPELESS;
         case MG_PIXEL_FORMAT_D16_UNORM_S8_UINT:
-            return DXGI_FORMAT_D16_UNORM;
+            return DXGI_FORMAT_R16_TYPELESS;
         case MG_PIXEL_FORMAT_D24_UNORM_S8_UINT:
-            return DXGI_FORMAT_D24_UNORM_S8_UINT;
+            return DXGI_FORMAT_R24G8_TYPELESS;
         case MG_PIXEL_FORMAT_D32_SFLOAT_S8_UINT:
-            return DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
+            return DXGI_FORMAT_R32G8X24_TYPELESS;
 
         default:
             return DXGI_FORMAT_UNKNOWN;
@@ -222,6 +222,38 @@ D3D11_COMPARISON_FUNC mg_d3d11_get_comparison_func(mg_compare_op func)
         case MG_COMPARE_OP_ALWAYS: return D3D11_COMPARISON_ALWAYS;
     }
     return D3D11_COMPARISON_NEVER;
+}
+
+DXGI_FORMAT mg_d3d11_get_dsv_format(mg_pixel_format format)
+{
+    switch (format)
+    {
+        case MG_PIXEL_FORMAT_D16_UNORM_S8_UINT:
+            return DXGI_FORMAT_D16_UNORM;
+        case MG_PIXEL_FORMAT_D24_UNORM_S8_UINT:
+            return DXGI_FORMAT_D24_UNORM_S8_UINT;
+        case MG_PIXEL_FORMAT_D32_SFLOAT:
+            return DXGI_FORMAT_D32_FLOAT;
+        case MG_PIXEL_FORMAT_D32_SFLOAT_S8_UINT:
+            return DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
+    }
+    return DXGI_FORMAT_UNKNOWN;
+}
+
+DXGI_FORMAT mg_d3d11_get_srv_format(mg_pixel_format format)
+{
+    switch (format)
+    {
+        case MG_PIXEL_FORMAT_D16_UNORM_S8_UINT:
+            return DXGI_FORMAT_R16_UNORM;
+        case MG_PIXEL_FORMAT_D24_UNORM_S8_UINT:
+            return DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+        case MG_PIXEL_FORMAT_D32_SFLOAT:
+            return DXGI_FORMAT_R32_FLOAT;
+        case MG_PIXEL_FORMAT_D32_SFLOAT_S8_UINT:
+            return DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS;
+    }
+    return mg_d3d11_get_pixel_format(format);
 }
 
 D3D_SRV_DIMENSION mg_d3d11_get_srv_dimension(mg_image_type type)
@@ -321,6 +353,16 @@ D3D11_FILL_MODE mg_d3d11_get_fill_mode(mg_polygon_mode mode)
         case MG_POLYGON_MODE_LINE: return D3D11_FILL_WIREFRAME;
     }
     return D3D11_FILL_SOLID;
+}
+
+UINT mg_d3d11_get_bind_flags(mg_buffer_usage usage)
+{
+    switch (usage)
+    {
+        case MG_BUFFER_USAGE_VERTEX: return D3D11_BIND_VERTEX_BUFFER;
+        case MG_BUFFER_USAGE_INDEX: return D3D11_BIND_INDEX_BUFFER;
+    }
+    return D3D11_BIND_VERTEX_BUFFER;
 }
 
 #endif

@@ -119,16 +119,14 @@ static GLenum mg_opengl_get_front_face(mg_front_face front_face)
 {
     switch (front_face)
     {
-        case MG_FRONT_FACE_CCW: return GL_CW;
-        case MG_FRONT_FACE_CW: return GL_CCW;
+        case MG_FRONT_FACE_CCW: return GL_CCW;
+        case MG_FRONT_FACE_CW: return GL_CW;
     }
-    return GL_CCW;
+    return GL_CW;
 }
 
-mg_opengl_pipeline *mg_opengl_create_pipeline(mg_pipeline_create_info *create_info)
+static void mg_opengl_fill_graphics_pipeline(mg_opengl_pipeline *pipeline, mg_pipeline_create_info *create_info)
 {
-    mg_opengl_pipeline *pipeline = (mg_opengl_pipeline*)malloc(sizeof(mg_opengl_pipeline));
-
     uint32_t vertex_shader = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(vertex_shader, 1, (const GLchar *const *)&create_info->shader.vertex.code, (const GLint *)&create_info->shader.vertex.size);
     glCompileShader(vertex_shader);
@@ -159,10 +157,13 @@ mg_opengl_pipeline *mg_opengl_create_pipeline(mg_pipeline_create_info *create_in
         glUniform1iv(glGetUniformLocation(pipeline->program_id, create_info->shader.sampled_image_name), MG_CONFIG_MAX_BINDABLE_IMAGES, gl_ctx.sampled_image_indices);
 
     pipeline->vertex_layout.stride = create_info->vertex_layout.stride;
-    pipeline->vertex_layout.attribute_count = create_info->vertex_layout.attribute_count;
 
-    for (uint32_t i = 0; i < create_info->vertex_layout.attribute_count; i++)
-        pipeline->vertex_layout.attributes[i] = create_info->vertex_layout.attributes[i];
+    uint32_t attribute_count = 0;
+    for (attribute_count = 0;
+        attribute_count < MG_CONFIG_MAX_VERTEX_ATTRIBUTES &&
+        create_info->vertex_layout.attributes[attribute_count].format; attribute_count++)
+        pipeline->vertex_layout.attributes[attribute_count] = create_info->vertex_layout.attributes[attribute_count];
+    pipeline->vertex_layout.attribute_count = attribute_count;
 
     pipeline->color_blend = create_info->color_blend;
 #if !MG_PLATFORM_EMSCRIPTEN
@@ -174,8 +175,33 @@ mg_opengl_pipeline *mg_opengl_create_pipeline(mg_pipeline_create_info *create_in
 
     pipeline->depth_stencil.depth_test_enabled = create_info->depth_stencil.depth_test_enabled;
     pipeline->depth_stencil.stencil_test_enabled = create_info->depth_stencil.stencil_test_enabled;
+    pipeline->depth_stencil.depth_write_enabled = create_info->depth_stencil.depth_write_enabled;
     pipeline->depth_stencil.depth_compare_op = mg_opengl_get_compare_op(create_info->depth_stencil.depth_compare_op);
 
+    pipeline->type = MG_OPENGL_PIPELINE_TYPE_GRAPHICS;
+}
+
+static void mg_opengl_fill_compute_pipeline(mg_opengl_pipeline *pipeline, mg_pipeline_create_info *create_info)
+{
+    uint32_t compute_shader = glCreateShader(GL_COMPUTE_SHADER);
+    glShaderSource(compute_shader, 1, (const GLchar *const *)&create_info->shader.compute.code, (const GLint *)&create_info->shader.compute.size);
+    glCompileShader(compute_shader);
+
+    pipeline->program_id = glCreateProgram();
+    glAttachShader(pipeline->program_id, compute_shader);
+    glLinkProgram(pipeline->program_id);
+
+    glDeleteShader(compute_shader);
+
+    pipeline->type = MG_OPENGL_PIPELINE_TYPE_COMPUTE;
+}
+
+mg_opengl_pipeline *mg_opengl_create_pipeline(mg_pipeline_create_info *create_info)
+{
+    mg_opengl_pipeline *pipeline = (mg_opengl_pipeline*)malloc(sizeof(mg_opengl_pipeline));
+    if (create_info->shader.compute.size)
+        mg_opengl_fill_compute_pipeline(pipeline, create_info);
+    else mg_opengl_fill_graphics_pipeline(pipeline, create_info);
     return pipeline;
 }
 
@@ -187,6 +213,11 @@ void mg_opengl_destroy_pipeline(mg_opengl_pipeline *pipeline)
 
 void mg_opengl_bind_pipeline(mg_opengl_pipeline *pipeline)
 {
+    glUseProgram(pipeline->program_id);
+
+    if (pipeline->type == MG_OPENGL_PIPELINE_TYPE_COMPUTE)
+        return;
+
     gl_ctx.primitive_topology = pipeline->primitive_topology;
     gl_ctx.current_pipeline = pipeline;
 
@@ -217,6 +248,5 @@ void mg_opengl_bind_pipeline(mg_opengl_pipeline *pipeline)
     pipeline->depth_stencil.depth_test_enabled ? glEnable(GL_DEPTH_TEST) : glDisable(GL_DEPTH_TEST);
     pipeline->depth_stencil.stencil_test_enabled ? glEnable(GL_STENCIL_TEST) : glDisable(GL_STENCIL_TEST);
     glDepthFunc(pipeline->depth_stencil.depth_compare_op);
-
-    glUseProgram(pipeline->program_id);
+    glDepthMask(pipeline->depth_stencil.depth_write_enabled);
 }

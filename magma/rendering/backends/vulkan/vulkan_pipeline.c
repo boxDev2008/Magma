@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <assert.h>
 
-VkShaderModule mg_vulkan_create_shader(const uint32_t *code, size_t size)
+static VkShaderModule mg_vulkan_create_shader(const uint32_t *code, size_t size)
 {
     VkShaderModuleCreateInfo create_info = {VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
     create_info.codeSize = size;
@@ -18,10 +18,8 @@ VkShaderModule mg_vulkan_create_shader(const uint32_t *code, size_t size)
     return shader_module;
 }
 
-mg_vulkan_pipeline *mg_vulkan_create_pipeline(mg_pipeline_create_info *create_info)
+static void mg_vulkan_fill_graphics_pipeline(mg_vulkan_pipeline *pipeline, mg_pipeline_create_info *create_info)
 {
-    mg_vulkan_pipeline *pipeline = (mg_vulkan_pipeline*)malloc(sizeof(mg_vulkan_pipeline));
-
     VkShaderModule vertex_shader_module = mg_vulkan_create_shader(create_info->shader.vertex.code, create_info->shader.vertex.size);
     VkShaderModule fragment_shader_module = mg_vulkan_create_shader(create_info->shader.fragment.code, create_info->shader.fragment.size);
 
@@ -53,19 +51,21 @@ mg_vulkan_pipeline *mg_vulkan_create_pipeline(mg_pipeline_create_info *create_in
     
     VkVertexInputAttributeDescription attribute_descriptions[MG_CONFIG_MAX_VERTEX_ATTRIBUTES];
 
-    for (uint32_t i = 0; i < MG_CONFIG_MAX_VERTEX_ATTRIBUTES && i < create_info->vertex_layout.attribute_count; i++)
+    uint32_t attribute_count;
+    for (attribute_count = 0; attribute_count < MG_CONFIG_MAX_VERTEX_ATTRIBUTES
+        && create_info->vertex_layout.attributes[attribute_count].format; attribute_count++)
     {
-        VkVertexInputAttributeDescription *desc = &attribute_descriptions[i];
-        desc->location = create_info->vertex_layout.attributes[i].location;
-        desc->format = (VkFormat)create_info->vertex_layout.attributes[i].format;
-        desc->offset = create_info->vertex_layout.attributes[i].offset;
+        VkVertexInputAttributeDescription *desc = &attribute_descriptions[attribute_count];
+        desc->location = create_info->vertex_layout.attributes[attribute_count].location;
+        desc->format = (VkFormat)create_info->vertex_layout.attributes[attribute_count].format;
+        desc->offset = create_info->vertex_layout.attributes[attribute_count].offset;
         desc->binding = 0;
     }
 
     VkPipelineVertexInputStateCreateInfo vertex_input_info = {VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
     vertex_input_info.vertexBindingDescriptionCount = 1;
     vertex_input_info.pVertexBindingDescriptions = &binding_description;
-    vertex_input_info.vertexAttributeDescriptionCount = create_info->vertex_layout.attribute_count;
+    vertex_input_info.vertexAttributeDescriptionCount = attribute_count;
     vertex_input_info.pVertexAttributeDescriptions = attribute_descriptions;
 
     VkPipelineInputAssemblyStateCreateInfo input_assembly = {VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
@@ -118,11 +118,12 @@ mg_vulkan_pipeline *mg_vulkan_create_pipeline(mg_pipeline_create_info *create_in
 
     const VkDescriptorSetLayout set_layouts[] = {
         vk_ctx.layouts.scratch_buffer_layout,
-        vk_ctx.layouts.image_sampler_layout
+        vk_ctx.layouts.image_sampler_layout,
+        vk_ctx.layouts.storage_buffer_layout
     };
 
     pipeline_layout_info.pSetLayouts = set_layouts;
-    pipeline_layout_info.setLayoutCount = 2;
+    pipeline_layout_info.setLayoutCount = 3;
 
     VkResult result = vkCreatePipelineLayout(vk_ctx.device.handle, &pipeline_layout_info, NULL, &pipeline->pipeline_layout);
     assert(result == VK_SUCCESS);
@@ -142,7 +143,7 @@ mg_vulkan_pipeline *mg_vulkan_create_pipeline(mg_pipeline_create_info *create_in
 
     pipeline_info.layout = pipeline->pipeline_layout;
     pipeline_info.renderPass = create_info->render_pass ?
-        ((mg_vulkan_render_pass*)create_info->render_pass)->render_pass : vk_ctx.render_pass;
+        ((mg_vulkan_render_pass*)create_info->render_pass)->render_pass : vk_ctx.default_render_pass;
     pipeline_info.subpass = 0;
 
     result = vkCreateGraphicsPipelines(vk_ctx.device.handle, VK_NULL_HANDLE, 1, &pipeline_info, NULL, &pipeline->pipeline);
@@ -151,6 +152,59 @@ mg_vulkan_pipeline *mg_vulkan_create_pipeline(mg_pipeline_create_info *create_in
     vkDestroyShaderModule(vk_ctx.device.handle, vertex_shader_module, NULL);
     vkDestroyShaderModule(vk_ctx.device.handle, fragment_shader_module, NULL);
 
+    pipeline->bind_point = VK_PIPELINE_BIND_POINT_GRAPHICS;
+}
+
+static void mg_vulkan_fill_compute_pipeline(mg_vulkan_pipeline *pipeline, mg_pipeline_create_info *create_info)
+{
+    VkShaderModule compute_shader = mg_vulkan_create_shader(
+        create_info->shader.compute.code,
+        create_info->shader.compute.size
+    );
+
+    const VkDescriptorSetLayout set_layouts[] = {
+        vk_ctx.layouts.scratch_buffer_layout,
+        vk_ctx.layouts.image_sampler_layout,
+        vk_ctx.layouts.storage_buffer_layout
+    };
+
+    VkPipelineLayoutCreateInfo layout_info = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+        .setLayoutCount = 3,
+        .pSetLayouts = set_layouts
+    };
+
+    VkResult result = vkCreatePipelineLayout(
+        vk_ctx.device.handle, &layout_info, NULL, &pipeline->pipeline_layout);
+    assert(result == VK_SUCCESS);
+
+    VkPipelineShaderStageCreateInfo stage = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+        .stage = VK_SHADER_STAGE_COMPUTE_BIT,
+        .module = compute_shader,
+        .pName = "main"
+    };
+
+    VkComputePipelineCreateInfo compute_info = {
+        .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+        .stage = stage,
+        .layout = pipeline->pipeline_layout
+    };
+
+    result = vkCreateComputePipelines(
+        vk_ctx.device.handle, VK_NULL_HANDLE, 1, &compute_info, NULL, &pipeline->pipeline);
+    assert(result == VK_SUCCESS);
+
+    vkDestroyShaderModule(vk_ctx.device.handle, compute_shader, NULL);
+    pipeline->bind_point = VK_PIPELINE_BIND_POINT_COMPUTE;
+}
+
+mg_vulkan_pipeline *mg_vulkan_create_pipeline(mg_pipeline_create_info *create_info)
+{
+    mg_vulkan_pipeline *pipeline = (mg_vulkan_pipeline*)malloc(sizeof(mg_vulkan_pipeline));
+    if (create_info->shader.compute.size)
+        mg_vulkan_fill_compute_pipeline(pipeline, create_info);
+    else mg_vulkan_fill_graphics_pipeline(pipeline, create_info);
     return pipeline;
 }
 
@@ -161,6 +215,6 @@ void mg_vulkan_destroy_pipeline(mg_vulkan_pipeline *pipeline)
 
 void mg_vulkan_bind_pipeline(mg_vulkan_pipeline *pipeline)
 {
-    vkCmdBindPipeline(vk_ctx.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipeline);
-    vk_ctx.binds.pipeline = pipeline;
+    vkCmdBindPipeline(vk_ctx.command_buffer, pipeline->bind_point, pipeline->pipeline);
+    vk_ctx.current_pipeline = pipeline;
 }

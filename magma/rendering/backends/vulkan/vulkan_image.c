@@ -126,8 +126,14 @@ mg_vulkan_image *mg_vulkan_create_image(mg_image_create_info *create_info)
 {
     mg_vulkan_image *image = (mg_vulkan_image*)malloc(sizeof(mg_vulkan_image));
 
+    const VkImageUsageFlagBits usage_flags =
+        VK_IMAGE_USAGE_TRANSFER_DST_BIT |
+        VK_IMAGE_USAGE_SAMPLED_BIT |
+        (uint32_t)create_info->usage;
+
     mg_vulkan_allocate_image(create_info->width, create_info->height, create_info->type, create_info->format,
-        VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | create_info->usage,
+        VK_IMAGE_TILING_OPTIMAL,
+        usage_flags,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &image->image, &image->memory);
 
     VkImageViewCreateInfo view_info = {VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
@@ -136,7 +142,7 @@ mg_vulkan_image *mg_vulkan_create_image(mg_image_create_info *create_info)
     view_info.format = (VkFormat)create_info->format;
     view_info.subresourceRange.aspectMask =
         create_info->usage == MG_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT ?
-        VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT :
+        VK_IMAGE_ASPECT_DEPTH_BIT :
         VK_IMAGE_ASPECT_COLOR_BIT;
     view_info.subresourceRange.baseMipLevel = 0;
     view_info.subresourceRange.levelCount = 1;
@@ -154,7 +160,7 @@ void mg_vulkan_destroy_image(mg_vulkan_image *image)
     mg_vulkan_free_resource((mg_vulkan_resource){.type = MG_VULKAN_RESOURCE_TYPE_IMAGE, .image = image});
 }
 
-void mg_vulkan_update_image(mg_vulkan_image *image, mg_image_write_info *write_info)
+void mg_vulkan_update_image(mg_vulkan_image *image, mg_image_update_info *write_info)
 {
     VkDeviceSize image_size = write_info->width * write_info->height * 4;
 
@@ -178,49 +184,16 @@ void mg_vulkan_update_image(mg_vulkan_image *image, mg_image_write_info *write_i
     vkFreeMemory(vk_ctx.device.handle, staging_memory, NULL);
 }
 
-VkDescriptorSet mg_vulkan_create_image_array(void)
+void mg_vulkan_bind_image(mg_vulkan_image *image, VkSampler sampler, uint32_t binding)
 {
-    VkDescriptorSet array;
-    VkDescriptorSetAllocateInfo alloc_info = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
-    alloc_info.descriptorPool = vk_ctx.descriptor_pool;
-    alloc_info.descriptorSetCount = 1;
-    alloc_info.pSetLayouts = &vk_ctx.layouts.image_sampler_layout;
-
-    VkResult result = vkAllocateDescriptorSets(vk_ctx.device.handle, &alloc_info, &array);
-    assert(result == VK_SUCCESS);
-    return array;
-}
-
-void mg_vulkan_destroy_image_array(VkDescriptorSet array)
-{
-    vkFreeDescriptorSets(vk_ctx.device.handle, vk_ctx.descriptor_pool, 1, &array);
-}
-
-void mg_vulkan_update_image_array(VkDescriptorSet array, mg_vulkan_image **images, VkSampler *samplers, uint32_t count)
-{
-    VkWriteDescriptorSet write = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-    write.dstSet = array;
-    write.dstBinding = 0;
-    write.dstArrayElement = 0;
-
-    write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    write.descriptorCount = count;
-
-    VkDescriptorImageInfo image_infos[MG_CONFIG_MAX_BINDABLE_IMAGES];
-    for (uint32_t i = 0; i < count; i++)
-    {
-        image_infos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        image_infos[i].imageView = images[i]->view;
-        image_infos[i].sampler = samplers[i];
-    }
-
-    write.pImageInfo = image_infos;
-    vkUpdateDescriptorSets(vk_ctx.device.handle, 1, &write, 0, NULL);
-}
-
-void mg_vulkan_bind_image_array(VkDescriptorSet array)
-{
-    vkCmdBindDescriptorSets(vk_ctx.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_ctx.binds.pipeline->pipeline_layout, 1, 1, &array, 0, NULL);
+    mg_vulkan_descriptor_cache* cache = &vk_ctx.descriptor_cache;
+    if (cache->pending_image_binding_count >= MG_CONFIG_MAX_BINDABLE_IMAGES)
+        return;
+    
+    cache->pending_image_bindings[cache->pending_image_binding_count].image_view = image->view;
+    cache->pending_image_bindings[cache->pending_image_binding_count].sampler = sampler;
+    cache->pending_image_bindings[cache->pending_image_binding_count].binding = binding;
+    cache->pending_image_binding_count++;
 }
 
 VkSampler mg_vulkan_create_sampler(mg_sampler_create_info *create_info)

@@ -1,0 +1,1 @@
+..\..\bin\Release\Magma-shdc.exe -i .\shader.glsl -o .\imgui_shader.h -l glsl,spirv,glsles,hlsl -n imgui

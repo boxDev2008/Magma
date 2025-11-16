@@ -4,83 +4,78 @@
 
 #include "d3d11_utils.h"
 
-ID3D11Buffer *mg_d3d11_create_buffer(size_t size, UINT bind_flags, void *data)
+mg_d3d11_buffer *mg_d3d11_create_buffer(mg_buffer_create_info *create_info)
 {
-    ID3D11Buffer *buffer = NULL;
+    mg_d3d11_buffer *buffer = (mg_d3d11_buffer*)malloc(sizeof(mg_d3d11_buffer));
 
     D3D11_BUFFER_DESC desc = { 0 };
-    desc.Usage = D3D11_USAGE_DEFAULT;
-    desc.ByteWidth = (UINT)size;
-    desc.BindFlags = bind_flags;
-    desc.CPUAccessFlags = 0;
+    if (create_info->access == MG_ACCESS_TYPE_GPU)
+    {
+        desc.Usage = D3D11_USAGE_DEFAULT;
+        buffer->is_cpu = false;
+    }
+    else
+    {
+        desc.Usage = D3D11_USAGE_DYNAMIC;
+        desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        buffer->is_cpu = true;
+    }
 
+    desc.ByteWidth = (UINT)create_info->size;
+    desc.BindFlags = mg_d3d11_get_bind_flags(create_info->usage);
+
+    D3D11_SUBRESOURCE_DATA *init_data_ptr = NULL;
     D3D11_SUBRESOURCE_DATA init_data = { 0 };
-    init_data.pSysMem = data;
+    if (create_info->data)
+    {
+        init_data.pSysMem = create_info->data;
+        init_data_ptr = &init_data;
+    }
 
-    ID3D11Device_CreateBuffer(d3d11_ctx.device, &desc, &init_data, &buffer);
-
-    return buffer;
-}
-
-ID3D11Buffer *mg_d3d11_create_dynamic_buffer(size_t size, UINT bind_flags)
-{
-    ID3D11Buffer *buffer = NULL;
-
-    D3D11_BUFFER_DESC desc = { 0 };
-    desc.Usage = D3D11_USAGE_DYNAMIC;
-    desc.ByteWidth = (UINT)size;
-    desc.BindFlags = bind_flags;
-    desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-
-    ID3D11Device_CreateBuffer(d3d11_ctx.device, &desc, 0, &buffer);
+    ID3D11Device_CreateBuffer(d3d11_ctx.device, &desc, init_data_ptr, &buffer->buffer);
 
     return buffer;
 }
 
-ID3D11Buffer *mg_d3d11_create_vertex_buffer(size_t size, void *data)
+void mg_d3d11_update_buffer(mg_d3d11_buffer *buffer, size_t size, void *data)
 {
-    return mg_d3d11_create_buffer(size, D3D11_BIND_VERTEX_BUFFER, data);
+    if (buffer->is_cpu)
+    {
+        D3D11_MAPPED_SUBRESOURCE mapped_resource;
+        ID3D11DeviceContext_Map(d3d11_ctx.immediate_context, (ID3D11Resource*)buffer->buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
+        memcpy(mapped_resource.pData, data, size);
+        ID3D11DeviceContext_Unmap(d3d11_ctx.immediate_context, (ID3D11Resource*)buffer->buffer, 0);
+        return;
+    }
+
+    ID3D11DeviceContext_UpdateSubresource(
+        d3d11_ctx.immediate_context,
+        (ID3D11Resource*)buffer->buffer,
+        0,
+        NULL,
+        data,
+        0,
+        0
+    );
 }
 
-ID3D11Buffer *mg_d3d11_create_index_buffer(size_t size, void *data)
-{
-    return mg_d3d11_create_buffer(size, D3D11_BIND_INDEX_BUFFER, data);
-}
-
-ID3D11Buffer *mg_d3d11_create_dynamic_vertex_buffer(size_t size)
-{
-    return mg_d3d11_create_dynamic_buffer(size, D3D11_BIND_VERTEX_BUFFER);
-}
-
-ID3D11Buffer *mg_d3d11_create_dynamic_index_buffer(size_t size)
-{
-    return mg_d3d11_create_dynamic_buffer(size, D3D11_BIND_INDEX_BUFFER);
-}
-
-void mg_d3d11_update_dynamic_buffer(ID3D11Buffer *buffer, size_t size, void *data)
-{
-    D3D11_MAPPED_SUBRESOURCE mapped_resource;
-    ID3D11DeviceContext_Map(d3d11_ctx.immediate_context, (ID3D11Resource*)buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
-    memcpy(mapped_resource.pData, data, size);
-    ID3D11DeviceContext_Unmap(d3d11_ctx.immediate_context, (ID3D11Resource*)buffer, 0);
-}
-
-void mg_d3d11_bind_vertex_buffer(ID3D11Buffer *buffer)
+void mg_d3d11_bind_vertex_buffer(mg_d3d11_buffer *buffer)
 {
     UINT offset = 0;
     ID3D11DeviceContext_IASetVertexBuffers(d3d11_ctx.immediate_context, 0, 1,
-        &buffer, &d3d11_ctx.binds.pipeline->layout_stride, &offset);
+        &buffer->buffer, &d3d11_ctx.current_pipeline->layout_stride, &offset);
 }
 
-void mg_d3d11_bind_index_buffer(ID3D11Buffer *buffer, mg_index_type index_type)
+void mg_d3d11_bind_index_buffer(mg_d3d11_buffer *buffer, mg_index_type index_type)
 {
-    ID3D11DeviceContext_IASetIndexBuffer(d3d11_ctx.immediate_context, buffer,
+    ID3D11DeviceContext_IASetIndexBuffer(d3d11_ctx.immediate_context, buffer->buffer,
         mg_d3d11_get_index_type(index_type), 0);
 }
 
-void mg_d3d11_destroy_buffer(ID3D11Buffer *buffer)
+void mg_d3d11_destroy_buffer(mg_d3d11_buffer *buffer)
 {
-    ID3D11Buffer_Release(buffer);
+    ID3D11Buffer_Release(buffer->buffer);
+    free(buffer);
 }
 
 #endif

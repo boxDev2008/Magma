@@ -14,10 +14,9 @@ struct ImGuiData
 
     mg_image img;
     mg_sampler smp;
-    mg_image_array img_array;
 
-    mg_dynamic_vertex_buffer vb;
-    mg_dynamic_index_buffer ib;
+    mg_buffer vb;
+    mg_buffer ib;
 
     uint32_t vb_offset;
     uint32_t ib_offset;
@@ -156,8 +155,19 @@ void mg_imgui_initialize(void)
 {
     imgui_data = new ImGuiData;
 
-    imgui_data->vb = mgfx_create_dynamic_vertex_buffer(sizeof(imgui_data->vertices));
-    imgui_data->ib = mgfx_create_dynamic_index_buffer(sizeof(imgui_data->indices));
+    mg_buffer_create_info vb_create_info = {
+        .usage = MG_BUFFER_USAGE_VERTEX,
+        .access = MG_ACCESS_TYPE_GPU,
+        .size = sizeof(imgui_data->vertices)
+    };
+    imgui_data->vb = mgfx_create_buffer(&vb_create_info);
+
+    mg_buffer_create_info ib_create_info = {
+        .usage = MG_BUFFER_USAGE_INDEX,
+        .access = MG_ACCESS_TYPE_GPU,
+        .size = sizeof(imgui_data->indices)
+    };
+    imgui_data->ib = mgfx_create_buffer(&ib_create_info);
 
 	ImGuiIO& io = ImGui::GetIO();
 
@@ -173,7 +183,7 @@ void mg_imgui_initialize(void)
     img_create_info.usage = MG_IMAGE_USAGE_COLOR_ATTACHMENT;
     imgui_data->img = mgfx_create_image(&img_create_info);
 
-    mg_image_write_info write_info = { };
+    mg_image_update_info write_info = { };
     write_info.width = font_width;
     write_info.height = font_height;
     write_info.format = img_create_info.format;
@@ -188,16 +198,12 @@ void mg_imgui_initialize(void)
     smp_create_info.address_mode_w = MG_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
     imgui_data->smp = mgfx_create_sampler(&smp_create_info);
 
-    imgui_data->img_array = mgfx_create_image_array();
-    mgfx_update_image_array(imgui_data->img_array, &imgui_data->img, &imgui_data->smp, 1);
-
-	io.Fonts->SetTexID((ImTextureID)imgui_data->img_array);
+	io.Fonts->SetTexID((ImTextureID)imgui_data->img);
 
     mg_pipeline_create_info pipeline_create_info = {
         .shader = get_imgui_shader(mgfx_get_type()),
         .vertex_layout = {
             .stride = sizeof(ImDrawVert),
-            .attribute_count = 3,
             .attributes = {
             { .location = 0, .offset = offsetof(ImDrawVert, pos), .format = MG_VERTEX_FORMAT_FLOAT2, },
             { .location = 1, .offset = offsetof(ImDrawVert, uv), .format = MG_VERTEX_FORMAT_FLOAT2, },
@@ -228,11 +234,10 @@ void mg_imgui_initialize(void)
 void mg_imgui_shutdown(void)
 {
     mgfx_destroy_pipeline(imgui_data->pipeline);
-    mgfx_destroy_image_array(imgui_data->img_array);
     mgfx_destroy_sampler(imgui_data->smp);
     mgfx_destroy_image(imgui_data->img);
-    mgfx_destroy_dynamic_vertex_buffer(imgui_data->vb);
-    mgfx_destroy_dynamic_index_buffer(imgui_data->ib);
+    mgfx_destroy_buffer(imgui_data->vb);
+    mgfx_destroy_buffer(imgui_data->ib);
     delete imgui_data;
 }
 
@@ -258,8 +263,8 @@ void mg_imgui_draw(ImDrawData* draw_data)
     uniform_data.disp_size.y = io.DisplaySize.y;
 
     mgfx_bind_uniforms(0, sizeof(uniform_data), &uniform_data);
-    mgfx_bind_dynamic_vertex_buffer(imgui_data->vb);
-    mgfx_bind_dynamic_index_buffer(imgui_data->ib, MG_INDEX_TYPE_UINT16);
+    mgfx_bind_vertex_buffer(imgui_data->vb);
+    mgfx_bind_index_buffer(imgui_data->ib, MG_INDEX_TYPE_UINT16);
 
     for (int cl_index = 0; cl_index < draw_data->CmdListsCount; cl_index++)
     {
@@ -279,14 +284,14 @@ void mg_imgui_draw(ImDrawData* draw_data)
         }
     }
 
-    mgfx_update_dynamic_vertex_buffer(imgui_data->vb, sizeof(imgui_data->vertices), imgui_data->vertices);
-    mgfx_update_dynamic_index_buffer(imgui_data->ib, sizeof(imgui_data->indices), imgui_data->indices);
+    mgfx_update_buffer(imgui_data->vb, sizeof(imgui_data->vertices), imgui_data->vertices);
+    mgfx_update_buffer(imgui_data->ib, sizeof(imgui_data->indices), imgui_data->indices);
 
     int global_vtx_offset = 0;
     int global_idx_offset = 0;
 
 	ImTextureID global_tex_id = io.Fonts->TexID.GetTexID();
-	mgfx_bind_image_array((mg_image_array)global_tex_id);
+	mgfx_bind_image((mg_image)global_tex_id, imgui_data->smp, 0);
     
     for (int cl_index = 0; cl_index < draw_data->CmdListsCount; cl_index++)
     {
@@ -308,7 +313,7 @@ void mg_imgui_draw(ImDrawData* draw_data)
 				if (pcmd.GetTexID() != global_tex_id)
 				{
 					global_tex_id = tex_id;
-					mgfx_bind_image_array((mg_image_array)global_tex_id);
+	                mgfx_bind_image((mg_image)global_tex_id, imgui_data->smp, 0);
 				}
 
                 mgfx_scissor(scissor_x, scissor_y, scissor_w, scissor_h);

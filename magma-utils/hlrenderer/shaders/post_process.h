@@ -582,20 +582,28 @@ static inline const mg_shader get_post_process_shader(mg_renderer_type type) {
     mg_shader shader = {0};
     switch (type) {
         case MG_RENDERER_TYPE_VULKAN:
-            shader.vertex = (mg_shader_source){.code = post_process_spirv_vert, .size = sizeof(post_process_spirv_vert)};
-            shader.fragment = (mg_shader_source){.code = post_process_spirv_frag, .size = sizeof(post_process_spirv_frag)};
+            shader.vertex.code = post_process_spirv_vert;
+            shader.vertex.size = sizeof(post_process_spirv_vert);
+            shader.fragment.code = post_process_spirv_frag;
+            shader.fragment.size = sizeof(post_process_spirv_frag);
             break;
         case MG_RENDERER_TYPE_DIRECT3D11:
-            shader.vertex = (mg_shader_source){.code = post_process_hlsl_vert, .size = sizeof(post_process_hlsl_vert)};
-            shader.fragment = (mg_shader_source){.code = post_process_hlsl_frag, .size = sizeof(post_process_hlsl_frag)};
+            shader.vertex.code = post_process_hlsl_vert;
+            shader.vertex.size = sizeof(post_process_hlsl_vert);
+            shader.fragment.code = post_process_hlsl_frag;
+            shader.fragment.size = sizeof(post_process_hlsl_frag);
             break;
         case MG_RENDERER_TYPE_OPENGL:
-            shader.vertex = (mg_shader_source){.code = post_process_glsl_vert, .size = sizeof(post_process_glsl_vert)};
-            shader.fragment = (mg_shader_source){.code = post_process_glsl_frag, .size = sizeof(post_process_glsl_frag)};
+            shader.vertex.code = post_process_glsl_vert;
+            shader.vertex.size = sizeof(post_process_glsl_vert);
+            shader.fragment.code = post_process_glsl_frag;
+            shader.fragment.size = sizeof(post_process_glsl_frag);
             break;
         case MG_RENDERER_TYPE_OPENGLES:
-            shader.vertex = (mg_shader_source){.code = post_process_glsles_vert, .size = sizeof(post_process_glsles_vert)};
-            shader.fragment = (mg_shader_source){.code = post_process_glsles_frag, .size = sizeof(post_process_glsles_frag)};
+            shader.vertex.code = post_process_glsles_vert;
+            shader.vertex.size = sizeof(post_process_glsles_vert);
+            shader.fragment.code = post_process_glsles_frag;
+            shader.fragment.size = sizeof(post_process_glsles_frag);
             break;
     }
 

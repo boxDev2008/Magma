@@ -21,7 +21,7 @@ void main()
 
 @stage fragment
 
-uniform sampler2D tex;
+layout(set=1,binding=0) uniform sampler2D tex;
 
 in vec2 uv;
 in vec4 color;

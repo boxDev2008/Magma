@@ -8,8 +8,6 @@ mg_d3d11_render_pass *mg_d3d11_create_render_pass(mg_render_pass_create_info *cr
 void mg_d3d11_destroy_render_pass(mg_d3d11_render_pass *render_pass);
 void mg_d3d11_update_render_pass(mg_d3d11_render_pass *render_pass, mg_render_pass_update_info *resize_info);
 
-void mg_d3d11_begin_render_pass(mg_d3d11_render_pass *render_pass, mg_render_pass_begin_info *begin_info);
-void mg_d3d11_begin_default_render_pass(mg_render_pass_begin_info *begin_info);
-void mg_d3d11_end_render_pass(void);
+void mg_d3d11_bind_render_pass(mg_d3d11_render_pass *render_pass, mg_render_pass_bind_info *bind_info);
 
 #endif

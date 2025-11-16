@@ -1,20 +1,44 @@
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <filesystem>
 #include <format>
-#include <pystring/pystring.h>
+#include <vector>
+#include <string>
+#include <functional>
+#include <map>
 
 #include <glslang/Public/ShaderLang.h>
 #include <glslang/SPIRV/GlslangToSpv.h>
-
-#include <spirv-tools/optimizer.hpp>
-#include <spirv-tools/libspirv.hpp>
-
 #include <spirv_cross/spirv_glsl.hpp>
 #include <spirv_cross/spirv_hlsl.hpp>
 #include <spirv_cross/spirv_msl.hpp>
 
 #include "default_resource.h"
+
+enum class ShaderType { Graphics, Compute };
+
+enum ShaderLangFlags
+{
+    GLSL = 1 << 1,
+    GLSLES = 1 << 2,
+    HLSL = 1 << 3,
+    MSL = 1 << 4,
+    SPIRV = 1 << 5
+};
+
+struct ShaderStage
+{
+    EShLanguage stage;
+    std::string source;
+    std::vector<uint32_t> spirv;
+};
+
+struct ShaderProgram
+{
+    ShaderType type;
+    std::map<EShLanguage, ShaderStage> stages;
+};
 
 struct ShaderResources
 {
@@ -27,361 +51,442 @@ struct ShaderResources
     std::string sampled_image_name;
 };
 
-struct ShaderSource
+class ShaderParser
 {
-    std::string vertex;
-    std::string fragment;
-};
-
-enum ShaderLangFlags
-{
-    GLSL = 1 << 1,
-    GLSLES = 1 << 2,
-    HLSL = 1 << 3,
-    MSL = 1 << 4,
-    SPIRV = 1 << 5
-};
-
-void parse_shader(const std::string &file, ShaderSource &out_source)
-{
-    std::ifstream input_file(file);
-    if (!input_file.is_open())
+public:
+    static bool parse(const std::string &filepath, ShaderProgram &program)
     {
-        std::cerr << "Error opening file: " << file << std::endl;
-        input_file.close();
-        return;
-    }
-
-    char line[1024];
-    std::stringstream output_vert, output_frag;
-
-    EShLanguage stage = EShLanguage::EShLangVertex;
-
-    std::vector<std::string> tokens;
-    while (input_file.getline(line, sizeof(line)))
-    {
-        pystring::split(line, tokens);
-        if (tokens[0] == "@stage")
+        std::ifstream file(filepath);
+        if (!file.is_open())
         {
-            if (tokens[1] == "vertex")
-                stage = EShLanguage::EShLangVertex;
-            else if (tokens[1] == "fragment")
-                stage = EShLanguage::EShLangFragment;
+            std::cerr << "Error: Cannot open file '" << filepath << "'\n";
+            return false;
         }
-        else if (stage == EShLanguage::EShLangVertex)
-            output_vert << line << '\n';
+
+        EShLanguage current_stage = EShLangCount;
+        std::stringstream current_source;
+        std::string line;
+
+        while (std::getline(file, line))
+        {
+            if (line.find("@stage") == 0)
+            {
+                if (current_stage != EShLangCount)
+                {
+                    save_stage(program, current_stage, current_source.str());
+                    current_source.str("");
+                    current_source.clear();
+                }
+
+                current_stage = parse_stage_directive(line, program);
+                if (current_stage == EShLangCount)
+                {
+                    std::cerr << "Error: Invalid stage directive '" << line << "'\n";
+                    return false;
+                }
+            }
+            else if (current_stage != EShLangCount)
+                current_source << line << '\n';
+        }
+
+        if (current_stage != EShLangCount)
+            save_stage(program, current_stage, current_source.str());
+
+        return validate_program(program);
+    }
+
+private:
+    static EShLanguage parse_stage_directive(const std::string &line, ShaderProgram &program)
+    {
+        if (line.find("vertex") != std::string::npos)
+        {
+            program.type = ShaderType::Graphics;
+            return EShLangVertex;
+        }
+        else if (line.find("fragment") != std::string::npos)
+        {
+            program.type = ShaderType::Graphics;
+            return EShLangFragment;
+        }
+        else if (line.find("compute") != std::string::npos)
+        {
+            program.type = ShaderType::Compute;
+            return EShLangCompute;
+        }
+        return EShLangCount;
+    }
+
+    static void save_stage(ShaderProgram &program, EShLanguage stage, const std::string &source)
+    {
+        program.stages[stage] = { stage, source, {} };
+    }
+
+    static bool validate_program(const ShaderProgram &program)
+    {
+        if (program.type == ShaderType::Compute)
+        {
+            if (program.stages.size() != 1 || program.stages.find(EShLangCompute) == program.stages.end())
+            {
+                std::cerr << "Error: Compute shaders must have exactly one stage\n";
+                return false;
+            }
+        }
+        else if (program.type == ShaderType::Graphics)
+        {
+            if (program.stages.find(EShLangVertex) == program.stages.end())
+            {
+                std::cerr << "Error: Graphics shaders must have a vertex stage\n";
+                return false;
+            }
+            if (program.stages.find(EShLangFragment) == program.stages.end())
+            {
+                std::cerr << "Error: Graphics shaders must have a fragment stage\n";
+                return false;
+            }
+            if (program.stages.find(EShLangCompute) != program.stages.end())
+            {
+                std::cerr << "Error: Graphics shaders cannot have compute stage\n";
+                return false;
+            }
+        }
+        return true;
+    }
+};
+
+class SPIRVCompiler
+{
+public:
+    static bool compile(ShaderStage &stage)
+    {
+        glslang::InitializeProcess();
+
+        const char* source_ptr = stage.source.c_str();
+        glslang::TShader shader(stage.stage);
+        shader.setStrings(&source_ptr, 1);
+
+        shader.setEnvInput(glslang::EShSourceGlsl, stage.stage, glslang::EShClientVulkan, 450);
+        shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_0);
+        shader.setEnvTarget(glslang::EshTargetSpv, glslang::EShTargetSpv_1_0);
+        shader.setAutoMapLocations(true);
+
+        if (!shader.parse(&DefaultTBuiltInResource, 450, false, EShMsgDefault))
+        {
+            std::cerr << "GLSL Parsing Failed:\n" << shader.getInfoLog() << "\n";
+            glslang::FinalizeProcess();
+            return false;
+        }
+
+        glslang::TProgram program;
+        program.addShader(&shader);
+
+        if (!program.link(EShMsgDefault) || !program.mapIO())
+        {
+            std::cerr << "GLSL Linking Failed:\n" << program.getInfoLog() << "\n";
+            glslang::FinalizeProcess();
+            return false;
+        }
+
+        glslang::SpvOptions spv_options;
+        spv_options.generateDebugInfo = false;
+        spv_options.stripDebugInfo = false;
+        spv_options.disableOptimizer = true;
+        spv_options.optimizeSize = false;
+
+        glslang::GlslangToSpv(*program.getIntermediate(stage.stage), stage.spirv, &spv_options);
+        glslang::FinalizeProcess();
+
+        return !stage.spirv.empty();
+    }
+};
+
+class CrossCompiler
+{
+public:
+    static std::string to_glsl(const std::vector<uint32_t> &spirv)
+    {
+        spirv_cross::CompilerGLSL compiler(spirv);
+        spirv_cross::CompilerGLSL::Options options;
+        options.version = 450;
+        options.vulkan_semantics = false;
+        options.es = false;
+        set_entry_point(compiler);
+        compiler.set_common_options(options);
+        return compiler.compile();
+    }
+
+    static std::string to_glsles(const std::vector<uint32_t> &spirv)
+    {
+        spirv_cross::CompilerGLSL compiler(spirv);
+        spirv_cross::CompilerGLSL::Options options;
+        options.version = 300;
+        options.vulkan_semantics = false;
+        options.es = true;
+        set_entry_point(compiler);
+        compiler.set_common_options(options);
+        return compiler.compile();
+    }
+
+    static std::string to_hlsl(const std::vector<uint32_t> &spirv)
+    {
+        spirv_cross::CompilerHLSL compiler(spirv);
+        
+        spirv_cross::CompilerGLSL::Options glsl_options;
+        glsl_options.emit_line_directives = false;
+        glsl_options.vertex.flip_vert_y = true;
+        glsl_options.vertex.fixup_clipspace = true;
+        set_entry_point(compiler);
+        compiler.set_common_options(glsl_options);
+
+        spirv_cross::CompilerHLSL::Options hlsl_options;
+        hlsl_options.shader_model = 50;
+        compiler.set_hlsl_options(hlsl_options);
+
+        return compiler.compile();
+    }
+
+    static std::string to_msl(const std::vector<uint32_t> &spirv)
+    {
+        spirv_cross::CompilerMSL compiler(spirv);
+        set_entry_point(compiler);
+        return compiler.compile();
+    }
+
+    static void extract_resources(const std::vector<uint32_t> &spirv, ShaderResources &resources)
+    {
+        spirv_cross::CompilerGLSL compiler(spirv);
+        spirv_cross::ShaderResources shader_resources = compiler.get_shader_resources();
+
+        for (const auto &ub : shader_resources.uniform_buffers)
+        {
+            uint32_t binding = compiler.get_decoration(ub.id, spv::DecorationBinding);
+            
+            bool exists = false;
+            for (const auto &existing : resources.uniform_blocks)
+            {
+                if (existing.binding == binding)
+                {
+                    exists = true;
+                    break;
+                }
+            }
+            
+            if (!exists)
+                resources.uniform_blocks.push_back({ ub.name, binding });
+        }
+
+        if (resources.sampled_image_name.empty() && !shader_resources.sampled_images.empty())
+            resources.sampled_image_name = shader_resources.sampled_images[0].name;
+    }
+private:
+    static void set_entry_point(spirv_cross::Compiler &compiler)
+    {
+        if (compiler.get_execution_model() == spv::ExecutionModelGLCompute)
+            compiler.set_entry_point("main", spv::ExecutionModelGLCompute);
+    }
+};
+
+class HeaderWriter
+{
+public:
+    static void write_spirv_array(std::ofstream &out, const std::vector<uint32_t> &spirv,
+        const std::string &name, const std::string &api, const std::string &stage)
+    {
+        std::string array_name = name + "_" + api + "_" + stage;
+        out << "static const uint32_t " << array_name << "[] = {";
+
+        for (size_t i = 0; i < spirv.size(); ++i)
+        {
+            if (i % 8 == 0) out << "\n\t";
+            out << "0x" << std::hex << std::setw(8) << std::setfill('0') << spirv[i];
+            if (i < spirv.size() - 1) out << ",";
+        }
+
+        out << "\n};\n\n";
+    }
+
+    static void write_source_array(std::ofstream &out, const std::string &source,
+        const std::string &name, const std::string &api, const std::string &stage)
+    {
+        out << "/*\n" << source << "*/\n";
+
+        std::string array_name = name + "_" + api + "_" + stage;
+        out << "static const uint8_t " << array_name << "[] = {";
+
+        for (size_t i = 0; i < source.size(); ++i)
+        {
+            if (i % 16 == 0) out << "\n\t";
+            out << "0x" << std::hex << std::setw(2) << std::setfill('0') 
+                << static_cast<int>(static_cast<uint8_t>(source[i]));
+            if (i < source.size() - 1) out << ",";
+        }
+
+        out << "\n};\n\n";
+    }
+
+    static void write_shader_getter(
+        std::ofstream &out, const std::string &name,
+        ShaderType type, uint32_t lang_flags,
+        const ShaderResources &resources
+    )
+    {
+        out << std::format("static inline const mg_shader get_{}_shader(mg_renderer_type type) {{\n", name);
+        out << "    mg_shader shader = {0};\n";
+        out << "    switch (type) {\n";
+
+        if (type == ShaderType::Compute)
+            write_compute_cases(out, name, lang_flags);
         else
-            output_frag << line << '\n';
+            write_graphics_cases(out, name, lang_flags);
+
+        out << "    }\n\n";
+
+        for (size_t i = 0; i < resources.uniform_blocks.size(); ++i)
+        {
+            out << std::format("    shader.uniform_blocks[{}].name = \"{}\";\n",
+                i, resources.uniform_blocks[i].name);
+            out << std::format("    shader.uniform_blocks[{}].binding = {};\n",
+                i, resources.uniform_blocks[i].binding);
+        }
+
+        if (!resources.sampled_image_name.empty())
+            out << "    shader.sampled_image_name = \"" << resources.sampled_image_name << "\";\n";
+
+        out << "    return shader;\n";
+        out << "}\n\n";
     }
 
-    out_source.vertex = output_vert.str();
-    out_source.fragment = output_frag.str();
-
-    input_file.close();
-}
-
-void compile_shader_to_spirv(std::string &source, EShLanguage stage, std::vector<uint32_t> &out_spirv)
-{
-    glslang::InitializeProcess();
-
-    const char* sources[1] = { source.c_str() };
-    glslang::TShader shader(stage);
-    shader.setStrings(sources, 1);
-
-    shader.setEnvInput(glslang::EShSourceGlsl, stage, glslang::EShClientVulkan, 450);
-    shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_0);
-    shader.setEnvTarget(glslang::EshTargetSpv, glslang::EShTargetSpv_1_0);
-    shader.setAutoMapLocations(true);
-    //shader.setAutoMapBindings(true);
-
-    bool parse_success = shader.parse(&DefaultTBuiltInResource, 450, false, EShMsgDefault);
-    if (!parse_success)
+private:
+    static void write_graphics_cases(std::ofstream &out, const std::string &name, uint32_t lang_flags)
     {
-        std::cerr << "Parsing Failed: " << shader.getInfoLog() << "\n";
-        return;
+        auto write_case = [&](const std::string &api, const std::string &renderer) {
+            out << std::format(
+                "        case {}:\n"
+                "            shader.vertex.code = {}_{}_vert;\n"
+                "            shader.vertex.size = sizeof({}_{}_vert);\n"
+                "            shader.fragment.code = {}_{}_frag;\n"
+                "            shader.fragment.size = sizeof({}_{}_frag);\n"
+                "            break;\n",
+                renderer, name, api, name, api, name, api, name, api
+            );
+        };
+
+        if (lang_flags & SPIRV)  write_case("spirv", "MG_RENDERER_TYPE_VULKAN");
+        if (lang_flags & HLSL)   write_case("hlsl", "MG_RENDERER_TYPE_DIRECT3D11");
+        if (lang_flags & GLSL)   write_case("glsl", "MG_RENDERER_TYPE_OPENGL");
+        if (lang_flags & GLSLES) write_case("glsles", "MG_RENDERER_TYPE_OPENGLES");
+        if (lang_flags & MSL)    write_case("msl", "MG_RENDERER_TYPE_METAL");
     }
 
-    glslang::TProgram program;
-    program.addShader(&shader);
-
-    if (!program.link(EShMsgDefault) || !program.mapIO())
+    static void write_compute_cases(std::ofstream &out, const std::string &name, uint32_t lang_flags)
     {
-        std::cerr << "Linking Failed: " << program.getInfoLog() << "\n";
-        return;
+        auto write_case = [&](const std::string &api, const std::string &renderer) {
+            out << std::format(
+                "        case {}:\n"
+                "            shader.compute.code = {}_{}_comp;\n"
+                "            shader.compute.size = sizeof({}_{}_comp);\n"
+                "            break;\n",
+                renderer, name, api, name, api
+            );
+        };
+
+        if (lang_flags & SPIRV)  write_case("spirv", "MG_RENDERER_TYPE_VULKAN");
+        if (lang_flags & HLSL)   write_case("hlsl", "MG_RENDERER_TYPE_DIRECT3D11");
+        if (lang_flags & GLSL)   write_case("glsl", "MG_RENDERER_TYPE_OPENGL");
+        if (lang_flags & GLSLES) write_case("glsles", "MG_RENDERER_TYPE_OPENGLES");
+        if (lang_flags & MSL)    write_case("msl", "MG_RENDERER_TYPE_METAL");
     }
-
-    glslang::SpvOptions spv_options;
-    spv_options.generateDebugInfo = false;
-    spv_options.stripDebugInfo = false;
-    spv_options.disableOptimizer = true;
-    spv_options.optimizeSize = false;
-    spv_options.disassemble = false;
-    spv_options.validate = false;
-    spv_options.emitNonSemanticShaderDebugInfo = false;
-    spv_options.emitNonSemanticShaderDebugSource = false;
-
-    glslang::GlslangToSpv(*program.getIntermediate(stage), out_spirv, &spv_options);
-
-    glslang::FinalizeProcess();
-}
-
-void compile_spirv_to_glsl(const std::vector<uint32_t> &spirv, std::string &output_source)
-{
-	spirv_cross::CompilerGLSL glsl(spirv);
-    //spirv_cross::ShaderResources resources = glsl.get_shader_resources();
-
-	spirv_cross::CompilerGLSL::Options options;
-	options.version = 450;
-    options.vulkan_semantics = false;
-	options.es = false;
-    //options.emit_push_constant_as_uniform_buffer = true;
-	glsl.set_common_options(options);
-	output_source = glsl.compile();
-}
-
-void compile_spirv_to_glsles(const std::vector<uint32_t> &spirv, std::string &output_source)
-{
-	spirv_cross::CompilerGLSL glsl(spirv);
-	spirv_cross::CompilerGLSL::Options options;
-	options.version = 300;
-    options.vulkan_semantics = false;
-	options.es = true;
-	glsl.set_common_options(options);
-	output_source = glsl.compile();
-}
-
-void compile_spirv_to_hlsl(const std::vector<uint32_t> &spirv, std::string &output_source)
-{
-	spirv_cross::CompilerHLSL hlsl(spirv);
-    //spirv_cross::ShaderResources resources = hlsl.get_shader_resources();
-
-    spirv_cross::CompilerGLSL::Options glsl_options;
-    glsl_options.emit_line_directives = false;
-    glsl_options.vertex.flip_vert_y = true;
-    glsl_options.vertex.fixup_clipspace = true;
-    hlsl.set_common_options(glsl_options);
-
-    spirv_cross::CompilerHLSL::Options hlsl_options;
-    hlsl_options.shader_model = 50;
-    hlsl.set_hlsl_options(hlsl_options);
-
-	output_source = hlsl.compile();
-}
-
-void compile_spirv_to_metal(const std::vector<uint32_t> &spirv, std::string &output_source)
-{
-    spirv_cross::CompilerMSL msl(spirv);
-    output_source = msl.compile();
-}
-
-void get_spirv_resources(const std::vector<uint32_t>& spirv, ShaderResources &output_resources)
-{
-	spirv_cross::CompilerGLSL glsl(spirv);
-    spirv_cross::ShaderResources resources = glsl.get_shader_resources();
-    for (auto &resource : resources.uniform_buffers)
-    {
-        const uint32_t binding = glsl.get_decoration(resource.id, spv::DecorationBinding);
-        output_resources.uniform_blocks.push_back({ resource.name, binding });
-    }
-    if (!resources.sampled_images.empty())
-        output_resources.sampled_image_name = resources.sampled_images[0].name;
-}
-
-void write_spirv_to_header(const std::vector<uint32_t>& spirv, const std::string& name, const std::string& api, const std::string& stage, std::ofstream& output)
-{
-    std::string array_name = name + "_" + api + "_" + stage;
-    output << "static const uint32_t " << array_name << "[] = {";
-
-    for (size_t i = 0; i < spirv.size(); ++i)
-    {
-        if (i % 8 == 0) output << "\n\t";
-        output << "0x" << std::hex << std::setw(8) << std::setfill('0') << spirv[i];
-        if (i < spirv.size() - 1) output << ",";
-    }
-
-    output << "\n};\n\n";
-}
-
-void write_shader_source_to_header(const std::string& shader_source, const std::string& name, const std::string& api, const std::string& stage, std::ofstream& output)
-{
-    output << "/*\n" << shader_source << "*/\n";
-
-    std::string array_name = name + "_" + api + "_" + stage;
-    output << "static const uint8_t " << array_name << "[] = {";
-
-    for (size_t i = 0; i < shader_source.size(); ++i)
-    {
-        if (i % 16 == 0) output << "\n\t";
-        output << "0x" << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(shader_source[i]);
-        if (i < shader_source.size() - 1) output << ",";
-    }
-
-    output << "\n};\n\n";
-}
-
-void write_get_shader_function(const std::string& name, std::ofstream& output, uint32_t lang_flags, const ShaderResources &resources)
-{
-    output << std::format("static inline const mg_shader get_{}_shader(mg_renderer_type type) {{\n", name);
-    output << "    mg_shader shader = {0};\n";
-    output << "    switch (type) {\n";
-
-    auto write_shader_case = [&](const std::string& shader_type, const std::string& renderer_case) {
-        output << std::format(
-            "        case {}:\n"
-            "            shader.vertex = (mg_shader_source){{.code = {}_{}_vert, .size = sizeof({}_{}_vert)}};\n"
-            "            shader.fragment = (mg_shader_source){{.code = {}_{}_frag, .size = sizeof({}_{}_frag)}};\n"
-            "            break;\n",
-            renderer_case,
-            name, shader_type,
-            name, shader_type,
-            name, shader_type,
-            name, shader_type
-        );
-    };
-
-    if (lang_flags & ShaderLangFlags::SPIRV)
-        write_shader_case("spirv", "MG_RENDERER_TYPE_VULKAN");
-    if (lang_flags & ShaderLangFlags::HLSL)
-        write_shader_case("hlsl", "MG_RENDERER_TYPE_DIRECT3D11");
-    if (lang_flags & ShaderLangFlags::GLSL)
-        write_shader_case("glsl", "MG_RENDERER_TYPE_OPENGL");
-    if (lang_flags & ShaderLangFlags::GLSLES)
-        write_shader_case("glsles", "MG_RENDERER_TYPE_OPENGLES");
-
-    output << "    }\n\n";
-
-    for (uint32_t i = 0; i < resources.uniform_blocks.size(); ++i)
-    {
-        output << std::format("    shader.uniform_blocks[{}].name = \"{}\";\n",
-            i,
-            resources.uniform_blocks[i].name);
-        output << std::format("    shader.uniform_blocks[{}].binding = {};\n",
-            i,
-            resources.uniform_blocks[i].binding);
-    }
-
-    if (!resources.sampled_image_name.empty())
-        output << "    shader.sampled_image_name = \"" << resources.sampled_image_name << "\";\n";
-
-    output << "    return shader;\n";
-    output << "}\n\n";
-}
+};
 
 int main(int argc, char **argv)
 {
-    const char *input_file = nullptr;
-    const char *output_file = nullptr;
-    const char *lang = nullptr;
-    const char *name = nullptr;
+    std::string input_file, output_file, shader_name, lang_string;
 
-    for (int32_t i = 1; i + 1 < argc; i++)
-        if (!strcmp(argv[i], "--input") || !strcmp(argv[i], "-i"))
+    for (int i = 1; i < argc; ++i)
+    {
+        std::string arg = argv[i];
+        if ((arg == "--input" || arg == "-i") && i + 1 < argc)
             input_file = argv[++i];
-        else if (!strcmp(argv[i], "--output") || !strcmp(argv[i], "-o"))
+        else if ((arg == "--output" || arg == "-o") && i + 1 < argc)
             output_file = argv[++i];
-        else if (!strcmp(argv[i], "--lang") || !strcmp(argv[i], "-l"))
-            lang = argv[++i];
-        else if (!strcmp(argv[i], "--name") || !strcmp(argv[i], "-n"))
-            name = argv[++i];
+        else if ((arg == "--name" || arg == "-n") && i + 1 < argc)
+            shader_name = argv[++i];
+        else if ((arg == "--lang" || arg == "-l") && i + 1 < argc)
+            lang_string = argv[++i];
+    }
 
-    if (!input_file)
+    if (input_file.empty() || output_file.empty() || shader_name.empty() || lang_string.empty())
     {
-        std::cerr << "No input file specified!\nUse the '--input' flag to specify the input file.\n";
+        std::cerr << "Usage: " << argv[0] << " -i <input> -o <output> -n <name> -l <langs>\n";
+        std::cerr << "  Languages: spirv,glsl,glsles,hlsl,msl\n";
         return 1;
     }
 
-    if (!output_file)
+    ShaderProgram program;
+    if (!ShaderParser::parse(input_file, program))
+        return 1;
+
+    for (auto &[stage_type, stage] : program.stages)
     {
-        std::cerr << "No output file specified!\nUse the '--output' flag to specify the output file.\n";
-        return 1;
+        if (!SPIRVCompiler::compile(stage))
+            return 1;
     }
-
-    if (!name)
-    {
-        std::cerr << "No shader name specified!\nUse the '--name' flag to specify the shader name.\n";
-        return 1;
-    }
-
-    if (!lang)
-    {
-        std::cerr << "No language specified!\nUse the '--lang glsl,spirv,...' flag (valid options: glsl, spirv, hlsl, msl) to specify the languages to compile to.\n";
-        return 1;
-    }
-
-    ShaderSource parsed_source;
-    parse_shader(input_file, parsed_source);
-
-    std::vector<uint32_t> spirv_vert, spirv_frag;
-    compile_shader_to_spirv(parsed_source.vertex, EShLanguage::EShLangVertex, spirv_vert);
-    compile_shader_to_spirv(parsed_source.fragment, EShLanguage::EShLangFragment, spirv_frag);
-
-    if (spirv_vert.empty() || spirv_frag.empty())
-        return 1;
-
-    std::istringstream lang_stream(lang);
-    std::string token;
 
     uint32_t lang_flags = 0;
+    std::istringstream lang_stream(lang_string);
+    std::string token;
     while (std::getline(lang_stream, token, ','))
     {
-        if      (token == "spirv")  lang_flags |= ShaderLangFlags::SPIRV;
-        else if (token == "glsl")   lang_flags |= ShaderLangFlags::GLSL;
-        else if (token == "glsles") lang_flags |= ShaderLangFlags::GLSLES;
-        else if (token == "hlsl")   lang_flags |= ShaderLangFlags::HLSL;
-        else if (token == "msl")    lang_flags |= ShaderLangFlags::MSL;
+        if      (token == "spirv")  lang_flags |= SPIRV;
+        else if (token == "glsl")   lang_flags |= GLSL;
+        else if (token == "glsles") lang_flags |= GLSLES;
+        else if (token == "hlsl")   lang_flags |= HLSL;
+        else if (token == "msl")    lang_flags |= MSL;
         else
         {
-            std::cerr << "Unknown language: \'" << token << "\' (valid options: spirv, glsl, hlsl, msl)\n";
+            std::cerr << "Unknown language: " << token << "\n";
             return 1;
         }
     }
 
-    std::ofstream header_file(output_file);
-    header_file << "#pragma once\n\n#include <stdint.h>\n\n";
+    std::ofstream header(output_file);
+    header << "#pragma once\n\n#include <stdint.h>\n\n";
 
-    ShaderSource source;
     ShaderResources resources;
+    for (const auto &[stage_type, stage] : program.stages)
+        CrossCompiler::extract_resources(stage.spirv, resources);
 
-    get_spirv_resources(spirv_vert, resources);
-    get_spirv_resources(spirv_frag, resources);
-
-    if (lang_flags & ShaderLangFlags::SPIRV)
+    if (lang_flags & SPIRV)
     {
-        write_spirv_to_header(spirv_vert, name, "spirv", "vert", header_file);
-        write_spirv_to_header(spirv_frag, name, "spirv", "frag", header_file);
-    }
-    if (lang_flags & ShaderLangFlags::GLSL)
-    {
-        compile_spirv_to_glsl(spirv_vert, source.vertex);
-        compile_spirv_to_glsl(spirv_frag, source.fragment);
-        write_shader_source_to_header(source.vertex, name, "glsl", "vert", header_file);
-        write_shader_source_to_header(source.fragment, name, "glsl", "frag", header_file);
-    }
-    if (lang_flags & ShaderLangFlags::GLSLES)
-    {
-        compile_spirv_to_glsles(spirv_vert, source.vertex);
-        compile_spirv_to_glsles(spirv_frag, source.fragment);
-        write_shader_source_to_header(source.vertex, name, "glsles", "vert", header_file);
-        write_shader_source_to_header(source.fragment, name, "glsles", "frag", header_file);
-    }
-    if (lang_flags & ShaderLangFlags::HLSL)
-    {
-        compile_spirv_to_hlsl(spirv_vert, source.vertex);
-        compile_spirv_to_hlsl(spirv_frag, source.fragment);
-        write_shader_source_to_header(source.vertex, name, "hlsl", "vert", header_file);
-        write_shader_source_to_header(source.fragment, name, "hlsl", "frag", header_file);
-    }
-    if (lang_flags & ShaderLangFlags::MSL)
-    {
-        compile_spirv_to_metal(spirv_vert, source.vertex);
-        compile_spirv_to_metal(spirv_frag, source.fragment);
-        write_shader_source_to_header(source.vertex, name, "msl", "vert", header_file);
-        write_shader_source_to_header(source.fragment, name, "msl", "frag", header_file);
+        for (const auto &[stage_type, stage] : program.stages)
+        {
+            std::string stage_name =
+                (stage_type == EShLangVertex) ? "vert" :
+                (stage_type == EShLangFragment) ? "frag" : "comp";
+            HeaderWriter::write_spirv_array(header, stage.spirv, shader_name, "spirv", stage_name);
+        }
     }
 
-    write_get_shader_function(name, header_file, lang_flags, resources);
+    struct LangInfo { std::string name; std::function<std::string(const std::vector<uint32_t>&)> compile; };
+    std::vector<LangInfo> langs;
+    
+    if (lang_flags & GLSL)   langs.push_back({"glsl", CrossCompiler::to_glsl});
+    if (lang_flags & GLSLES) langs.push_back({"glsles", CrossCompiler::to_glsles});
+    if (lang_flags & HLSL)   langs.push_back({"hlsl", CrossCompiler::to_hlsl});
+    if (lang_flags & MSL)    langs.push_back({"msl", CrossCompiler::to_msl});
 
-    header_file.close();
+    for (const auto &lang : langs)
+    {
+        for (const auto &[stage_type, stage] : program.stages)
+        {
+            std::string stage_name =
+                (stage_type == EShLangVertex) ? "vert" :
+                (stage_type == EShLangFragment) ? "frag" : "comp";
+            std::string compiled = lang.compile(stage.spirv);
+            HeaderWriter::write_source_array(header, compiled, shader_name, lang.name, stage_name);
+        }
+    }
+
+    HeaderWriter::write_shader_getter(header, shader_name, program.type, lang_flags, resources);
 
     return 0;
 }
