@@ -84,7 +84,6 @@ typedef struct mg_opengl_context
 {
     GLuint vao;
     GLuint uniform_buffers[MG_CONFIG_MAX_BINDABLE_UNIFORMS];
-    GLuint sampled_image_indices[MG_CONFIG_MAX_BINDABLE_IMAGES];
 
     GLenum index_type;
     //GLenum polygon_mode;

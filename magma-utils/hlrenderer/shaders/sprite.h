@@ -976,34 +976,41 @@ static inline const mg_shader get_sprite_shader(mg_renderer_type type) {
     mg_shader shader = {0};
     switch (type) {
         case MG_RENDERER_TYPE_VULKAN:
-            shader.vertex.code = sprite_spirv_vert;
+            shader.vertex.code = (void*)sprite_spirv_vert;
             shader.vertex.size = sizeof(sprite_spirv_vert);
-            shader.fragment.code = sprite_spirv_frag;
+            shader.fragment.code = (void*)sprite_spirv_frag;
             shader.fragment.size = sizeof(sprite_spirv_frag);
             break;
         case MG_RENDERER_TYPE_DIRECT3D11:
-            shader.vertex.code = sprite_hlsl_vert;
+            shader.vertex.code = (void*)sprite_hlsl_vert;
             shader.vertex.size = sizeof(sprite_hlsl_vert);
-            shader.fragment.code = sprite_hlsl_frag;
+            shader.fragment.code = (void*)sprite_hlsl_frag;
             shader.fragment.size = sizeof(sprite_hlsl_frag);
             break;
         case MG_RENDERER_TYPE_OPENGL:
-            shader.vertex.code = sprite_glsl_vert;
+            shader.vertex.code = (void*)sprite_glsl_vert;
             shader.vertex.size = sizeof(sprite_glsl_vert);
-            shader.fragment.code = sprite_glsl_frag;
+            shader.fragment.code = (void*)sprite_glsl_frag;
             shader.fragment.size = sizeof(sprite_glsl_frag);
             break;
         case MG_RENDERER_TYPE_OPENGLES:
-            shader.vertex.code = sprite_glsles_vert;
+            shader.vertex.code = (void*)sprite_glsles_vert;
             shader.vertex.size = sizeof(sprite_glsles_vert);
-            shader.fragment.code = sprite_glsles_frag;
+            shader.fragment.code = (void*)sprite_glsles_frag;
             shader.fragment.size = sizeof(sprite_glsles_frag);
             break;
     }
 
     shader.uniform_blocks[0].name = "ViewData";
     shader.uniform_blocks[0].binding = 0;
-    shader.sampled_image_name = "texture0";
+    shader.sampled_images[0].name = "texture0";
+    shader.sampled_images[0].binding = 0;
+    shader.sampled_images[1].name = "texture1";
+    shader.sampled_images[1].binding = 1;
+    shader.sampled_images[2].name = "texture2";
+    shader.sampled_images[2].binding = 2;
+    shader.sampled_images[3].name = "texture3";
+    shader.sampled_images[3].binding = 3;
     return shader;
 }
 

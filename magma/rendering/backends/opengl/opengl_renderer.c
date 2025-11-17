@@ -101,9 +101,6 @@ void mg_opengl_renderer_initialize(mgfx_init_info *init_info)
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     glGenBuffers(MG_CONFIG_MAX_BINDABLE_UNIFORMS, gl_ctx.uniform_buffers);
-
-    for (uint32_t i = 0; i < MG_CONFIG_MAX_BINDABLE_IMAGES; i++)
-        gl_ctx.sampled_image_indices[i] = i;
 }
 
 void mg_opengl_renderer_shutdown(void)

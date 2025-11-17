@@ -145,16 +145,17 @@ static void mg_opengl_fill_graphics_pipeline(mg_opengl_pipeline *pipeline, mg_pi
 
     glUseProgram(pipeline->program_id);
 
-    for (uint32_t i = 0; i < MG_CONFIG_MAX_BINDABLE_UNIFORMS; i++)
+    for (uint32_t i = 0; i < MG_CONFIG_MAX_BINDABLE_UNIFORMS && create_info->shader.uniform_blocks[i].name; i++)
     {
-        if (!create_info->shader.uniform_blocks[i].name)
-            continue;
         const uint32_t index = glGetUniformBlockIndex(pipeline->program_id, create_info->shader.uniform_blocks[i].name);   
         glUniformBlockBinding(pipeline->program_id, index, create_info->shader.uniform_blocks[i].binding);
     }
 
-    if (create_info->shader.sampled_image_name)
-        glUniform1iv(glGetUniformLocation(pipeline->program_id, create_info->shader.sampled_image_name), MG_CONFIG_MAX_BINDABLE_IMAGES, gl_ctx.sampled_image_indices);
+    for (uint32_t i = 0; i < MG_CONFIG_MAX_BINDABLE_IMAGES && create_info->shader.sampled_images[i].name; i++)
+    {
+        const GLint index = glGetUniformLocation(pipeline->program_id, create_info->shader.sampled_images[i].name);
+        glUniform1iv(index, 1, &create_info->shader.sampled_images[i].binding);
+    }
 
     pipeline->vertex_layout.stride = create_info->vertex_layout.stride;
 

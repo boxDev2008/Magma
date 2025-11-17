@@ -447,34 +447,35 @@ static inline const mg_shader get_imgui_shader(mg_renderer_type type) {
     mg_shader shader = {0};
     switch (type) {
         case MG_RENDERER_TYPE_VULKAN:
-            shader.vertex.code = imgui_spirv_vert;
+            shader.vertex.code = (void*)imgui_spirv_vert;
             shader.vertex.size = sizeof(imgui_spirv_vert);
-            shader.fragment.code = imgui_spirv_frag;
+            shader.fragment.code = (void*)imgui_spirv_frag;
             shader.fragment.size = sizeof(imgui_spirv_frag);
             break;
         case MG_RENDERER_TYPE_DIRECT3D11:
-            shader.vertex.code = imgui_hlsl_vert;
+            shader.vertex.code = (void*)imgui_hlsl_vert;
             shader.vertex.size = sizeof(imgui_hlsl_vert);
-            shader.fragment.code = imgui_hlsl_frag;
+            shader.fragment.code = (void*)imgui_hlsl_frag;
             shader.fragment.size = sizeof(imgui_hlsl_frag);
             break;
         case MG_RENDERER_TYPE_OPENGL:
-            shader.vertex.code = imgui_glsl_vert;
+            shader.vertex.code = (void*)imgui_glsl_vert;
             shader.vertex.size = sizeof(imgui_glsl_vert);
-            shader.fragment.code = imgui_glsl_frag;
+            shader.fragment.code = (void*)imgui_glsl_frag;
             shader.fragment.size = sizeof(imgui_glsl_frag);
             break;
         case MG_RENDERER_TYPE_OPENGLES:
-            shader.vertex.code = imgui_glsles_vert;
+            shader.vertex.code = (void*)imgui_glsles_vert;
             shader.vertex.size = sizeof(imgui_glsles_vert);
-            shader.fragment.code = imgui_glsles_frag;
+            shader.fragment.code = (void*)imgui_glsles_frag;
             shader.fragment.size = sizeof(imgui_glsles_frag);
             break;
     }
 
     shader.uniform_blocks[0].name = "UniformBufferObject";
     shader.uniform_blocks[0].binding = 0;
-    shader.sampled_image_name = "tex";
+    shader.sampled_images[0].name = "tex";
+    shader.sampled_images[0].binding = 0;
     return shader;
 }
 

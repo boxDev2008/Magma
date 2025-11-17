@@ -25,27 +25,6 @@ extern "C" {
     #define MG_HLGFX_2D_MAX_GEOMETRY_COUNT (1 << 14)
 #endif
 
-/*typedef enum mg_world_flags_2d
-{
-    MG_WORLD_FLAG_2D_ENABLE_VIGNETTE = 0x1,
-    MG_WORLD_FLAG_2D_ENABLE_LIGHTS = 0x2,
-    //MG_WORLD_FLAG_2D_ENABLE_SHADOWS = 0x4
-}
-mg_world_flags_2d;
-
-typedef struct mg_world_info_2d
-{
-    uint64_t flags;
-    
-    mg_vec2 camera_position, camera_zoom;
-    //mg_vec2 shadow_offset;
-    //float shadow_opacity;
-    mg_vec3 global_light_color;
-    float global_light_intensity;
-    //float brightness, grayscale;
-}
-mg_world_info_2d;*/
-
 typedef struct mg_camera_info_2d
 {
 	mg_vec2 position, zoom;

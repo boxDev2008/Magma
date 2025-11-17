@@ -48,7 +48,7 @@ struct ShaderResources
         uint32_t binding;
     };
     std::vector<UniformBlock> uniform_blocks;
-    std::string sampled_image_name;
+    std::vector<UniformBlock> sampled_images;
 };
 
 class ShaderParser
@@ -258,24 +258,15 @@ public:
 
         for (const auto &ub : shader_resources.uniform_buffers)
         {
-            uint32_t binding = compiler.get_decoration(ub.id, spv::DecorationBinding);
-            
-            bool exists = false;
-            for (const auto &existing : resources.uniform_blocks)
-            {
-                if (existing.binding == binding)
-                {
-                    exists = true;
-                    break;
-                }
-            }
-            
-            if (!exists)
-                resources.uniform_blocks.push_back({ ub.name, binding });
+            const uint32_t binding = compiler.get_decoration(ub.id, spv::DecorationBinding);
+            resources.uniform_blocks.push_back({ ub.name, binding });
         }
 
-        if (resources.sampled_image_name.empty() && !shader_resources.sampled_images.empty())
-            resources.sampled_image_name = shader_resources.sampled_images[0].name;
+        for (const auto &smp : shader_resources.sampled_images)
+        {
+            const uint32_t binding = compiler.get_decoration(smp.id, spv::DecorationBinding);
+            resources.sampled_images.push_back({ smp.name, binding });
+        }
     }
 private:
     static void set_entry_point(spirv_cross::Compiler &compiler)
@@ -348,8 +339,13 @@ public:
                 i, resources.uniform_blocks[i].binding);
         }
 
-        if (!resources.sampled_image_name.empty())
-            out << "    shader.sampled_image_name = \"" << resources.sampled_image_name << "\";\n";
+        for (size_t i = 0; i < resources.sampled_images.size(); ++i)
+        {
+            out << std::format("    shader.sampled_images[{}].name = \"{}\";\n",
+                i, resources.sampled_images[i].name);
+            out << std::format("    shader.sampled_images[{}].binding = {};\n",
+                i, resources.sampled_images[i].binding);
+        }
 
         out << "    return shader;\n";
         out << "}\n\n";
@@ -361,9 +357,9 @@ private:
         auto write_case = [&](const std::string &api, const std::string &renderer) {
             out << std::format(
                 "        case {}:\n"
-                "            shader.vertex.code = {}_{}_vert;\n"
+                "            shader.vertex.code = (void*){}_{}_vert;\n"
                 "            shader.vertex.size = sizeof({}_{}_vert);\n"
-                "            shader.fragment.code = {}_{}_frag;\n"
+                "            shader.fragment.code = (void*){}_{}_frag;\n"
                 "            shader.fragment.size = sizeof({}_{}_frag);\n"
                 "            break;\n",
                 renderer, name, api, name, api, name, api, name, api
@@ -382,7 +378,7 @@ private:
         auto write_case = [&](const std::string &api, const std::string &renderer) {
             out << std::format(
                 "        case {}:\n"
-                "            shader.compute.code = {}_{}_comp;\n"
+                "            shader.compute.code = (void*){}_{}_comp;\n"
                 "            shader.compute.size = sizeof({}_{}_comp);\n"
                 "            break;\n",
                 renderer, name, api, name, api

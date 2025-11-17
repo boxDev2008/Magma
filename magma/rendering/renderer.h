@@ -502,7 +502,12 @@ typedef struct mg_shader
         uint32_t binding;
     }
     uniform_blocks[MG_CONFIG_MAX_BINDABLE_UNIFORMS];
-    const char *sampled_image_name;
+    struct
+    {
+        const char *name;
+        uint32_t binding;
+    }
+    sampled_images[MG_CONFIG_MAX_BINDABLE_IMAGES];
 }
 mg_shader;
 
