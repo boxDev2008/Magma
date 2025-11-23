@@ -4,7 +4,7 @@
 
 extern mg_opengl_context gl_ctx;
 
-void mg_opengl_renderer_initialize      (mgfx_init_info *init_info);
+void mg_opengl_renderer_initialize      (const mgfx_init_info *init_info);
 void mg_opengl_renderer_shutdown        (void);
 
 void mg_opengl_renderer_begin     (void);
@@ -12,6 +12,8 @@ void mg_opengl_renderer_end       (void);
 
 void mg_opengl_renderer_viewport        (int32_t x, int32_t y, uint32_t width, uint32_t height);
 void mg_opengl_renderer_scissor         (int32_t x, int32_t y, uint32_t width, uint32_t height);
+
+void mg_opengl_renderer_reset           (uint32_t width, uint32_t height, bool vsync);
 
 void mg_opengl_renderer_draw                    (uint32_t vertex_count, uint32_t first_vertex);
 void mg_opengl_renderer_draw_indexed            (uint32_t index_count, uint32_t first_index, int32_t first_vertex);
@@ -22,5 +24,3 @@ void mg_opengl_renderer_draw_indexed_instanced  (uint32_t index_count, uint32_t 
 void mg_opengl_renderer_dispatch        (uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z);
 
 void mg_opengl_renderer_bind_uniforms   (uint32_t binding, size_t size, void *data);
-
-void mg_opengl_configure_swapchain      (mg_swapchain_config_info *config_info);

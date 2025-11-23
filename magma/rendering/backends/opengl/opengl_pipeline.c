@@ -103,7 +103,6 @@ GLenum mg_opengl_get_compare_op(mg_compare_op compare_op)
 {
     switch (compare_op)
     {
-        case MG_COMPARE_OP_NEVER: return GL_NEVER;
         case MG_COMPARE_OP_LESS: return GL_LESS;
         case MG_COMPARE_OP_EQUAL: return GL_EQUAL;
         case MG_COMPARE_OP_LESS_OR_EQUAL: return GL_LEQUAL;
@@ -125,7 +124,7 @@ static GLenum mg_opengl_get_front_face(mg_front_face front_face)
     return GL_CW;
 }
 
-static void mg_opengl_fill_graphics_pipeline(mg_opengl_pipeline *pipeline, mg_pipeline_create_info *create_info)
+static void mg_opengl_fill_graphics_pipeline(mg_opengl_pipeline *pipeline, const mg_pipeline_create_info *create_info)
 {
     uint32_t vertex_shader = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(vertex_shader, 1, (const GLchar *const *)&create_info->shader.vertex.code, (const GLint *)&create_info->shader.vertex.size);
@@ -174,15 +173,16 @@ static void mg_opengl_fill_graphics_pipeline(mg_opengl_pipeline *pipeline, mg_pi
     pipeline->cull_mode = mg_opengl_get_cull_mode(create_info->cull_mode);
     pipeline->front_face = mg_opengl_get_front_face(create_info->front_face);
 
-    pipeline->depth_stencil.depth_test_enabled = create_info->depth_stencil.depth_test_enabled;
     pipeline->depth_stencil.stencil_test_enabled = create_info->depth_stencil.stencil_test_enabled;
     pipeline->depth_stencil.depth_write_enabled = create_info->depth_stencil.depth_write_enabled;
-    pipeline->depth_stencil.depth_compare_op = mg_opengl_get_compare_op(create_info->depth_stencil.depth_compare_op);
+    if (create_info->depth_stencil.depth_compare_op)
+        pipeline->depth_stencil.depth_compare_op = mg_opengl_get_compare_op(create_info->depth_stencil.depth_compare_op);
+    else pipeline->depth_stencil.depth_compare_op = 0;
 
     pipeline->type = MG_OPENGL_PIPELINE_TYPE_GRAPHICS;
 }
 
-static void mg_opengl_fill_compute_pipeline(mg_opengl_pipeline *pipeline, mg_pipeline_create_info *create_info)
+static void mg_opengl_fill_compute_pipeline(mg_opengl_pipeline *pipeline, const mg_pipeline_create_info *create_info)
 {
     uint32_t compute_shader = glCreateShader(GL_COMPUTE_SHADER);
     glShaderSource(compute_shader, 1, (const GLchar *const *)&create_info->shader.compute.code, (const GLint *)&create_info->shader.compute.size);
@@ -197,7 +197,7 @@ static void mg_opengl_fill_compute_pipeline(mg_opengl_pipeline *pipeline, mg_pip
     pipeline->type = MG_OPENGL_PIPELINE_TYPE_COMPUTE;
 }
 
-mg_opengl_pipeline *mg_opengl_create_pipeline(mg_pipeline_create_info *create_info)
+mg_opengl_pipeline *mg_opengl_create_pipeline(const mg_pipeline_create_info *create_info)
 {
     mg_opengl_pipeline *pipeline = (mg_opengl_pipeline*)malloc(sizeof(mg_opengl_pipeline));
     if (create_info->shader.compute.size)
@@ -246,8 +246,13 @@ void mg_opengl_bind_pipeline(mg_opengl_pipeline *pipeline)
 #if !MG_PLATFORM_EMSCRIPTEN
     glPolygonMode(GL_FRONT_AND_BACK, pipeline->polygon_mode);
 #endif
-    pipeline->depth_stencil.depth_test_enabled ? glEnable(GL_DEPTH_TEST) : glDisable(GL_DEPTH_TEST);
+    if (pipeline->depth_stencil.depth_compare_op)
+    {
+        glEnable(GL_DEPTH_TEST);
+        glDepthFunc(pipeline->depth_stencil.depth_compare_op);
+        glDepthMask(pipeline->depth_stencil.depth_write_enabled);
+    }
+    else
+        glDisable(GL_DEPTH_TEST);
     pipeline->depth_stencil.stencil_test_enabled ? glEnable(GL_STENCIL_TEST) : glDisable(GL_STENCIL_TEST);
-    glDepthFunc(pipeline->depth_stencil.depth_compare_op);
-    glDepthMask(pipeline->depth_stencil.depth_write_enabled);
 }

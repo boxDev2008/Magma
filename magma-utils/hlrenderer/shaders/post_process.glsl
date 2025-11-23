@@ -24,7 +24,7 @@ void main()
 
 @stage fragment
 
-layout(set = 1, binding = 0) uniform sampler2D tex_sampler;
+layout(binding = 0) uniform sampler2D tex_sampler;
 
 layout(binding = 0) uniform PostProcessData
 {

@@ -14,7 +14,7 @@
 
 extern mg_vulkan_context vk_ctx;
 
-void mg_vulkan_renderer_initialize      (mgfx_init_info *init_info);
+void mg_vulkan_renderer_initialize      (const mgfx_init_info *init_info);
 void mg_vulkan_renderer_shutdown        (void);
 
 void mg_vulkan_renderer_begin     (void);

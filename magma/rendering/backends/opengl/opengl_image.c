@@ -22,66 +22,66 @@ static GLenum mg_opengl_get_internal_format(mg_pixel_format format)
         case MG_PIXEL_FORMAT_R32_SINT:
             return GL_R32I;
 
-        case MG_PIXEL_FORMAT_R8G8_UNORM:
-        case MG_PIXEL_FORMAT_R8G8_SNORM:
-        case MG_PIXEL_FORMAT_R8G8_USCALED:
-        case MG_PIXEL_FORMAT_R8G8_SSCALED:
-        case MG_PIXEL_FORMAT_R8G8_UINT:
-        case MG_PIXEL_FORMAT_R8G8_SINT:
-        case MG_PIXEL_FORMAT_R8G8_SRGB:
+        case MG_PIXEL_FORMAT_RG8_UNORM:
+        case MG_PIXEL_FORMAT_RG8_SNORM:
+        case MG_PIXEL_FORMAT_RG8_USCALED:
+        case MG_PIXEL_FORMAT_RG8_SSCALED:
+        case MG_PIXEL_FORMAT_RG8_UINT:
+        case MG_PIXEL_FORMAT_RG8_SINT:
+        case MG_PIXEL_FORMAT_RG8_SRGB:
             return GL_RG8;
 
-        case MG_PIXEL_FORMAT_R32G32_UINT:
+        case MG_PIXEL_FORMAT_RG32_UINT:
             return GL_RG32UI;
-        case MG_PIXEL_FORMAT_R32G32_SINT:
+        case MG_PIXEL_FORMAT_RG32_SINT:
             return GL_RG32I;
 
-        case MG_PIXEL_FORMAT_R8G8B8_UNORM:
-        case MG_PIXEL_FORMAT_R8G8B8_SNORM:
-        case MG_PIXEL_FORMAT_R8G8B8_USCALED:
-        case MG_PIXEL_FORMAT_R8G8B8_SSCALED:
-        case MG_PIXEL_FORMAT_R8G8B8_UINT:
-        case MG_PIXEL_FORMAT_R8G8B8_SINT:
+        case MG_PIXEL_FORMAT_RGB8_UNORM:
+        case MG_PIXEL_FORMAT_RGB8_SNORM:
+        case MG_PIXEL_FORMAT_RGB8_USCALED:
+        case MG_PIXEL_FORMAT_RGB8_SSCALED:
+        case MG_PIXEL_FORMAT_RGB8_UINT:
+        case MG_PIXEL_FORMAT_RGB8_SINT:
 
-        case MG_PIXEL_FORMAT_B8G8R8_UNORM:
-        case MG_PIXEL_FORMAT_B8G8R8_SNORM:
-        case MG_PIXEL_FORMAT_B8G8R8_USCALED:
-        case MG_PIXEL_FORMAT_B8G8R8_SSCALED:
-        case MG_PIXEL_FORMAT_B8G8R8_UINT:
-        case MG_PIXEL_FORMAT_B8G8R8_SINT:
+        case MG_PIXEL_FORMAT_BGR8_UNORM:
+        case MG_PIXEL_FORMAT_BGR8_SNORM:
+        case MG_PIXEL_FORMAT_BGR8_USCALED:
+        case MG_PIXEL_FORMAT_BGR8_SSCALED:
+        case MG_PIXEL_FORMAT_BGR8_UINT:
+        case MG_PIXEL_FORMAT_BGR8_SINT:
             return GL_RGB8;
 
-        case MG_PIXEL_FORMAT_R8G8B8_SRGB:
-        case MG_PIXEL_FORMAT_B8G8R8_SRGB:
+        case MG_PIXEL_FORMAT_RGB8_SRGB:
+        case MG_PIXEL_FORMAT_BGR8_SRGB:
             return GL_SRGB8;
 
-        case MG_PIXEL_FORMAT_R32G32B32_UINT:
+        case MG_PIXEL_FORMAT_RGB32_UINT:
             return GL_RGB32UI;
-        case MG_PIXEL_FORMAT_R32G32B32_SINT:
+        case MG_PIXEL_FORMAT_RGB32_SINT:
             return GL_RGB32I;
 
-        case MG_PIXEL_FORMAT_R8G8B8A8_UNORM:
-        case MG_PIXEL_FORMAT_R8G8B8A8_SNORM:
-        case MG_PIXEL_FORMAT_R8G8B8A8_USCALED:
-        case MG_PIXEL_FORMAT_R8G8B8A8_SSCALED:
-        case MG_PIXEL_FORMAT_R8G8B8A8_UINT:
-        case MG_PIXEL_FORMAT_R8G8B8A8_SINT:
+        case MG_PIXEL_FORMAT_RGBA8_UNORM:
+        case MG_PIXEL_FORMAT_RGBA8_SNORM:
+        case MG_PIXEL_FORMAT_RGBA8_USCALED:
+        case MG_PIXEL_FORMAT_RGBA8_SSCALED:
+        case MG_PIXEL_FORMAT_RGBA8_UINT:
+        case MG_PIXEL_FORMAT_RGBA8_SINT:
 
-        case MG_PIXEL_FORMAT_B8G8R8A8_UNORM:
-        case MG_PIXEL_FORMAT_B8G8R8A8_SNORM:
-        case MG_PIXEL_FORMAT_B8G8R8A8_USCALED:
-        case MG_PIXEL_FORMAT_B8G8R8A8_SSCALED:
-        case MG_PIXEL_FORMAT_B8G8R8A8_UINT:
-        case MG_PIXEL_FORMAT_B8G8R8A8_SINT:
+        case MG_PIXEL_FORMAT_BGRA8_UNORM:
+        case MG_PIXEL_FORMAT_BGRA8_SNORM:
+        case MG_PIXEL_FORMAT_BGRA8_USCALED:
+        case MG_PIXEL_FORMAT_BGRA8_SSCALED:
+        case MG_PIXEL_FORMAT_BGRA8_UINT:
+        case MG_PIXEL_FORMAT_BGRA8_SINT:
             return GL_RGBA8;
 
-        case MG_PIXEL_FORMAT_R8G8B8A8_SRGB:
-        case MG_PIXEL_FORMAT_B8G8R8A8_SRGB:
+        case MG_PIXEL_FORMAT_RGBA8_SRGB:
+        case MG_PIXEL_FORMAT_BGRA8_SRGB:
             return GL_SRGB8_ALPHA8;
 
-        case MG_PIXEL_FORMAT_R32G32B32A32_UINT:
+        case MG_PIXEL_FORMAT_RGBA32_UINT:
             return GL_RGBA32UI;
-        case MG_PIXEL_FORMAT_R32G32B32A32_SINT:
+        case MG_PIXEL_FORMAT_RGBA32_SINT:
             return GL_RGBA32I;
 
 #if !MG_PLATFORM_EMSCRIPTEN
@@ -93,28 +93,28 @@ static GLenum mg_opengl_get_internal_format(mg_pixel_format format)
         case MG_PIXEL_FORMAT_R16_SINT:
             return GL_R16;
 
-        case MG_PIXEL_FORMAT_R16G16_UNORM:
-        case MG_PIXEL_FORMAT_R16G16_SNORM:
-        case MG_PIXEL_FORMAT_R16G16_USCALED:
-        case MG_PIXEL_FORMAT_R16G16_SSCALED:
-        case MG_PIXEL_FORMAT_R16G16_UINT:
-        case MG_PIXEL_FORMAT_R16G16_SINT:
+        case MG_PIXEL_FORMAT_RG16_UNORM:
+        case MG_PIXEL_FORMAT_RG16_SNORM:
+        case MG_PIXEL_FORMAT_RG16_USCALED:
+        case MG_PIXEL_FORMAT_RG16_SSCALED:
+        case MG_PIXEL_FORMAT_RG16_UINT:
+        case MG_PIXEL_FORMAT_RG16_SINT:
             return GL_RG16;
 
-        case MG_PIXEL_FORMAT_R16G16B16_UNORM:
-        case MG_PIXEL_FORMAT_R16G16B16_SNORM:
-        case MG_PIXEL_FORMAT_R16G16B16_USCALED:
-        case MG_PIXEL_FORMAT_R16G16B16_SSCALED:
-        case MG_PIXEL_FORMAT_R16G16B16_UINT:
-        case MG_PIXEL_FORMAT_R16G16B16_SINT:
+        case MG_PIXEL_FORMAT_RGB16_UNORM:
+        case MG_PIXEL_FORMAT_RGB16_SNORM:
+        case MG_PIXEL_FORMAT_RGB16_USCALED:
+        case MG_PIXEL_FORMAT_RGB16_SSCALED:
+        case MG_PIXEL_FORMAT_RGB16_UINT:
+        case MG_PIXEL_FORMAT_RGB16_SINT:
             return GL_RGB16;
 
-        case MG_PIXEL_FORMAT_R16G16B16A16_UNORM:
-        case MG_PIXEL_FORMAT_R16G16B16A16_SNORM:
-        case MG_PIXEL_FORMAT_R16G16B16A16_USCALED:
-        case MG_PIXEL_FORMAT_R16G16B16A16_SSCALED:
-        case MG_PIXEL_FORMAT_R16G16B16A16_UINT:
-        case MG_PIXEL_FORMAT_R16G16B16A16_SINT:
+        case MG_PIXEL_FORMAT_RGBA16_UNORM:
+        case MG_PIXEL_FORMAT_RGBA16_SNORM:
+        case MG_PIXEL_FORMAT_RGBA16_USCALED:
+        case MG_PIXEL_FORMAT_RGBA16_SSCALED:
+        case MG_PIXEL_FORMAT_RGBA16_UINT:
+        case MG_PIXEL_FORMAT_RGBA16_SINT:
             return GL_RGBA16;
 #endif
 
@@ -142,50 +142,50 @@ static GLenum mg_opengl_get_format(mg_pixel_format format)
         case MG_PIXEL_FORMAT_R8_SRGB:
             return GL_RED;
 
-        case MG_PIXEL_FORMAT_R8G8_UNORM:
-        case MG_PIXEL_FORMAT_R8G8_SNORM:
-        case MG_PIXEL_FORMAT_R8G8_USCALED:
-        case MG_PIXEL_FORMAT_R8G8_SSCALED:
-        case MG_PIXEL_FORMAT_R8G8_UINT:
-        case MG_PIXEL_FORMAT_R8G8_SINT:
-        case MG_PIXEL_FORMAT_R8G8_SRGB:
+        case MG_PIXEL_FORMAT_RG8_UNORM:
+        case MG_PIXEL_FORMAT_RG8_SNORM:
+        case MG_PIXEL_FORMAT_RG8_USCALED:
+        case MG_PIXEL_FORMAT_RG8_SSCALED:
+        case MG_PIXEL_FORMAT_RG8_UINT:
+        case MG_PIXEL_FORMAT_RG8_SINT:
+        case MG_PIXEL_FORMAT_RG8_SRGB:
             return GL_RG;
 
-        case MG_PIXEL_FORMAT_R8G8B8_UNORM:
-        case MG_PIXEL_FORMAT_R8G8B8_SNORM:
-        case MG_PIXEL_FORMAT_R8G8B8_USCALED:
-        case MG_PIXEL_FORMAT_R8G8B8_SSCALED:
-        case MG_PIXEL_FORMAT_R8G8B8_UINT:
-        case MG_PIXEL_FORMAT_R8G8B8_SINT:
-        case MG_PIXEL_FORMAT_R8G8B8_SRGB:
+        case MG_PIXEL_FORMAT_RGB8_UNORM:
+        case MG_PIXEL_FORMAT_RGB8_SNORM:
+        case MG_PIXEL_FORMAT_RGB8_USCALED:
+        case MG_PIXEL_FORMAT_RGB8_SSCALED:
+        case MG_PIXEL_FORMAT_RGB8_UINT:
+        case MG_PIXEL_FORMAT_RGB8_SINT:
+        case MG_PIXEL_FORMAT_RGB8_SRGB:
             return GL_RGB;
 
-        case MG_PIXEL_FORMAT_R8G8B8A8_UNORM:
-        case MG_PIXEL_FORMAT_R8G8B8A8_SNORM:
-        case MG_PIXEL_FORMAT_R8G8B8A8_USCALED:
-        case MG_PIXEL_FORMAT_R8G8B8A8_SSCALED:
-        case MG_PIXEL_FORMAT_R8G8B8A8_UINT:
-        case MG_PIXEL_FORMAT_R8G8B8A8_SINT:
-        case MG_PIXEL_FORMAT_R8G8B8A8_SRGB:
+        case MG_PIXEL_FORMAT_RGBA8_UNORM:
+        case MG_PIXEL_FORMAT_RGBA8_SNORM:
+        case MG_PIXEL_FORMAT_RGBA8_USCALED:
+        case MG_PIXEL_FORMAT_RGBA8_SSCALED:
+        case MG_PIXEL_FORMAT_RGBA8_UINT:
+        case MG_PIXEL_FORMAT_RGBA8_SINT:
+        case MG_PIXEL_FORMAT_RGBA8_SRGB:
             return GL_RGBA;
 
 #if !MG_PLATFORM_EMSCRIPTEN
-        case MG_PIXEL_FORMAT_B8G8R8_UNORM:
-        case MG_PIXEL_FORMAT_B8G8R8_SNORM:
-        case MG_PIXEL_FORMAT_B8G8R8_USCALED:
-        case MG_PIXEL_FORMAT_B8G8R8_SSCALED:
-        case MG_PIXEL_FORMAT_B8G8R8_UINT:
-        case MG_PIXEL_FORMAT_B8G8R8_SINT:
-        case MG_PIXEL_FORMAT_B8G8R8_SRGB:
+        case MG_PIXEL_FORMAT_BGR8_UNORM:
+        case MG_PIXEL_FORMAT_BGR8_SNORM:
+        case MG_PIXEL_FORMAT_BGR8_USCALED:
+        case MG_PIXEL_FORMAT_BGR8_SSCALED:
+        case MG_PIXEL_FORMAT_BGR8_UINT:
+        case MG_PIXEL_FORMAT_BGR8_SINT:
+        case MG_PIXEL_FORMAT_BGR8_SRGB:
             return GL_BGR;
 
-        case MG_PIXEL_FORMAT_B8G8R8A8_UNORM:
-        case MG_PIXEL_FORMAT_B8G8R8A8_SNORM:
-        case MG_PIXEL_FORMAT_B8G8R8A8_USCALED:
-        case MG_PIXEL_FORMAT_B8G8R8A8_SSCALED:
-        case MG_PIXEL_FORMAT_B8G8R8A8_UINT:
-        case MG_PIXEL_FORMAT_B8G8R8A8_SINT:
-        case MG_PIXEL_FORMAT_B8G8R8A8_SRGB:
+        case MG_PIXEL_FORMAT_BGRA8_UNORM:
+        case MG_PIXEL_FORMAT_BGRA8_SNORM:
+        case MG_PIXEL_FORMAT_BGRA8_USCALED:
+        case MG_PIXEL_FORMAT_BGRA8_SSCALED:
+        case MG_PIXEL_FORMAT_BGRA8_UINT:
+        case MG_PIXEL_FORMAT_BGRA8_SINT:
+        case MG_PIXEL_FORMAT_BGRA8_SRGB:
             return GL_BGRA;
 #endif
         case MG_PIXEL_FORMAT_D32_SFLOAT:
@@ -231,7 +231,7 @@ static GLint mg_opengl_get_address_mode(mg_sampler_address_mode address_mode)
     }
 }
 
-mg_opengl_image *mg_opengl_create_image(mg_image_create_info *create_info)
+mg_opengl_image *mg_opengl_create_image(const mg_image_create_info *create_info)
 {
     mg_opengl_image *image = (mg_opengl_image*)malloc(sizeof(mg_opengl_image));
 
@@ -246,9 +246,12 @@ mg_opengl_image *mg_opengl_create_image(mg_image_create_info *create_info)
 
     glBindTexture(image->texture_target, image->texture_id);
 
+    image->internal_format = mg_opengl_get_internal_format(create_info->format);
+    image->format = mg_opengl_get_format(create_info->format);
+
     const GLuint usage = create_info->usage == MG_IMAGE_USAGE_COLOR_ATTACHMENT ? GL_UNSIGNED_BYTE : GL_UNSIGNED_INT_24_8;
-    glTexImage2D(image->texture_target, 0, mg_opengl_get_internal_format(create_info->format),
-        create_info->width, create_info->height, 0, mg_opengl_get_format(create_info->format), usage, NULL);
+    glTexImage2D(image->texture_target, 0, image->internal_format,
+        create_info->width, create_info->height, 0, image->format, usage, NULL);
 
     return image;
 }
@@ -259,11 +262,15 @@ void mg_opengl_destroy_image(mg_opengl_image *image)
     free(image);
 }
 
-void mg_opengl_update_image(mg_opengl_image *image, mg_image_update_info *write_info)
+void mg_opengl_update_image(mg_opengl_image *image, const mg_image_update_info *update_info)
 {
 	glBindTexture(image->texture_target, image->texture_id);
-	glTexImage2D(image->texture_target, 0, mg_opengl_get_internal_format(write_info->format),
-        write_info->width, write_info->height, 0, mg_opengl_get_format(write_info->format), GL_UNSIGNED_BYTE, write_info->data);
+    if (image->texture_target == GL_TEXTURE_2D)
+        glTexImage2D(GL_TEXTURE_2D, 0, image->internal_format,
+            update_info->width, update_info->height, 0, image->format, GL_UNSIGNED_BYTE, update_info->data);
+    else if (image->texture_target == GL_TEXTURE_3D)
+        glTexImage3D(GL_TEXTURE_3D, 0, image->internal_format,
+            update_info->width, update_info->height, update_info->depth, 0, image->format, GL_UNSIGNED_BYTE, update_info->data);
 }
 
 void mg_opengl_bind_image(mg_opengl_image *image, mg_opengl_sampler *sampler, uint32_t binding)
@@ -277,7 +284,7 @@ void mg_opengl_bind_image(mg_opengl_image *image, mg_opengl_sampler *sampler, ui
     glTexParameteri(image->texture_target, GL_TEXTURE_WRAP_R, sampler->address_mode_w);
 }
 
-mg_opengl_sampler *mg_opengl_create_sampler(mg_sampler_create_info *create_info)
+mg_opengl_sampler *mg_opengl_create_sampler(const mg_sampler_create_info *create_info)
 {
     mg_opengl_sampler *sampler = (mg_opengl_sampler*)malloc(sizeof(mg_opengl_sampler));
 

@@ -60,8 +60,8 @@ mg_index_type;
 
 typedef enum mg_buffer_usage
 {
-    MG_BUFFER_USAGE_VERTEX = 32,
-    MG_BUFFER_USAGE_INDEX = 64
+    MG_BUFFER_USAGE_INDEX = 64,
+    MG_BUFFER_USAGE_VERTEX = 128
 }
 mg_buffer_usage;
 
@@ -92,41 +92,41 @@ typedef enum mg_pixel_format
     MG_PIXEL_FORMAT_R8_UINT = 13,
     MG_PIXEL_FORMAT_R8_SINT = 14,
     MG_PIXEL_FORMAT_R8_SRGB = 15,
-    MG_PIXEL_FORMAT_R8G8_UNORM = 16,
-    MG_PIXEL_FORMAT_R8G8_SNORM = 17,
-    MG_PIXEL_FORMAT_R8G8_USCALED = 18,
-    MG_PIXEL_FORMAT_R8G8_SSCALED = 19,
-    MG_PIXEL_FORMAT_R8G8_UINT = 20,
-    MG_PIXEL_FORMAT_R8G8_SINT = 21,
-    MG_PIXEL_FORMAT_R8G8_SRGB = 22,
-    MG_PIXEL_FORMAT_R8G8B8_UNORM = 23,
-    MG_PIXEL_FORMAT_R8G8B8_SNORM = 24,
-    MG_PIXEL_FORMAT_R8G8B8_USCALED = 25,
-    MG_PIXEL_FORMAT_R8G8B8_SSCALED = 26,
-    MG_PIXEL_FORMAT_R8G8B8_UINT = 27,
-    MG_PIXEL_FORMAT_R8G8B8_SINT = 28,
-    MG_PIXEL_FORMAT_R8G8B8_SRGB = 29,
-    MG_PIXEL_FORMAT_B8G8R8_UNORM = 30,
-    MG_PIXEL_FORMAT_B8G8R8_SNORM = 31,
-    MG_PIXEL_FORMAT_B8G8R8_USCALED = 32,
-    MG_PIXEL_FORMAT_B8G8R8_SSCALED = 33,
-    MG_PIXEL_FORMAT_B8G8R8_UINT = 34,
-    MG_PIXEL_FORMAT_B8G8R8_SINT = 35,
-    MG_PIXEL_FORMAT_B8G8R8_SRGB = 36,
-    MG_PIXEL_FORMAT_R8G8B8A8_UNORM = 37,
-    MG_PIXEL_FORMAT_R8G8B8A8_SNORM = 38,
-    MG_PIXEL_FORMAT_R8G8B8A8_USCALED = 39,
-    MG_PIXEL_FORMAT_R8G8B8A8_SSCALED = 40,
-    MG_PIXEL_FORMAT_R8G8B8A8_UINT = 41,
-    MG_PIXEL_FORMAT_R8G8B8A8_SINT = 42,
-    MG_PIXEL_FORMAT_R8G8B8A8_SRGB = 43,
-    MG_PIXEL_FORMAT_B8G8R8A8_UNORM = 44,
-    MG_PIXEL_FORMAT_B8G8R8A8_SNORM = 45,
-    MG_PIXEL_FORMAT_B8G8R8A8_USCALED = 46,
-    MG_PIXEL_FORMAT_B8G8R8A8_SSCALED = 47,
-    MG_PIXEL_FORMAT_B8G8R8A8_UINT = 48,
-    MG_PIXEL_FORMAT_B8G8R8A8_SINT = 49,
-    MG_PIXEL_FORMAT_B8G8R8A8_SRGB = 50,
+    MG_PIXEL_FORMAT_RG8_UNORM = 16,
+    MG_PIXEL_FORMAT_RG8_SNORM = 17,
+    MG_PIXEL_FORMAT_RG8_USCALED = 18,
+    MG_PIXEL_FORMAT_RG8_SSCALED = 19,
+    MG_PIXEL_FORMAT_RG8_UINT = 20,
+    MG_PIXEL_FORMAT_RG8_SINT = 21,
+    MG_PIXEL_FORMAT_RG8_SRGB = 22,
+    MG_PIXEL_FORMAT_RGB8_UNORM = 23,
+    MG_PIXEL_FORMAT_RGB8_SNORM = 24,
+    MG_PIXEL_FORMAT_RGB8_USCALED = 25,
+    MG_PIXEL_FORMAT_RGB8_SSCALED = 26,
+    MG_PIXEL_FORMAT_RGB8_UINT = 27,
+    MG_PIXEL_FORMAT_RGB8_SINT = 28,
+    MG_PIXEL_FORMAT_RGB8_SRGB = 29,
+    MG_PIXEL_FORMAT_BGR8_UNORM = 30,
+    MG_PIXEL_FORMAT_BGR8_SNORM = 31,
+    MG_PIXEL_FORMAT_BGR8_USCALED = 32,
+    MG_PIXEL_FORMAT_BGR8_SSCALED = 33,
+    MG_PIXEL_FORMAT_BGR8_UINT = 34,
+    MG_PIXEL_FORMAT_BGR8_SINT = 35,
+    MG_PIXEL_FORMAT_BGR8_SRGB = 36,
+    MG_PIXEL_FORMAT_RGBA8_UNORM = 37,
+    MG_PIXEL_FORMAT_RGBA8_SNORM = 38,
+    MG_PIXEL_FORMAT_RGBA8_USCALED = 39,
+    MG_PIXEL_FORMAT_RGBA8_SSCALED = 40,
+    MG_PIXEL_FORMAT_RGBA8_UINT = 41,
+    MG_PIXEL_FORMAT_RGBA8_SINT = 42,
+    MG_PIXEL_FORMAT_RGBA8_SRGB = 43,
+    MG_PIXEL_FORMAT_BGRA8_UNORM = 44,
+    MG_PIXEL_FORMAT_BGRA8_SNORM = 45,
+    MG_PIXEL_FORMAT_BGRA8_USCALED = 46,
+    MG_PIXEL_FORMAT_BGRA8_SSCALED = 47,
+    MG_PIXEL_FORMAT_BGRA8_UINT = 48,
+    MG_PIXEL_FORMAT_BGRA8_SINT = 49,
+    MG_PIXEL_FORMAT_BGRA8_SRGB = 50,
     MG_PIXEL_FORMAT_R16_UNORM = 70,
     MG_PIXEL_FORMAT_R16_SNORM = 71,
     MG_PIXEL_FORMAT_R16_USCALED = 72,
@@ -134,51 +134,51 @@ typedef enum mg_pixel_format
     MG_PIXEL_FORMAT_R16_UINT = 74,
     MG_PIXEL_FORMAT_R16_SINT = 75,
     MG_PIXEL_FORMAT_R16_SFLOAT = 76,
-    MG_PIXEL_FORMAT_R16G16_UNORM = 77,
-    MG_PIXEL_FORMAT_R16G16_SNORM = 78,
-    MG_PIXEL_FORMAT_R16G16_USCALED = 79,
-    MG_PIXEL_FORMAT_R16G16_SSCALED = 80,
-    MG_PIXEL_FORMAT_R16G16_UINT = 81,
-    MG_PIXEL_FORMAT_R16G16_SINT = 82,
-    MG_PIXEL_FORMAT_R16G16_SFLOAT = 83,
-    MG_PIXEL_FORMAT_R16G16B16_UNORM = 84,
-    MG_PIXEL_FORMAT_R16G16B16_SNORM = 85,
-    MG_PIXEL_FORMAT_R16G16B16_USCALED = 86,
-    MG_PIXEL_FORMAT_R16G16B16_SSCALED = 87,
-    MG_PIXEL_FORMAT_R16G16B16_UINT = 88,
-    MG_PIXEL_FORMAT_R16G16B16_SINT = 89,
-    MG_PIXEL_FORMAT_R16G16B16_SFLOAT = 90,
-    MG_PIXEL_FORMAT_R16G16B16A16_UNORM = 91,
-    MG_PIXEL_FORMAT_R16G16B16A16_SNORM = 92,
-    MG_PIXEL_FORMAT_R16G16B16A16_USCALED = 93,
-    MG_PIXEL_FORMAT_R16G16B16A16_SSCALED = 94,
-    MG_PIXEL_FORMAT_R16G16B16A16_UINT = 95,
-    MG_PIXEL_FORMAT_R16G16B16A16_SINT = 96,
-    MG_PIXEL_FORMAT_R16G16B16A16_SFLOAT = 97,
+    MG_PIXEL_FORMAT_RG16_UNORM = 77,
+    MG_PIXEL_FORMAT_RG16_SNORM = 78,
+    MG_PIXEL_FORMAT_RG16_USCALED = 79,
+    MG_PIXEL_FORMAT_RG16_SSCALED = 80,
+    MG_PIXEL_FORMAT_RG16_UINT = 81,
+    MG_PIXEL_FORMAT_RG16_SINT = 82,
+    MG_PIXEL_FORMAT_RG16_SFLOAT = 83,
+    MG_PIXEL_FORMAT_RGB16_UNORM = 84,
+    MG_PIXEL_FORMAT_RGB16_SNORM = 85,
+    MG_PIXEL_FORMAT_RGB16_USCALED = 86,
+    MG_PIXEL_FORMAT_RGB16_SSCALED = 87,
+    MG_PIXEL_FORMAT_RGB16_UINT = 88,
+    MG_PIXEL_FORMAT_RGB16_SINT = 89,
+    MG_PIXEL_FORMAT_RGB16_SFLOAT = 90,
+    MG_PIXEL_FORMAT_RGBA16_UNORM = 91,
+    MG_PIXEL_FORMAT_RGBA16_SNORM = 92,
+    MG_PIXEL_FORMAT_RGBA16_USCALED = 93,
+    MG_PIXEL_FORMAT_RGBA16_SSCALED = 94,
+    MG_PIXEL_FORMAT_RGBA16_UINT = 95,
+    MG_PIXEL_FORMAT_RGBA16_SINT = 96,
+    MG_PIXEL_FORMAT_RGBA16_SFLOAT = 97,
     MG_PIXEL_FORMAT_R32_UINT = 98,
     MG_PIXEL_FORMAT_R32_SINT = 99,
     MG_PIXEL_FORMAT_R32_SFLOAT = 100,
-    MG_PIXEL_FORMAT_R32G32_UINT = 101,
-    MG_PIXEL_FORMAT_R32G32_SINT = 102,
-    MG_PIXEL_FORMAT_R32G32_SFLOAT = 103,
-    MG_PIXEL_FORMAT_R32G32B32_UINT = 104,
-    MG_PIXEL_FORMAT_R32G32B32_SINT = 105,
-    MG_PIXEL_FORMAT_R32G32B32_SFLOAT = 106,
-    MG_PIXEL_FORMAT_R32G32B32A32_UINT = 107,
-    MG_PIXEL_FORMAT_R32G32B32A32_SINT = 108,
-    MG_PIXEL_FORMAT_R32G32B32A32_SFLOAT = 109,
+    MG_PIXEL_FORMAT_RG32_UINT = 101,
+    MG_PIXEL_FORMAT_RG32_SINT = 102,
+    MG_PIXEL_FORMAT_RG32_SFLOAT = 103,
+    MG_PIXEL_FORMAT_RGB32_UINT = 104,
+    MG_PIXEL_FORMAT_RGB32_SINT = 105,
+    MG_PIXEL_FORMAT_RGB32_SFLOAT = 106,
+    MG_PIXEL_FORMAT_RGBA32_UINT = 107,
+    MG_PIXEL_FORMAT_RGBA32_SINT = 108,
+    MG_PIXEL_FORMAT_RGBA32_SFLOAT = 109,
     MG_PIXEL_FORMAT_R64_UINT = 110,
     MG_PIXEL_FORMAT_R64_SINT = 111,
     MG_PIXEL_FORMAT_R64_SFLOAT = 112,
-    MG_PIXEL_FORMAT_R64G64_UINT = 113,
-    MG_PIXEL_FORMAT_R64G64_SINT = 114,
-    MG_PIXEL_FORMAT_R64G64_SFLOAT = 115,
-    MG_PIXEL_FORMAT_R64G64B64_UINT = 116,
-    MG_PIXEL_FORMAT_R64G64B64_SINT = 117,
-    MG_PIXEL_FORMAT_R64G64B64_SFLOAT = 118,
-    MG_PIXEL_FORMAT_R64G64B64A64_UINT = 119,
-    MG_PIXEL_FORMAT_R64G64B64A64_SINT = 120,
-    MG_PIXEL_FORMAT_R64G64B64A64_SFLOAT = 121,
+    MG_PIXEL_FORMAT_RG64_UINT = 113,
+    MG_PIXEL_FORMAT_RG64_SINT = 114,
+    MG_PIXEL_FORMAT_RG64_SFLOAT = 115,
+    MG_PIXEL_FORMAT_RGB64_UINT = 116,
+    MG_PIXEL_FORMAT_RGB64_SINT = 117,
+    MG_PIXEL_FORMAT_RGB64_SFLOAT = 118,
+    MG_PIXEL_FORMAT_RGBA64_UINT = 119,
+    MG_PIXEL_FORMAT_RGBA64_SINT = 120,
+    MG_PIXEL_FORMAT_RGBA64_SFLOAT = 121,
     MG_PIXEL_FORMAT_D32_SFLOAT = 126,
     MG_PIXEL_FORMAT_D16_UNORM_S8_UINT = 128,
     MG_PIXEL_FORMAT_D24_UNORM_S8_UINT = 129,
@@ -206,7 +206,7 @@ typedef struct mg_image_create_info
     mg_pixel_format format;
     mg_image_type type;
     mg_image_usage usage;
-    uint32_t width, height;
+    uint32_t width, height, depth;
 }
 mg_image_create_info;
 
@@ -214,8 +214,8 @@ typedef void *mg_image;
 
 typedef struct mg_image_update_info
 {
-    mg_pixel_format format;
-    uint32_t width, height;
+    uint32_t width, height, depth;
+    uint8_t bpp;
     void *data;
 }
 mg_image_update_info;
@@ -434,10 +434,8 @@ mg_compare_op;
 
 typedef struct mg_depth_stencil_state
 {
-    bool depth_test_enabled;
     bool depth_write_enabled;
     bool stencil_test_enabled;
-
     mg_compare_op depth_compare_op;
 }
 mg_depth_stencil_state;
@@ -529,22 +527,15 @@ mg_pipeline_create_info;
 
 typedef void *mg_pipeline;
 
-typedef struct mg_swapchain_config_info
-{
-    mg_pixel_format format;
-    uint32_t width, height;
-    bool vsync;
-}
-mg_swapchain_config_info;
-
 typedef struct mgfx_init_info
 {
     mg_renderer_type type;
-    mg_swapchain_config_info *swapchain_config_info;
+    uint32_t width, height;
+    bool vsync;
 }
 mgfx_init_info;
 
-MG_API void                            mgfx_initialize                      (mgfx_init_info *init_info);
+MG_API void                            mgfx_initialize                      (const mgfx_init_info *init_info);
 MG_API inline void                     mgfx_shutdown                        (void);
 
 MG_API inline void                     mgfx_begin                     		(void);
@@ -559,18 +550,18 @@ MG_API inline void                      mgfx_draw_instanced                 (uin
 MG_API inline void                      mgfx_draw_indexed_instanced         (uint32_t index_count, uint32_t first_index, int32_t vertex_offset, uint32_t instance_count, uint32_t first_instance);
 MG_API inline void                      mgfx_dispatch                       (uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z);
 
-MG_API inline void                      mgfx_configure_swapchain            (mg_swapchain_config_info *config_info);
+MG_API inline void                      mgfx_reset                          (uint32_t width, uint32_t height, bool vsync);
 
-MG_API inline mg_render_pass            mgfx_create_render_pass             (mg_render_pass_create_info *create_info);
+MG_API inline mg_render_pass            mgfx_create_render_pass             (const mg_render_pass_create_info *create_info);
 MG_API inline void                      mgfx_destroy_render_pass            (mg_render_pass render_pass);
-MG_API inline void                      mgfx_update_render_pass             (mg_render_pass render_pass, mg_render_pass_update_info *resize_info);
-MG_API inline void                      mgfx_bind_render_pass               (mg_render_pass render_pass, mg_render_pass_bind_info *begin_info);
+MG_API inline void                      mgfx_update_render_pass             (mg_render_pass render_pass, const mg_render_pass_update_info *update_info);
+MG_API inline void                      mgfx_bind_render_pass               (mg_render_pass render_pass, const mg_render_pass_bind_info *begin_info);
 
-MG_API inline mg_pipeline               mgfx_create_pipeline                (mg_pipeline_create_info *create_info);
+MG_API inline mg_pipeline               mgfx_create_pipeline                (const mg_pipeline_create_info *create_info);
 MG_API inline void                      mgfx_destroy_pipeline               (mg_pipeline pipeline);
 MG_API inline void                      mgfx_bind_pipeline                  (mg_pipeline pipeline);
 
-MG_API inline mg_buffer                 mgfx_create_buffer                  (mg_buffer_create_info *create_info);
+MG_API inline mg_buffer                 mgfx_create_buffer                  (const mg_buffer_create_info *create_info);
 MG_API inline void                      mgfx_destroy_buffer                 (mg_buffer buffer);
 MG_API inline void                      mgfx_update_buffer                  (mg_buffer buffer, size_t size, void *data);
 
@@ -579,12 +570,12 @@ MG_API inline void                      mgfx_bind_index_buffer              (mg_
 
 MG_API inline void                      mgfx_bind_uniforms                  (uint32_t binding, size_t size, void *data);
 
-MG_API inline mg_image                  mgfx_create_image                   (mg_image_create_info *create_info);
+MG_API inline mg_image                  mgfx_create_image                   (const mg_image_create_info *create_info);
 MG_API inline void                      mgfx_destroy_image                  (mg_image image);
-MG_API inline void                      mgfx_update_image                   (mg_image image, mg_image_update_info *write_info);
+MG_API inline void                      mgfx_update_image                   (mg_image image, const mg_image_update_info *update_info);
 MG_API inline void                      mgfx_bind_image                     (mg_image image, mg_sampler sampler, uint32_t binding);
 
-MG_API inline mg_sampler                mgfx_create_sampler                 (mg_sampler_create_info *create_info);
+MG_API inline mg_sampler                mgfx_create_sampler                 (const mg_sampler_create_info *create_info);
 MG_API inline void                      mgfx_destroy_sampler                (mg_sampler sampler);
 
 MG_API inline mg_renderer_type          mgfx_get_type                       (void);

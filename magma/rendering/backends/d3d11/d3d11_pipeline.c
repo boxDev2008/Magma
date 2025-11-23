@@ -10,7 +10,7 @@
 
 #include <stdio.h>
 
-mg_d3d11_pipeline *mg_d3d11_create_pipeline(mg_pipeline_create_info *create_info)
+mg_d3d11_pipeline *mg_d3d11_create_pipeline(const mg_pipeline_create_info *create_info)
 {
     mg_d3d11_pipeline *pipeline = (mg_d3d11_pipeline*)malloc(sizeof(mg_d3d11_pipeline));
 
@@ -19,7 +19,7 @@ mg_d3d11_pipeline *mg_d3d11_create_pipeline(mg_pipeline_create_info *create_info
     if (create_info->shader.compute.size)
     {
         ID3DBlob* cs_blob = NULL;
-        mg_shader_source *cs = &create_info->shader.compute;
+        const mg_shader_source *cs = &create_info->shader.compute;
 
         D3DCompile(cs->code, cs->size, NULL, NULL, NULL,
             "main", "cs_5_0", 0, 0, &cs_blob, &error_blob
@@ -41,8 +41,8 @@ mg_d3d11_pipeline *mg_d3d11_create_pipeline(mg_pipeline_create_info *create_info
     ID3DBlob* vs_blob = NULL;
     ID3DBlob* ps_blob = NULL;
 
-    mg_shader_source *vs = &create_info->shader.vertex;
-    mg_shader_source *fg = &create_info->shader.fragment;
+    const mg_shader_source *vs = &create_info->shader.vertex;
+    const mg_shader_source *fg = &create_info->shader.fragment;
 
     D3DCompile(vs->code, vs->size, NULL, NULL, NULL,
         "main", "vs_5_0", 0, 0, &vs_blob, &error_blob
@@ -86,7 +86,7 @@ mg_d3d11_pipeline *mg_d3d11_create_pipeline(mg_pipeline_create_info *create_info
             i < MG_CONFIG_MAX_VERTEX_ATTRIBUTES &&
             create_info->vertex_layout.attributes[i].format; i++)
 		{
-			mg_vertex_attribute_info *attribute = &create_info->vertex_layout.attributes[i];
+			const mg_vertex_attribute_info *attribute = &create_info->vertex_layout.attributes[i];
 			layout[i].SemanticName = "TEXCOORD";
 			layout[i].SemanticIndex = attribute->location;
 			layout[i].Format = mg_d3d11_get_vertex_format(attribute->format); 
@@ -117,13 +117,19 @@ mg_d3d11_pipeline *mg_d3d11_create_pipeline(mg_pipeline_create_info *create_info
     ID3D11Device_CreateRasterizerState(d3d11_ctx.device, &rasterDesc, &pipeline->raster_state);
 
     D3D11_DEPTH_STENCIL_DESC depthStencilStateDesc = { 0 };
-    depthStencilStateDesc.DepthEnable = create_info->depth_stencil.depth_test_enabled;
+
+    if (create_info->depth_stencil.depth_compare_op != MG_COMPARE_OP_NEVER)
+    {
+        depthStencilStateDesc.DepthEnable = true;
+        depthStencilStateDesc.DepthWriteMask =
+            create_info->depth_stencil.depth_write_enabled ?
+            D3D11_DEPTH_WRITE_MASK_ALL :
+            D3D11_DEPTH_WRITE_MASK_ZERO;
+        depthStencilStateDesc.DepthFunc = mg_d3d11_get_comparison_func(create_info->depth_stencil.depth_compare_op);
+    }
+
     depthStencilStateDesc.StencilEnable = create_info->depth_stencil.stencil_test_enabled;
-    depthStencilStateDesc.DepthWriteMask =
-        create_info->depth_stencil.depth_write_enabled ?
-        D3D11_DEPTH_WRITE_MASK_ALL :
-        D3D11_DEPTH_WRITE_MASK_ZERO;
-    depthStencilStateDesc.DepthFunc = mg_d3d11_get_comparison_func(create_info->depth_stencil.depth_compare_op);
+
     ID3D11Device_CreateDepthStencilState(d3d11_ctx.device, &depthStencilStateDesc, &pipeline->depth_stencil_state);
 
     D3D11_BLEND_DESC blendDesc = { 0 };

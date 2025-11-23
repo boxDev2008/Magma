@@ -23,35 +23,35 @@
     #include "backends/d3d11/d3d11_image.h"
 #endif
 
-typedef void (*mgfx_initialize_fn)(mgfx_init_info *init_info);
+typedef void (*mgfx_initialize_fn)(const mgfx_init_info *init_info);
 typedef void (*mgfx_shutdown_fn)(void);
 typedef void (*mgfx_begin_fn)(void);
 typedef void (*mgfx_end_fn)(void);
 typedef void (*mgfx_present_frame_fn)(void);
 
-typedef void (*mgfx_configure_swapchain_fn)(mg_swapchain_config_info *config_info);
+typedef void (*mgfx_reset_fn)(uint32_t width, uint32_t height, bool vsync);
 
 typedef void (*mgfx_viewport_fn)(int32_t x, int32_t y, uint32_t width, uint32_t height);
 typedef void (*mgfx_scissor_fn)(int32_t x, int32_t y, uint32_t width, uint32_t height);
 
-typedef void *(*mgfx_create_render_pass_fn)(mg_render_pass_create_info *create_info);
+typedef void *(*mgfx_create_render_pass_fn)(const mg_render_pass_create_info *create_info);
 typedef void (*mgfx_destroy_render_pass_fn)(void *render_pass);
-typedef void (*mgfx_update_render_pass_fn)(void *render_pass, mg_render_pass_update_info *update_info);
-typedef void (*mgfx_bind_render_pass_fn)(void *render_pass, mg_render_pass_bind_info *bind_info);
+typedef void (*mgfx_update_render_pass_fn)(void *render_pass, const mg_render_pass_update_info *update_info);
+typedef void (*mgfx_bind_render_pass_fn)(void *render_pass, const mg_render_pass_bind_info *bind_info);
 
-typedef void *(*mgfx_create_pipeline_fn)(mg_pipeline_create_info *create_info);
+typedef void *(*mgfx_create_pipeline_fn)(const mg_pipeline_create_info *create_info);
 typedef void (*mgfx_destroy_pipeline_fn)(void *pipeline);
 typedef void (*mgfx_bind_pipeline_fn)(void *pipeline);
 
-typedef void *(*mgfx_create_image_fn)(mg_image_create_info *create_info);
+typedef void *(*mgfx_create_image_fn)(const mg_image_create_info *create_info);
 typedef void (*mgfx_destroy_image_fn)(void *image);
-typedef void (*mgfx_update_image_fn)(void *image, mg_image_update_info *write_info);
+typedef void (*mgfx_update_image_fn)(void *image, const mg_image_update_info *update_info);
 typedef void (*mgfx_bind_image_fn)(void *image, void *sampler, uint32_t binding);
 
-typedef void *(*mgfx_create_sampler_fn)(mg_sampler_create_info *create_info);
+typedef void *(*mgfx_create_sampler_fn)(const mg_sampler_create_info *create_info);
 typedef void (*mgfx_destroy_sampler_fn)(void *sampler);
 
-typedef void *(*mgfx_create_buffer_fn)(mg_buffer_create_info *create_info);
+typedef void *(*mgfx_create_buffer_fn)(const mg_buffer_create_info *create_info);
 typedef void (*mgfx_destroy_buffer_fn)(void *buffer);
 typedef void (*mgfx_update_buffer_fn)(void *buffer, size_t size, void *data);
 
@@ -78,7 +78,7 @@ typedef struct mgfx_pipe
     mgfx_end_fn                    end;
     mgfx_present_frame_fn          present_frame;
 
-    mgfx_configure_swapchain_fn    configure_swapchain;
+    mgfx_reset_fn                  reset;
 
     mgfx_viewport_fn               viewport;
     mgfx_scissor_fn                scissor;
@@ -119,7 +119,7 @@ mgfx_pipe;
 
 static mgfx_pipe pipe;
 
-void mgfx_initialize(mgfx_init_info *init_info)
+void mgfx_initialize(const mgfx_init_info *init_info)
 {
     switch (init_info->type)
     {
@@ -132,7 +132,7 @@ void mgfx_initialize(mgfx_init_info *init_info)
         pipe.viewport         =   mg_vulkan_renderer_viewport;
         pipe.scissor          =   mg_vulkan_renderer_scissor;
 
-        pipe.configure_swapchain          =   mg_vulkan_configure_swapchain;
+        pipe.reset          =   mg_vulkan_reset;
 
         pipe.create_render_pass           =   mg_vulkan_create_render_pass;
         pipe.destroy_render_pass          =   mg_vulkan_destroy_render_pass;
@@ -176,7 +176,7 @@ void mgfx_initialize(mgfx_init_info *init_info)
         pipe.viewport         =   mg_opengl_renderer_viewport;
         pipe.scissor          =   mg_opengl_renderer_scissor;
 
-        pipe.configure_swapchain          =   mg_opengl_configure_swapchain;
+        pipe.reset          =   mg_opengl_renderer_reset;
 
         pipe.create_render_pass         =   mg_opengl_create_render_pass;
         pipe.destroy_render_pass        =   mg_opengl_destroy_render_pass;
@@ -220,11 +220,11 @@ void mgfx_initialize(mgfx_init_info *init_info)
         pipe.viewport         =   mg_d3d11_renderer_viewport;
         pipe.scissor          =   mg_d3d11_renderer_scissor;
 
-        pipe.configure_swapchain    =   mg_d3d11_renderer_configure_swapchain;
+        pipe.reset    =   mg_d3d11_renderer_reset;
 
         pipe.create_render_pass           =   mg_d3d11_create_render_pass;
         pipe.destroy_render_pass          =   mg_d3d11_destroy_render_pass;
-        pipe.update_render_pass           =   mg_d3d11_update_render_pass;
+        pipe.update_render_pass           =   (mgfx_update_render_pass_fn)mg_d3d11_update_render_pass;
         pipe.bind_render_pass           =   mg_d3d11_bind_render_pass;
 
         pipe.create_pipeline  =   mg_d3d11_create_pipeline;
@@ -261,167 +261,167 @@ void mgfx_initialize(mgfx_init_info *init_info)
     pipe.initialize(init_info);
 }
 
-inline void mgfx_shutdown(void)
+void mgfx_shutdown(void)
 {
     pipe.shutdown();
 }
 
-inline void mgfx_begin(void)
+void mgfx_begin(void)
 {
     pipe.begin();
 }
 
-inline void mgfx_end(void)
+void mgfx_end(void)
 {
     pipe.end();
 }
 
-inline void mgfx_viewport(int32_t x, int32_t y, uint32_t width, uint32_t height)
+void mgfx_viewport(int32_t x, int32_t y, uint32_t width, uint32_t height)
 {
     pipe.viewport(x, y, width, height);
 }
 
-inline void mgfx_scissor(int32_t x, int32_t y, uint32_t width, uint32_t height)
+void mgfx_scissor(int32_t x, int32_t y, uint32_t width, uint32_t height)
 {
     pipe.scissor(x, y, width, height);
 }
 
-inline void mgfx_configure_swapchain(mg_swapchain_config_info *config_info)
+void mgfx_reset(uint32_t width, uint32_t height, bool vsync)
 {
-    pipe.configure_swapchain(config_info);
+    pipe.reset(width, height, vsync);
 }
 
-inline mg_render_pass mgfx_create_render_pass(mg_render_pass_create_info *create_info)
+mg_render_pass mgfx_create_render_pass(const mg_render_pass_create_info *create_info)
 {
     mg_render_pass render_pass;
     render_pass = pipe.create_render_pass(create_info);
     return render_pass;
 }
 
-inline void mgfx_destroy_render_pass(mg_render_pass render_pass)
+void mgfx_destroy_render_pass(mg_render_pass render_pass)
 {
     pipe.destroy_render_pass(render_pass);
 }
 
-inline void mgfx_update_render_pass(mg_render_pass render_pass, mg_render_pass_update_info *update_info)
+void mgfx_update_render_pass(mg_render_pass render_pass, const mg_render_pass_update_info *update_info)
 {
     pipe.update_render_pass(render_pass, update_info);
 }
 
-inline void mgfx_bind_render_pass(mg_render_pass render_pass, mg_render_pass_bind_info *begin_info)
+void mgfx_bind_render_pass(mg_render_pass render_pass, const mg_render_pass_bind_info *begin_info)
 {
     pipe.bind_render_pass(render_pass, begin_info);
 }
 
-inline void mgfx_draw(uint32_t vertex_count, uint32_t first_vertex)
+void mgfx_draw(uint32_t vertex_count, uint32_t first_vertex)
 {
     pipe.draw(vertex_count, first_vertex);
 }
 
-inline void mgfx_draw_indexed(uint32_t index_count, uint32_t first_index, uint32_t vertex_offset)
+void mgfx_draw_indexed(uint32_t index_count, uint32_t first_index, uint32_t vertex_offset)
 {
     pipe.draw_indexed(index_count, first_index, vertex_offset);
 }
 
-inline void mgfx_draw_instanced(uint32_t vertex_count, uint32_t first_vertex, uint32_t instance_count, uint32_t first_instance)
+void mgfx_draw_instanced(uint32_t vertex_count, uint32_t first_vertex, uint32_t instance_count, uint32_t first_instance)
 {
     pipe.draw_instanced(vertex_count, first_vertex, instance_count, first_instance);
 }
 
-inline void mgfx_draw_indexed_instanced(uint32_t index_count, uint32_t first_index, int32_t first_vertex, uint32_t instance_count, uint32_t first_instance)
+void mgfx_draw_indexed_instanced(uint32_t index_count, uint32_t first_index, int32_t first_vertex, uint32_t instance_count, uint32_t first_instance)
 {
     pipe.draw_indexed_instanced(index_count, first_index, first_vertex, instance_count, first_instance);
 }
 
-inline void mgfx_dispatch(uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z)
+void mgfx_dispatch(uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z)
 {
     pipe.dispatch(group_count_x, group_count_y, group_count_z);
 }
 
-inline mg_pipeline mgfx_create_pipeline(mg_pipeline_create_info *create_info)
+mg_pipeline mgfx_create_pipeline(const mg_pipeline_create_info *create_info)
 {
     mg_pipeline pipeline;
     pipeline = pipe.create_pipeline(create_info);
     return pipeline;
 }
 
-inline void mgfx_destroy_pipeline(mg_pipeline pipeline)
+void mgfx_destroy_pipeline(mg_pipeline pipeline)
 {
     pipe.destroy_pipeline(pipeline);
 }
 
-inline void mgfx_bind_pipeline(mg_pipeline pipeline)
+void mgfx_bind_pipeline(mg_pipeline pipeline)
 {
     pipe.bind_pipeline(pipeline);
 }
 
-inline mg_buffer mgfx_create_buffer(mg_buffer_create_info *create_info)
+mg_buffer mgfx_create_buffer(const mg_buffer_create_info *create_info)
 {
     mg_buffer buffer;
     buffer = pipe.create_buffer(create_info);
     return buffer;
 }
 
-inline void mgfx_destroy_buffer(mg_buffer buffer)
+void mgfx_destroy_buffer(mg_buffer buffer)
 {
     pipe.destroy_buffer(buffer);
 }
 
-inline void mgfx_update_buffer(mg_buffer buffer, size_t size, void *data)
+void mgfx_update_buffer(mg_buffer buffer, size_t size, void *data)
 {
     pipe.update_buffer(buffer, size, data);
 }
 
-inline void mgfx_bind_vertex_buffer(mg_buffer buffer)
+void mgfx_bind_vertex_buffer(mg_buffer buffer)
 {
     pipe.bind_vertex_buffer(buffer);
 }
 
-inline void mgfx_bind_index_buffer(mg_buffer buffer, mg_index_type index_type)
+void mgfx_bind_index_buffer(mg_buffer buffer, mg_index_type index_type)
 {
     pipe.bind_index_buffer(buffer, index_type);
 }
 
-inline void mgfx_bind_uniforms(uint32_t binding, size_t size, void *data)
+void mgfx_bind_uniforms(uint32_t binding, size_t size, void *data)
 {
     pipe.bind_uniforms(binding, size, data);
 }
 
-inline mg_image mgfx_create_image(mg_image_create_info *create_info)
+mg_image mgfx_create_image(const mg_image_create_info *create_info)
 {
     mg_image image;
     image = pipe.create_image(create_info);
     return image;
 }
 
-inline void mgfx_destroy_image(mg_image image)
+void mgfx_destroy_image(mg_image image)
 {
     pipe.destroy_image(image);
 }
 
-inline void mgfx_update_image(mg_image image, mg_image_update_info *write_info)
+void mgfx_update_image(mg_image image, const mg_image_update_info *update_info)
 {
-    pipe.update_image(image, write_info);
+    pipe.update_image(image, update_info);
 }
 
-inline void mgfx_bind_image(mg_image image, mg_sampler sampler, uint32_t binding)
+void mgfx_bind_image(mg_image image, mg_sampler sampler, uint32_t binding)
 {
     pipe.bind_image(image, sampler, binding);
 }
 
-inline mg_sampler mgfx_create_sampler(mg_sampler_create_info *create_info)
+mg_sampler mgfx_create_sampler(const mg_sampler_create_info *create_info)
 {
     mg_sampler sampler;
     sampler = pipe.create_sampler(create_info);
     return sampler;
 }
 
-inline void mgfx_destroy_sampler(mg_sampler sampler)
+void mgfx_destroy_sampler(mg_sampler sampler)
 {
     pipe.destroy_sampler(sampler);
 }
 
-inline mg_renderer_type mgfx_get_type(void)
+mg_renderer_type mgfx_get_type(void)
 {
     return pipe.type;
 }

@@ -23,17 +23,10 @@ void on_resize(mg_resized_event_data *data)
     if (data->width == 0 || data->height == 0)
         return;
 
-    mg_swapchain_config_info config_info = {
-        .format = MG_PIXEL_FORMAT_B8G8R8A8_UNORM,
-        .width = data->width,
-        .height = data->height,
-        .vsync = true
-    };
-
-    mgfx_configure_swapchain(&config_info);
-
     window_w = data->width;
     window_h = data->height;
+
+    mgfx_reset(window_w, window_h, true);
 }
 
 void on_initialize(int32_t argc, char* const* argv, uint32_t width, uint32_t height)
@@ -46,17 +39,12 @@ void on_initialize(int32_t argc, char* const* argv, uint32_t width, uint32_t hei
 	mg_event_connect(MG_EVENT_CODE_KEY_PRESSED, (mg_event)on_key_pressed);
 	mg_event_connect(MG_EVENT_CODE_KEY_RELEASED, (mg_event)on_key_released);
 	mg_event_connect(MG_EVENT_CODE_CHAR, (mg_event)on_char);
-
-	mg_swapchain_config_info swapchain_config = {
-        .format = MG_PIXEL_FORMAT_B8G8R8A8_UNORM,
-        .width = width,
-        .height = height,
-        .vsync = true
-    };
     
     mgfx_init_info renderer_init_info = {
         .type = MG_RENDERER_TYPE_OPENGL,
-        .swapchain_config_info = &swapchain_config
+        .width = width,
+        .height = height,
+        .vsync = true
     };
     
     mgfx_initialize(&renderer_init_info);
@@ -102,7 +90,8 @@ void on_update(float delta_time)
 }
 
 static const mg_app_init_info app_info = {
-    .name = "ImGui example",
+    .name = "ImGui Example",
+    .flags = MG_PLATFORM_FLAG_RESIZABLE,
     .width = window_w,
     .height = window_h,
     .events = {

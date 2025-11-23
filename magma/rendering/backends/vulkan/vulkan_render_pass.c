@@ -125,7 +125,7 @@ static VkFramebuffer mg_vulkan_create_framebuffer(
 static void mg_vulkan_begin_render_pass_internal(
     VkRenderPass render_pass,
     VkFramebuffer framebuffer,
-    mg_render_pass_bind_info *begin_info
+    const mg_render_pass_bind_info *begin_info
 )
 {
     VkRenderPassBeginInfo info = {VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
@@ -165,21 +165,21 @@ static void mg_vulkan_begin_render_pass_internal(
 
 void mg_vulkan_update_render_pass(
     mg_vulkan_render_pass *render_pass, 
-    mg_render_pass_update_info *resize_info)
+    const mg_render_pass_update_info *update_info)
 {
     VkImageView fb_attachments[2];
     uint32_t attachment_count = 0;
 
-    if (resize_info->color_image)
+    if (update_info->color_image)
     {
         fb_attachments[attachment_count++] =
-            ((mg_vulkan_image*)resize_info->color_image)->view;
+            ((mg_vulkan_image*)update_info->color_image)->view;
     }
 
-    if (resize_info->depth_stencil_image)
+    if (update_info->depth_stencil_image)
     {
         fb_attachments[attachment_count++] =
-            ((mg_vulkan_image*)resize_info->depth_stencil_image)->view;
+            ((mg_vulkan_image*)update_info->depth_stencil_image)->view;
     }
 
     vkDestroyFramebuffer(vk_ctx.device.handle, render_pass->framebuffer, NULL);
@@ -188,12 +188,12 @@ void mg_vulkan_update_render_pass(
         render_pass->render_pass,
         fb_attachments,
         attachment_count,
-        resize_info->width,
-        resize_info->height
+        update_info->width,
+        update_info->height
     );
 }
 
-mg_vulkan_render_pass *mg_vulkan_create_render_pass(mg_render_pass_create_info *create_info)
+mg_vulkan_render_pass *mg_vulkan_create_render_pass(const mg_render_pass_create_info *create_info)
 {
     mg_vulkan_render_pass *render_pass =
         (mg_vulkan_render_pass*)malloc(sizeof(mg_vulkan_render_pass));
@@ -236,7 +236,7 @@ void mg_vulkan_destroy_render_pass(mg_vulkan_render_pass *render_pass)
 }
 
 void mg_vulkan_bind_render_pass(mg_vulkan_render_pass *render_pass, 
-    mg_render_pass_bind_info *begin_info)
+    const mg_render_pass_bind_info *begin_info)
 {
     if (vk_ctx.inside_render_pass)
         vkCmdEndRenderPass(vk_ctx.command_buffer);

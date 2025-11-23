@@ -4,7 +4,7 @@
 
 #include "d3d11_utils.h"
 
-mg_d3d11_buffer *mg_d3d11_create_buffer(mg_buffer_create_info *create_info)
+mg_d3d11_buffer *mg_d3d11_create_buffer(const mg_buffer_create_info *create_info)
 {
     mg_d3d11_buffer *buffer = (mg_d3d11_buffer*)malloc(sizeof(mg_d3d11_buffer));
 

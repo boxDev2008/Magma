@@ -67,7 +67,7 @@ static void mg_opengl_bind_vertex_attributes(void)
     }
 }
 
-mg_opengl_buffer *mg_opengl_create_buffer(mg_buffer_create_info *create_info)
+mg_opengl_buffer *mg_opengl_create_buffer(const mg_buffer_create_info *create_info)
 {
     mg_opengl_buffer *buffer = (mg_opengl_buffer*)malloc(sizeof(mg_opengl_buffer));
     buffer->target = mg_opengl_get_buffer_target(create_info->usage);

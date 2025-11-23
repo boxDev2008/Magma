@@ -5,37 +5,54 @@
 #include "d3d11_renderer.h"
 #include "d3d11_utils.h"
 
-mg_d3d11_image *mg_d3d11_create_image(mg_image_create_info *create_info)
+mg_d3d11_image *mg_d3d11_create_image(const mg_image_create_info *create_info)
 {
     mg_d3d11_image *image = (mg_d3d11_image*)malloc(sizeof(mg_d3d11_image));
-
-    D3D11_TEXTURE2D_DESC texture_desc = { 0 };
-    texture_desc.Width = create_info->width;
-    texture_desc.Height = create_info->height;
-    texture_desc.MipLevels = 1;
-    texture_desc.ArraySize = 1;
-    texture_desc.Format = mg_d3d11_get_pixel_format(create_info->format);
-    texture_desc.SampleDesc.Count = 1;
-    texture_desc.Usage = D3D11_USAGE_DEFAULT;
-
-    switch (create_info->usage)
-    {
-    case MG_IMAGE_USAGE_COLOR_ATTACHMENT:
-        texture_desc.BindFlags = D3D11_BIND_RENDER_TARGET;
-        break;
-    case MG_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT:
-        texture_desc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
-        break;
-    }
-
-    texture_desc.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
-
-    ID3D11Device_CreateTexture2D(d3d11_ctx.device, &texture_desc, NULL, (ID3D11Texture2D**)&image->texture);
+    const DXGI_FORMAT format = mg_d3d11_get_pixel_format(create_info->format);
 
     D3D11_SHADER_RESOURCE_VIEW_DESC view_desc = { 0 };
+    if (create_info->type == MG_IMAGE_TYPE_2D)
+    {
+        D3D11_TEXTURE2D_DESC texture_desc = { 0 };
+        texture_desc.Width = create_info->width;
+        texture_desc.Height = create_info->height;
+        texture_desc.MipLevels = 1;
+        texture_desc.ArraySize = 1;
+        texture_desc.Format = format;
+        texture_desc.SampleDesc.Count = 1;
+        texture_desc.Usage = D3D11_USAGE_DEFAULT;
+        texture_desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+
+        switch (create_info->usage)
+        {
+        case MG_IMAGE_USAGE_COLOR_ATTACHMENT:
+            texture_desc.BindFlags |= D3D11_BIND_RENDER_TARGET;
+            break;
+        case MG_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT:
+            texture_desc.BindFlags |= D3D11_BIND_DEPTH_STENCIL;
+            break;
+        }
+
+        ID3D11Device_CreateTexture2D(d3d11_ctx.device, &texture_desc, NULL, (ID3D11Texture2D**)&image->texture);
+        view_desc.Texture2D.MipLevels = 1;
+    }
+    else if (create_info->type == MG_IMAGE_TYPE_3D)
+    {
+        D3D11_TEXTURE3D_DESC texture_desc = { 0 };
+        texture_desc.Width = create_info->width;
+        texture_desc.Height = create_info->height;
+        texture_desc.Depth = create_info->depth;
+        texture_desc.MipLevels = 1;
+        texture_desc.Format = format;
+        texture_desc.Usage = D3D11_USAGE_DEFAULT;
+        texture_desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+
+        ID3D11Device_CreateTexture3D(d3d11_ctx.device, &texture_desc, NULL, (ID3D11Texture3D**)&image->texture);
+        view_desc.Texture3D.MipLevels = 1;
+    }
+
     view_desc.Format = mg_d3d11_get_srv_format(create_info->format);
     view_desc.ViewDimension = mg_d3d11_get_srv_dimension(create_info->type);
-    view_desc.Texture2D.MipLevels = 1;
     ID3D11Device_CreateShaderResourceView(d3d11_ctx.device, (ID3D11Resource*)image->texture, &view_desc, &image->view);
     
     return image;
@@ -49,17 +66,19 @@ void mg_d3d11_destroy_image(mg_d3d11_image *image)
     free(image);
 }
 
-void mg_d3d11_update_image(mg_d3d11_image *image, mg_image_update_info *write_info)
+void mg_d3d11_update_image(mg_d3d11_image *image, const mg_image_update_info *update_info)
 {
-    const uint32_t row_pitch = write_info->width * 4;
+    const uint32_t row_pitch = update_info->width * update_info->bpp;
+    const uint32_t depth_pitch = row_pitch * update_info->height;
+
     ID3D11DeviceContext_UpdateSubresource(
         d3d11_ctx.immediate_context,
         (ID3D11Resource*)image->texture,
         0,
         NULL,
-        write_info->data,
+        update_info->data,
         row_pitch,
-        0
+        depth_pitch
     );
 }
 
@@ -69,7 +88,7 @@ void mg_d3d11_bind_image(mg_d3d11_image *image, ID3D11SamplerState *sampler, uin
     ID3D11DeviceContext_PSSetSamplers(d3d11_ctx.immediate_context, binding, 1, &sampler);
 }
 
-ID3D11SamplerState *mg_d3d11_create_sampler(mg_sampler_create_info *create_info)
+ID3D11SamplerState *mg_d3d11_create_sampler(const mg_sampler_create_info *create_info)
 {
     ID3D11SamplerState *sampler;
     D3D11_SAMPLER_DESC samp_desc = { 0 };

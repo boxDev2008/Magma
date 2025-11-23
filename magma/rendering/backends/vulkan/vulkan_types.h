@@ -12,6 +12,7 @@ typedef struct mg_vulkan_image
     VkImage image;
     VkImageView view;
     VkDeviceMemory memory;
+    VkFormat format;
 }
 mg_vulkan_image;
 
@@ -127,7 +128,6 @@ typedef struct mg_vulkan_context
     struct
     {
         VkSwapchainKHR handle;
-        VkFormat color_format;
 
         VkImage images[4];
         VkImageView image_views[4];
@@ -161,7 +161,6 @@ typedef struct mg_vulkan_context
     {
         VkDescriptorSetLayout scratch_buffer_layout;
         VkDescriptorSetLayout image_sampler_layout;
-        VkDescriptorSetLayout storage_buffer_layout;
     }
     layouts;
 
@@ -182,5 +181,7 @@ typedef struct mg_vulkan_context
 
     mg_vulkan_descriptor_cache descriptor_cache;
     mg_stack freed_resources;
+
+    VkDebugUtilsMessengerEXT debug_messenger;
 }
 mg_vulkan_context;

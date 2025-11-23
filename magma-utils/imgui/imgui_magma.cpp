@@ -176,19 +176,19 @@ void mg_imgui_initialize(void)
     io.Fonts->GetTexDataAsRGBA32(&font_pixels, &font_width, &font_height);
 
     mg_image_create_info img_create_info = { };
-    img_create_info.format = MG_PIXEL_FORMAT_R8G8B8A8_UNORM;
+    img_create_info.format = MG_PIXEL_FORMAT_RGBA8_UNORM;
     img_create_info.type = MG_IMAGE_TYPE_2D;
     img_create_info.width = font_width;
     img_create_info.height = font_height;
     img_create_info.usage = MG_IMAGE_USAGE_COLOR_ATTACHMENT;
     imgui_data->img = mgfx_create_image(&img_create_info);
 
-    mg_image_update_info write_info = { };
-    write_info.width = font_width;
-    write_info.height = font_height;
-    write_info.format = img_create_info.format;
-    write_info.data = font_pixels;
-    mgfx_update_image(imgui_data->img, &write_info);
+    mg_image_update_info update_info = { };
+    update_info.width = font_width;
+    update_info.height = font_height;
+    update_info.data = font_pixels;
+    update_info.bpp = 4;
+    mgfx_update_image(imgui_data->img, &update_info);
 
     mg_sampler_create_info smp_create_info = { };
     smp_create_info.min_filter = MG_SAMPLER_FILTER_NEAREST;

@@ -18,7 +18,7 @@ static VkShaderModule mg_vulkan_create_shader(const uint32_t *code, size_t size)
     return shader_module;
 }
 
-static void mg_vulkan_fill_graphics_pipeline(mg_vulkan_pipeline *pipeline, mg_pipeline_create_info *create_info)
+static void mg_vulkan_fill_graphics_pipeline(mg_vulkan_pipeline *pipeline, const mg_pipeline_create_info *create_info)
 {
     VkShaderModule vertex_shader_module = mg_vulkan_create_shader(create_info->shader.vertex.code, create_info->shader.vertex.size);
     VkShaderModule fragment_shader_module = mg_vulkan_create_shader(create_info->shader.fragment.code, create_info->shader.fragment.size);
@@ -90,9 +90,12 @@ static void mg_vulkan_fill_graphics_pipeline(mg_vulkan_pipeline *pipeline, mg_pi
     multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
     VkPipelineDepthStencilStateCreateInfo depth_stencil = {VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO};
-    depth_stencil.depthTestEnable = create_info->depth_stencil.depth_test_enabled;
-    depth_stencil.depthWriteEnable = create_info->depth_stencil.depth_write_enabled;
-    depth_stencil.depthCompareOp = (VkCompareOp)create_info->depth_stencil.depth_compare_op;
+    if (create_info->depth_stencil.depth_compare_op != MG_COMPARE_OP_NEVER)
+    {
+        depth_stencil.depthTestEnable = true;
+        depth_stencil.depthWriteEnable = create_info->depth_stencil.depth_write_enabled;
+        depth_stencil.depthCompareOp = (VkCompareOp)create_info->depth_stencil.depth_compare_op;
+    }
     depth_stencil.stencilTestEnable = create_info->depth_stencil.stencil_test_enabled;
 
     VkPipelineColorBlendAttachmentState color_blend_attachment = { 0 };
@@ -119,11 +122,10 @@ static void mg_vulkan_fill_graphics_pipeline(mg_vulkan_pipeline *pipeline, mg_pi
     const VkDescriptorSetLayout set_layouts[] = {
         vk_ctx.layouts.scratch_buffer_layout,
         vk_ctx.layouts.image_sampler_layout,
-        vk_ctx.layouts.storage_buffer_layout
     };
 
     pipeline_layout_info.pSetLayouts = set_layouts;
-    pipeline_layout_info.setLayoutCount = 3;
+    pipeline_layout_info.setLayoutCount = 2;
 
     VkResult result = vkCreatePipelineLayout(vk_ctx.device.handle, &pipeline_layout_info, NULL, &pipeline->pipeline_layout);
     assert(result == VK_SUCCESS);
@@ -155,7 +157,7 @@ static void mg_vulkan_fill_graphics_pipeline(mg_vulkan_pipeline *pipeline, mg_pi
     pipeline->bind_point = VK_PIPELINE_BIND_POINT_GRAPHICS;
 }
 
-static void mg_vulkan_fill_compute_pipeline(mg_vulkan_pipeline *pipeline, mg_pipeline_create_info *create_info)
+static void mg_vulkan_fill_compute_pipeline(mg_vulkan_pipeline *pipeline, const mg_pipeline_create_info *create_info)
 {
     VkShaderModule compute_shader = mg_vulkan_create_shader(
         create_info->shader.compute.code,
@@ -164,13 +166,12 @@ static void mg_vulkan_fill_compute_pipeline(mg_vulkan_pipeline *pipeline, mg_pip
 
     const VkDescriptorSetLayout set_layouts[] = {
         vk_ctx.layouts.scratch_buffer_layout,
-        vk_ctx.layouts.image_sampler_layout,
-        vk_ctx.layouts.storage_buffer_layout
+        vk_ctx.layouts.image_sampler_layout
     };
 
     VkPipelineLayoutCreateInfo layout_info = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-        .setLayoutCount = 3,
+        .setLayoutCount = 2,
         .pSetLayouts = set_layouts
     };
 
@@ -199,7 +200,7 @@ static void mg_vulkan_fill_compute_pipeline(mg_vulkan_pipeline *pipeline, mg_pip
     pipeline->bind_point = VK_PIPELINE_BIND_POINT_COMPUTE;
 }
 
-mg_vulkan_pipeline *mg_vulkan_create_pipeline(mg_pipeline_create_info *create_info)
+mg_vulkan_pipeline *mg_vulkan_create_pipeline(const mg_pipeline_create_info *create_info)
 {
     mg_vulkan_pipeline *pipeline = (mg_vulkan_pipeline*)malloc(sizeof(mg_vulkan_pipeline));
     if (create_info->shader.compute.size)

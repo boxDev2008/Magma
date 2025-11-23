@@ -11,14 +11,13 @@
 
 mg_d3d11_context d3d11_ctx;
 
-void mg_d3d11_renderer_initialize(mgfx_init_info *init_info)
+void mg_d3d11_renderer_initialize(const mgfx_init_info *init_info)
 {
-    mg_swapchain_config_info *swapchain_info = init_info->swapchain_config_info;
     DXGI_SWAP_CHAIN_DESC sd = { 0 };
     sd.BufferCount = 1;
-    sd.BufferDesc.Width = swapchain_info->width;
-    sd.BufferDesc.Height = swapchain_info->height;
-    sd.BufferDesc.Format = mg_d3d11_get_pixel_format(swapchain_info->format);
+    sd.BufferDesc.Width = init_info->width;
+    sd.BufferDesc.Height = init_info->height;
+    sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
     sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     sd.OutputWindow = ((mg_win32_platform*)mg_platform_get_handle())->hwnd;
     sd.SampleDesc.Count = 1;
@@ -54,7 +53,7 @@ void mg_d3d11_renderer_initialize(mgfx_init_info *init_info)
         ID3D11Device_CreateBuffer(d3d11_ctx.device, &buffer_desc, NULL, &d3d11_ctx.constant_buffers[i]);
     }
 
-    d3d11_ctx.vsync = swapchain_info->vsync;
+    d3d11_ctx.vsync = init_info->vsync;
 }
 
 void mg_d3d11_renderer_shutdown(void)
@@ -79,15 +78,15 @@ void mg_d3d11_renderer_end(void)
     IDXGISwapChain_Present(d3d11_ctx.swapchain, d3d11_ctx.vsync, 0);
 }
 
-void mg_d3d11_renderer_configure_swapchain(mg_swapchain_config_info *config_info)
+void mg_d3d11_renderer_reset(uint32_t width, uint32_t height, bool vsync)
 {
     ID3D11RenderTargetView_Release(d3d11_ctx.target_view);
     IDXGISwapChain_ResizeBuffers(
         d3d11_ctx.swapchain,
         0,
-        config_info->width,
-        config_info->height,
-        mg_d3d11_get_pixel_format(config_info->format),
+        width,
+        height,
+        DXGI_FORMAT_R8G8B8A8_UNORM,
         0
     );
     ID3D11Texture2D* pBackBuffer = NULL;
@@ -95,7 +94,7 @@ void mg_d3d11_renderer_configure_swapchain(mg_swapchain_config_info *config_info
     ID3D11Device_CreateRenderTargetView(d3d11_ctx.device, (ID3D11Resource*)pBackBuffer, NULL, &d3d11_ctx.target_view);
     ID3D11Buffer_Release(pBackBuffer);
 
-    d3d11_ctx.vsync = config_info->vsync;
+    d3d11_ctx.vsync = vsync;
 }
 
 void mg_d3d11_renderer_viewport(int32_t x, int32_t y, uint32_t width, uint32_t height)

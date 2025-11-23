@@ -60,7 +60,7 @@ static const char *BACK_BUFFER_FRAG =
         "out_color = texture(u_texture, tex_coord);"
     "}\0";
 
-void mg_opengl_renderer_initialize(mgfx_init_info *init_info)
+void mg_opengl_renderer_initialize(const mgfx_init_info *init_info)
 {
     mg_opengl_platform_initialize();
 
@@ -93,7 +93,7 @@ void mg_opengl_renderer_initialize(mgfx_init_info *init_info)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-    mg_opengl_configure_swapchain(init_info->swapchain_config_info);
+    mg_opengl_renderer_reset(init_info->width, init_info->height, init_info->vsync);
 
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gl_ctx.back_buffer.color_attachment, 0);
 
@@ -183,30 +183,11 @@ void mg_opengl_renderer_dispatch(uint32_t group_count_x, uint32_t group_count_y,
     glDispatchCompute(group_count_x, group_count_y, group_count_z);
 }
 
-void mg_opengl_configure_swapchain(mg_swapchain_config_info *config_info)
+void mg_opengl_renderer_reset(uint32_t width, uint32_t height, bool vsync)
 {
     glBindTexture(GL_TEXTURE_2D, gl_ctx.back_buffer.color_attachment);
-    switch (config_info->format)
-    {
-    case MG_PIXEL_FORMAT_R8_SRGB:
-    case MG_PIXEL_FORMAT_R8G8_SRGB:
-    case MG_PIXEL_FORMAT_R8G8B8_SRGB:
-    case MG_PIXEL_FORMAT_R8G8B8A8_SRGB:
-    case MG_PIXEL_FORMAT_B8G8R8_SRGB:
-    case MG_PIXEL_FORMAT_B8G8R8A8_SRGB:
-#if !MG_PLATFORM_EMSCRIPTEN
-        glEnable(GL_FRAMEBUFFER_SRGB);
-#endif
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB8, config_info->width, config_info->height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
-        break;
-    default:
-#if !MG_PLATFORM_EMSCRIPTEN
-        glDisable(GL_FRAMEBUFFER_SRGB);
-#endif
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, config_info->width, config_info->height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
-    }
-
-    mg_opengl_platform_set_vsync(config_info->vsync);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    mg_opengl_platform_set_vsync(vsync);
 }
 
 void mg_opengl_renderer_bind_uniforms(uint32_t binding, size_t size, void *data)

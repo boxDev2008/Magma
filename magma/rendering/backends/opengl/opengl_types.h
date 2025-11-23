@@ -47,7 +47,6 @@ typedef struct mg_opengl_pipeline
 
     struct
     {
-        bool depth_test_enabled;
         bool stencil_test_enabled;
         bool depth_write_enabled;
         GLenum depth_compare_op;
@@ -60,6 +59,8 @@ typedef struct mg_opengl_image
 {
     GLuint texture_id;
     GLenum texture_target;
+    GLenum format;
+    GLenum internal_format;
 }
 mg_opengl_image;
 

@@ -7,13 +7,13 @@
 #include <string.h>
 #include <assert.h>
 
-void mg_vulkan_allocate_image(uint32_t width, uint32_t height, VkImageType type, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage *image, VkDeviceMemory *memory)
+void mg_vulkan_allocate_image(uint32_t width, uint32_t height, uint32_t depth, VkImageType type, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage *image, VkDeviceMemory *memory)
 {
     VkImageCreateInfo image_info = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
     image_info.imageType = type;
     image_info.extent.width = width;
     image_info.extent.height = height;
-    image_info.extent.depth = 1;
+    image_info.extent.depth = depth;
     image_info.mipLevels = 1;
     image_info.arrayLayers = 1;
     image_info.format = format;
@@ -89,7 +89,7 @@ void mg_vulkan_transition_image_layout(VkImage image, VkFormat format, VkImageLa
     mg_vulkan_end_single_time_commands(command_buffer);
 }
 
-void mg_vulkan_copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height)
+void mg_vulkan_copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height, uint32_t depth)
 {
     VkCommandBuffer command_buffer = mg_vulkan_begin_single_time_commands();
 
@@ -107,7 +107,7 @@ void mg_vulkan_copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t wid
     region.imageExtent = (VkExtent3D){
         width,
         height,
-        1
+        depth
     };
 
     vkCmdCopyBufferToImage(
@@ -122,7 +122,7 @@ void mg_vulkan_copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t wid
     mg_vulkan_end_single_time_commands(command_buffer);
 }
 
-mg_vulkan_image *mg_vulkan_create_image(mg_image_create_info *create_info)
+mg_vulkan_image *mg_vulkan_create_image(const mg_image_create_info *create_info)
 {
     mg_vulkan_image *image = (mg_vulkan_image*)malloc(sizeof(mg_vulkan_image));
 
@@ -131,7 +131,7 @@ mg_vulkan_image *mg_vulkan_create_image(mg_image_create_info *create_info)
         VK_IMAGE_USAGE_SAMPLED_BIT |
         (uint32_t)create_info->usage;
 
-    mg_vulkan_allocate_image(create_info->width, create_info->height, create_info->type, create_info->format,
+    mg_vulkan_allocate_image(create_info->width, create_info->height, create_info->depth ? create_info->depth : 1, create_info->type, create_info->format,
         VK_IMAGE_TILING_OPTIMAL,
         usage_flags,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &image->image, &image->memory);
@@ -152,6 +152,8 @@ mg_vulkan_image *mg_vulkan_create_image(mg_image_create_info *create_info)
     VkResult result = vkCreateImageView(vk_ctx.device.handle, &view_info, NULL, &image->view);
     assert(result == VK_SUCCESS);
 
+    image->format = (VkFormat)create_info->format;
+
     return image;
 }
 
@@ -160,9 +162,10 @@ void mg_vulkan_destroy_image(mg_vulkan_image *image)
     mg_vulkan_free_resource((mg_vulkan_resource){.type = MG_VULKAN_RESOURCE_TYPE_IMAGE, .image = image});
 }
 
-void mg_vulkan_update_image(mg_vulkan_image *image, mg_image_update_info *write_info)
+void mg_vulkan_update_image(mg_vulkan_image *image, const mg_image_update_info *update_info)
 {
-    VkDeviceSize image_size = write_info->width * write_info->height * 4;
+    const uint32_t depth = update_info->depth ? update_info->depth : 1;
+    const VkDeviceSize image_size = update_info->height * update_info->width * depth * update_info->bpp;
 
     VkBuffer staging_buffer;
     VkDeviceMemory staging_memory;
@@ -173,12 +176,12 @@ void mg_vulkan_update_image(mg_vulkan_image *image, mg_image_update_info *write_
 
     void* data;
     vkMapMemory(vk_ctx.device.handle, staging_memory, 0, image_size, 0, &data);
-        memcpy(data, write_info->data, image_size);
+        memcpy(data, update_info->data, image_size);
     vkUnmapMemory(vk_ctx.device.handle, staging_memory);
 
-    mg_vulkan_transition_image_layout(image->image, write_info->format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-    mg_vulkan_copy_buffer_to_image(staging_buffer, image->image, write_info->width, write_info->height);
-    mg_vulkan_transition_image_layout(image->image, write_info->format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    mg_vulkan_transition_image_layout(image->image, image->format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    mg_vulkan_copy_buffer_to_image(staging_buffer, image->image, update_info->width, update_info->height, depth);
+    mg_vulkan_transition_image_layout(image->image, image->format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     vkDestroyBuffer(vk_ctx.device.handle, staging_buffer, NULL);
     vkFreeMemory(vk_ctx.device.handle, staging_memory, NULL);
@@ -196,7 +199,7 @@ void mg_vulkan_bind_image(mg_vulkan_image *image, VkSampler sampler, uint32_t bi
     cache->pending_image_binding_count++;
 }
 
-VkSampler mg_vulkan_create_sampler(mg_sampler_create_info *create_info)
+VkSampler mg_vulkan_create_sampler(const mg_sampler_create_info *create_info)
 {
     VkSampler sampler;
 

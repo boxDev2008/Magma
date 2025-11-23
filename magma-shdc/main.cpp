@@ -156,46 +156,88 @@ private:
 class SPIRVCompiler
 {
 public:
-    static bool compile(ShaderStage &stage)
+    static bool compile(ShaderStage &stage, ShaderResources &resources)
     {
-        glslang::InitializeProcess();
+        if (!compile_glsl_to_spirv(stage.source, stage.stage, stage.spirv) ||
+            !remap(stage, resources, stage.spirv, stage.spirv))
+            return false;
+        return !stage.spirv.empty();
+    }
 
-        const char* source_ptr = stage.source.c_str();
-        glslang::TShader shader(stage.stage);
-        shader.setStrings(&source_ptr, 1);
-
-        shader.setEnvInput(glslang::EShSourceGlsl, stage.stage, glslang::EShClientVulkan, 450);
+private:
+    static bool compile_glsl_to_spirv(
+        const std::string& glsl_source,
+        EShLanguage shader_stage,
+        std::vector<uint32_t>& spirv_out)
+    {        
+        const char* src_ptr = glsl_source.c_str();
+        glslang::TShader shader(shader_stage);
+        shader.setStrings(&src_ptr, 1);
+        shader.setEnvInput(glslang::EShSourceGlsl, shader_stage, glslang::EShClientVulkan, 450);
         shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_0);
         shader.setEnvTarget(glslang::EshTargetSpv, glslang::EShTargetSpv_1_0);
         shader.setAutoMapLocations(true);
-
+        
         if (!shader.parse(&DefaultTBuiltInResource, 450, false, EShMsgDefault))
         {
             std::cerr << "GLSL Parsing Failed:\n" << shader.getInfoLog() << "\n";
-            glslang::FinalizeProcess();
             return false;
         }
-
+        
         glslang::TProgram program;
         program.addShader(&shader);
-
+        
         if (!program.link(EShMsgDefault) || !program.mapIO())
         {
             std::cerr << "GLSL Linking Failed:\n" << program.getInfoLog() << "\n";
-            glslang::FinalizeProcess();
             return false;
         }
+        
+        glslang::SpvOptions spv_options = {
+            .disableOptimizer = true
+        };
+        
+        spirv_out.clear();
+        glslang::GlslangToSpv(*program.getIntermediate(shader_stage), spirv_out, &spv_options);
+        
+        return !spirv_out.empty();
+    }
 
-        glslang::SpvOptions spv_options;
-        spv_options.generateDebugInfo = false;
-        spv_options.stripDebugInfo = false;
-        spv_options.disableOptimizer = true;
-        spv_options.optimizeSize = false;
+    static bool remap(
+        ShaderStage &stage,
+        ShaderResources &resources_out,
+        const std::vector<uint32_t>& spirv_in,
+        std::vector<uint32_t>& spirv_out)
+    {
+        using namespace spirv_cross;
+        
+        CompilerGLSL comp(spirv_in);
+        spirv_cross::ShaderResources resources = comp.get_shader_resources();
 
-        glslang::GlslangToSpv(*program.getIntermediate(stage.stage), stage.spirv, &spv_options);
-        glslang::FinalizeProcess();
+        for (const auto &ub : resources.uniform_buffers)
+        {
+            comp.set_decoration(ub.id, spv::DecorationDescriptorSet, 0);
 
-        return !stage.spirv.empty();
+            const uint32_t binding = comp.get_decoration(ub.id, spv::DecorationBinding);
+            resources_out.uniform_blocks.push_back({ ub.name, binding });
+        }
+
+        for (const auto &smp : resources.sampled_images)
+        {
+            comp.set_decoration(smp.id, spv::DecorationDescriptorSet, 1);
+
+            const uint32_t binding = comp.get_decoration(smp.id, spv::DecorationBinding);
+            resources_out.sampled_images.push_back({ smp.name, binding });
+        }
+        
+        CompilerGLSL::Options glsl_opts;
+        glsl_opts.vulkan_semantics = true;
+        comp.set_common_options(glsl_opts);
+        
+        const std::string glsl_source = comp.compile();
+        std::cout << glsl_source;
+        
+        return compile_glsl_to_spirv(glsl_source, stage.stage, spirv_out);
     }
 };
 
@@ -207,6 +249,7 @@ public:
         spirv_cross::CompilerGLSL compiler(spirv);
         spirv_cross::CompilerGLSL::Options options;
         options.version = 450;
+        options.vertex.flip_vert_y = true;
         options.vulkan_semantics = false;
         options.es = false;
         set_entry_point(compiler);
@@ -219,6 +262,7 @@ public:
         spirv_cross::CompilerGLSL compiler(spirv);
         spirv_cross::CompilerGLSL::Options options;
         options.version = 300;
+        options.vertex.flip_vert_y = true;
         options.vulkan_semantics = false;
         options.es = true;
         set_entry_point(compiler);
@@ -249,24 +293,6 @@ public:
         spirv_cross::CompilerMSL compiler(spirv);
         set_entry_point(compiler);
         return compiler.compile();
-    }
-
-    static void extract_resources(const std::vector<uint32_t> &spirv, ShaderResources &resources)
-    {
-        spirv_cross::CompilerGLSL compiler(spirv);
-        spirv_cross::ShaderResources shader_resources = compiler.get_shader_resources();
-
-        for (const auto &ub : shader_resources.uniform_buffers)
-        {
-            const uint32_t binding = compiler.get_decoration(ub.id, spv::DecorationBinding);
-            resources.uniform_blocks.push_back({ ub.name, binding });
-        }
-
-        for (const auto &smp : shader_resources.sampled_images)
-        {
-            const uint32_t binding = compiler.get_decoration(smp.id, spv::DecorationBinding);
-            resources.sampled_images.push_back({ smp.name, binding });
-        }
     }
 private:
     static void set_entry_point(spirv_cross::Compiler &compiler)
@@ -417,16 +443,6 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    ShaderProgram program;
-    if (!ShaderParser::parse(input_file, program))
-        return 1;
-
-    for (auto &[stage_type, stage] : program.stages)
-    {
-        if (!SPIRVCompiler::compile(stage))
-            return 1;
-    }
-
     uint32_t lang_flags = 0;
     std::istringstream lang_stream(lang_string);
     std::string token;
@@ -444,12 +460,21 @@ int main(int argc, char **argv)
         }
     }
 
-    std::ofstream header(output_file);
-    header << "#pragma once\n\n#include <stdint.h>\n\n";
+    ShaderProgram program;
+    if (!ShaderParser::parse(input_file, program))
+        return 1;
+
+    glslang::InitializeProcess();
 
     ShaderResources resources;
-    for (const auto &[stage_type, stage] : program.stages)
-        CrossCompiler::extract_resources(stage.spirv, resources);
+    for (auto &[stage_type, stage] : program.stages)
+    {
+        if (!SPIRVCompiler::compile(stage, resources))
+            return 1;
+    }
+
+    std::ofstream header(output_file);
+    header << "#pragma once\n\n#include <stdint.h>\n\n";
 
     if (lang_flags & SPIRV)
     {
@@ -483,6 +508,7 @@ int main(int argc, char **argv)
     }
 
     HeaderWriter::write_shader_getter(header, shader_name, program.type, lang_flags, resources);
+    glslang::FinalizeProcess();
 
     return 0;
 }

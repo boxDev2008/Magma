@@ -170,15 +170,12 @@ void mg_hlgfx_initialize(const mg_hlgfx_init_info *info)
 {
     rdata = (mg_hlgfx_data*)calloc(1, sizeof(mg_hlgfx_data));
 
-    mg_swapchain_config_info swapchain_info;
-    swapchain_info.format = MG_PIXEL_FORMAT_B8G8R8A8_UNORM;
-	swapchain_info.vsync = true;
-    swapchain_info.width = info->width;
-    swapchain_info.height = info->height;
-
-    mgfx_init_info renderer_info;
-    renderer_info.type = info->type;
-    renderer_info.swapchain_config_info = &swapchain_info;
+    mgfx_init_info renderer_info = {
+        .type = info->type,
+        .width = info->width,
+        .height = info->height,
+        .vsync = true,
+    };
 
     mgfx_initialize(&renderer_info);
 
@@ -200,7 +197,7 @@ void mg_hlgfx_initialize(const mg_hlgfx_init_info *info)
             mgfx_create_sampler(&sampler_create_info);
 		
 		mg_image_create_info color_attachment_info = {
-			.format = MG_PIXEL_FORMAT_R8G8B8A8_UNORM,
+			.format = MG_PIXEL_FORMAT_RGBA8_UNORM,
 			.type = MG_IMAGE_TYPE_2D,
 			.usage = MG_IMAGE_USAGE_COLOR_ATTACHMENT,
 			.width = rdata->width,
@@ -223,7 +220,7 @@ void mg_hlgfx_initialize(const mg_hlgfx_init_info *info)
 		
 		mg_render_pass_create_info render_pass_info = {
 			.color_attachment = {
-				.format = MG_PIXEL_FORMAT_R8G8B8A8_UNORM,
+				.format = MG_PIXEL_FORMAT_RGBA8_UNORM,
                 .image = rdata->screen_data.color_img
 			},
             .depth_stencil_attachment = {
@@ -363,17 +360,11 @@ void mg_hlgfx_resize(int32_t width, int32_t height)
     rdata->width = width;
     rdata->height = height;
 
-    mg_swapchain_config_info config_info;
-	config_info.format = MG_PIXEL_FORMAT_B8G8R8A8_UNORM;
-	config_info.vsync = true;
-	config_info.width = width;
-	config_info.height = height;
-
     mgfx_destroy_image(rdata->screen_data.color_img);
 	mgfx_destroy_image(rdata->screen_data.depth_img);
 
     mg_image_create_info color_attachment_info = {
-        .format = MG_PIXEL_FORMAT_R8G8B8A8_UNORM,
+        .format = MG_PIXEL_FORMAT_RGBA8_UNORM,
         .type = MG_IMAGE_TYPE_2D,
         .usage = MG_IMAGE_USAGE_COLOR_ATTACHMENT,
         .width = width,
@@ -402,7 +393,7 @@ void mg_hlgfx_resize(int32_t width, int32_t height)
     };
     mgfx_update_render_pass(rdata->screen_data.rp, &update_info);
 
-    mgfx_configure_swapchain(&config_info);        
+    mgfx_reset(width, height, true);  
 }
 
 void mg_hlgfx_begin(const mg_post_process_info *post_process_info, const mg_vec3 clear_color)
@@ -695,14 +686,14 @@ mg_texture mg_hlgfx_add_texture(uint32_t width, uint32_t height, mg_sampler_filt
 
     rdata->sprite_batch.samplers[texture.id] = mgfx_create_sampler(&sampler_create_info);
 
-    mg_image_update_info texture_image_write_info = {
-        .format = format,
+    mg_image_update_info texture_image_update_info = {
         .width = width,
         .height = height,
+        .bpp = 4,
         .data = data
     };
 
-    mgfx_update_image(rdata->sprite_batch.images[texture.id], &texture_image_write_info);
+    mgfx_update_image(rdata->sprite_batch.images[texture.id], &texture_image_update_info);
 
     return texture;
 }
@@ -742,7 +733,7 @@ mg_font mg_hlgfx_add_font(void *ttf_data)
         MG_HLGFX_FONT_TEXTURE_WIDTH,
         MG_HLGFX_FONT_TEXTURE_HEIGHT,
         MG_SAMPLER_FILTER_NEAREST,
-        MG_PIXEL_FORMAT_R8G8B8A8_UNORM,
+        MG_PIXEL_FORMAT_RGBA8_UNORM,
         rgba
     );
 

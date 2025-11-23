@@ -26,7 +26,7 @@ static void mg_vulkan_create_instance(void)
     app_info.apiVersion = VK_API_VERSION_1_0;
     app_info.pApplicationName = NULL;
     app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-    app_info.pEngineName = "Magma Engine";
+    app_info.pEngineName = "Magma";
     app_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
 
     VkInstanceCreateInfo create_info = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
@@ -36,12 +36,9 @@ static void mg_vulkan_create_instance(void)
         VK_KHR_SURFACE_EXTENSION_NAME,
         MG_VULKAN_SURFACE_EXTENSION_NAME
     };
-
+    
     create_info.enabledExtensionCount = 2;
     create_info.ppEnabledExtensionNames = instance_extensions;
-
-    create_info.enabledLayerCount = 0;
-    create_info.ppEnabledLayerNames = 0;
 
     VkResult result = vkCreateInstance(&create_info, NULL, &vk_ctx.instance);
     assert(result == VK_SUCCESS);
@@ -126,8 +123,6 @@ static void mg_vulkan_create_device(void)
 
     create_info.pEnabledFeatures = &device_features;
 
-    create_info.enabledLayerCount = 0;
-
     const char *device_extensions[] = {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME
     };
@@ -172,7 +167,7 @@ static void mg_vulkan_create_descriptor_pool(void)
 {
     VkDescriptorPoolSize pool_sizes[] = {
         {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, MG_CONFIG_MAX_BINDABLE_UNIFORMS},
-        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MG_CONFIG_MAX_DESCRIPTOR_CACHE * MG_CONFIG_MAX_BINDABLE_IMAGES},
+        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MG_CONFIG_MAX_DESCRIPTOR_CACHE * MG_CONFIG_MAX_BINDABLE_IMAGES}
     };
 
     VkDescriptorPoolCreateInfo pool_info = {VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
@@ -196,7 +191,7 @@ static void mg_vulkan_create_descriptor_set_layouts(void)
             .binding = i,
             .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
             .descriptorCount = 1,
-            .stageFlags = VK_SHADER_STAGE_ALL
+            .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT
         };
     }
 
@@ -221,23 +216,6 @@ static void mg_vulkan_create_descriptor_set_layouts(void)
     layout_info.pBindings = image_sampler_layout_bindings;
 
     result = vkCreateDescriptorSetLayout(vk_ctx.device.handle, &layout_info, NULL, &vk_ctx.layouts.image_sampler_layout);
-    assert(result == VK_SUCCESS);
-
-    VkDescriptorSetLayoutBinding storeage_buffer_layout_bindings[MG_CONFIG_MAX_BINDABLE_STORAGE_BUFFERS];
-    for (uint32_t i = 0; i < MG_CONFIG_MAX_BINDABLE_STORAGE_BUFFERS; i++)
-    {
-        storeage_buffer_layout_bindings[i] = (VkDescriptorSetLayoutBinding) {
-            .binding = i,
-            .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-            .descriptorCount = 1,
-            .stageFlags = VK_SHADER_STAGE_ALL
-        };
-    }
-
-    layout_info.bindingCount = MG_CONFIG_MAX_BINDABLE_STORAGE_BUFFERS;
-    layout_info.pBindings = storeage_buffer_layout_bindings;
-
-    result = vkCreateDescriptorSetLayout(vk_ctx.device.handle, &layout_info, NULL, &vk_ctx.layouts.storage_buffer_layout);
     assert(result == VK_SUCCESS);
 }
 
@@ -282,7 +260,7 @@ static void mg_vulkan_create_scratch_buffer(void)
     vkUpdateDescriptorSets(vk_ctx.device.handle, MG_CONFIG_MAX_BINDABLE_UNIFORMS, writes, 0, NULL);
 }
 
-void mg_vulkan_renderer_initialize(mgfx_init_info *init_info)
+void mg_vulkan_renderer_initialize(const mgfx_init_info *init_info)
 {
     mg_vulkan_create_instance();
     mg_vulkan_create_surface();
@@ -295,7 +273,7 @@ void mg_vulkan_renderer_initialize(mgfx_init_info *init_info)
 
     mg_vulkan_create_sync_objects();
 
-    mg_vulkan_create_swapchain(init_info->swapchain_config_info);
+    mg_vulkan_create_swapchain(init_info->width, init_info->height, init_info->vsync);
 
     mg_vulkan_create_descriptor_set_layouts();
 	mg_vulkan_create_descriptor_pool();
@@ -316,7 +294,6 @@ void mg_vulkan_renderer_shutdown(void)
     vkDestroyBuffer(vk_ctx.device.handle, vk_ctx.scratch_buffer.buffer, NULL);
     vkFreeMemory(vk_ctx.device.handle, vk_ctx.scratch_buffer.memory, NULL);
     vkFreeDescriptorSets(vk_ctx.device.handle, vk_ctx.descriptor_pool, 1, &vk_ctx.scratch_buffer.ub_set);
-    vkFreeDescriptorSets(vk_ctx.device.handle, vk_ctx.descriptor_pool, MG_CONFIG_MAX_DESCRIPTOR_CACHE, vk_ctx.descriptor_cache.sets);
 
 	vkDestroyDescriptorPool(vk_ctx.device.handle, vk_ctx.descriptor_pool, NULL);
 
@@ -332,6 +309,11 @@ void mg_vulkan_renderer_shutdown(void)
     vkDestroyCommandPool(vk_ctx.device.handle, vk_ctx.command_pool, NULL);
 
     vkDestroyDevice(vk_ctx.device.handle, NULL);
+
+#if ENABLE_VALIDATION_LAYERS
+    destroy_debug_utils_messenger(vk_ctx.instance, vk_ctx.debug_messenger, NULL);
+#endif
+
     vkDestroySurfaceKHR(vk_ctx.instance, vk_ctx.surface, NULL);
     vkDestroyInstance(vk_ctx.instance, NULL);
 
@@ -342,11 +324,8 @@ void mg_vulkan_renderer_begin(void)
 {
     vkWaitForFences(vk_ctx.device.handle, 1, &vk_ctx.sync_objects.fence, VK_TRUE, UINT64_MAX);
     vkAcquireNextImageKHR(vk_ctx.device.handle, vk_ctx.swapchain.handle, UINT64_MAX, vk_ctx.sync_objects.image_available_semaphore, VK_NULL_HANDLE, &vk_ctx.swapchain.image_index);
-   
-    vkResetFences(vk_ctx.device.handle, 1, &vk_ctx.sync_objects.fence);
 
-    VkFenceCreateInfo fence_info = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
-    fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+    vkResetFences(vk_ctx.device.handle, 1, &vk_ctx.sync_objects.fence);
 
     vkResetCommandBuffer(vk_ctx.command_buffer, 0);
     

@@ -29,10 +29,10 @@ void main()
 
 @stage fragment
 
-layout(set = 1, binding = 0) uniform sampler2D texture0;
-layout(set = 1, binding = 1) uniform sampler2D texture1;
-layout(set = 1, binding = 2) uniform sampler2D texture2;
-layout(set = 1, binding = 3) uniform sampler2D texture3;
+layout(binding = 0) uniform sampler2D texture0;
+layout(binding = 1) uniform sampler2D texture1;
+layout(binding = 2) uniform sampler2D texture2;
+layout(binding = 3) uniform sampler2D texture3;
 
 in vec2 frag_position;
 in vec2 frag_tex_coord;
