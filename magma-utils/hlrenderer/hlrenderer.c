@@ -118,9 +118,10 @@ void mg_hlgfx_begin_scene_2d(const mg_camera_info_2d *camera_info)
     const float half_width = width * 0.5f;
     const float half_height = height * 0.5f;
 
-    ub_data.vp = mg_mat4_ortho(height * 0.5f, -height * 0.5f, -width * 0.5f, width * 0.5f, -1.0f, 1.0f);
-	ub_data.vp = mg_mat4_translate(ub_data.vp, (mg_vec3) { -camera_info->position.x / half_width, -camera_info->position.y / half_height, 0.0f });
+    ub_data.vp = mg_mat4_ortho(half_height, -half_height, -half_width, half_width, -1.0f, 1.0f);
 	ub_data.vp = mg_mat4_scale(ub_data.vp, (mg_vec3) { camera_info->zoom.x, camera_info->zoom.y, 1.0f });
+	ub_data.vp = mg_mat4_translate(ub_data.vp, (mg_vec3) { -camera_info->position.x, -camera_info->position.y, 0.0f });
+
 	mgfx_bind_pipeline(rdata->sprite_batch.pipeline);
 	mgfx_bind_uniforms(0, sizeof(ub_data), &ub_data);
 }
@@ -144,9 +145,10 @@ void mg_hlgfx_begin_lit_scene_2d(const mg_camera_info_2d *camera_info, mg_lit_sc
     const float half_width = width * 0.5f;
     const float half_height = height * 0.5f;
 
-    vs_ub_data.vp = mg_mat4_ortho(height * 0.5f, -height * 0.5f, -width * 0.5f, width * 0.5f, -1.0f, 1.0f);
-	vs_ub_data.vp = mg_mat4_translate(vs_ub_data.vp, (mg_vec3) { -camera_info->position.x / half_width, -camera_info->position.y / half_height, 0.0f });
+    vs_ub_data.vp = mg_mat4_ortho(half_height, -half_height, -half_width, half_width, -1.0f, 1.0f);
 	vs_ub_data.vp = mg_mat4_scale(vs_ub_data.vp, (mg_vec3) { camera_info->zoom.x, camera_info->zoom.y, 1.0f });
+	vs_ub_data.vp = mg_mat4_translate(vs_ub_data.vp, (mg_vec3) { -camera_info->position.x, -camera_info->position.y, 0.0f });
+
 	mgfx_bind_pipeline(rdata->sprite_batch.lit_pipeline);
 	mgfx_bind_uniforms(0, sizeof(vs_ub_data), &vs_ub_data);
 
@@ -307,8 +309,8 @@ void mg_hlgfx_initialize(const mg_hlgfx_init_info *info)
         };
         rdata->sprite_batch.vb = mgfx_create_buffer(&vb_create_info);
         
-        uint32_t indices[MG_HLGFX_2D_MAX_GEOMETRY_COUNT * 6];
-        
+        uint32_t* indices = (uint32_t*)malloc(MG_HLGFX_2D_MAX_GEOMETRY_COUNT * 6 * sizeof(uint32_t));
+
         for (uint32_t i = 0; i < MG_HLGFX_2D_MAX_GEOMETRY_COUNT; i++)
         {
             indices[i * 6 ] = i * 4;
@@ -318,13 +320,16 @@ void mg_hlgfx_initialize(const mg_hlgfx_init_info *info)
             indices[i * 6 + 4] = i * 4 + 2;
             indices[i * 6 + 5] = i * 4 + 3;
         }
+
         const mg_buffer_create_info ib_create_info = {
             .usage = MG_BUFFER_USAGE_INDEX,
             .access = MG_ACCESS_TYPE_GPU,
-            .size = sizeof(indices),
+            .size = MG_HLGFX_2D_MAX_GEOMETRY_COUNT * 6 * sizeof(uint32_t),
             .data = indices
         };
         rdata->sprite_batch.ib = mgfx_create_buffer(&ib_create_info);
+
+        free(indices);
     }
 #pragma endregion
 }
@@ -760,5 +765,4 @@ mg_font mg_hlgfx_add_font_from_file(const char* file_name)
 
     free(buffer);
     return font;
-
 }
