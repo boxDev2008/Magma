@@ -301,7 +301,7 @@ void mg_hlgfx_initialize(const mg_hlgfx_init_info *info)
             mgfx_create_pipeline(&pipeline_create_info);
 
         const mg_buffer_create_info vb_create_info = {
-            .usage = MG_BUFFER_USAGE_INDEX,
+            .usage = MG_BUFFER_USAGE_VERTEX,
             .access = MG_ACCESS_TYPE_CPU,
             .size = MG_HLGFX_2D_MAX_GEOMETRY_COUNT * sizeof(mg_batch_quad)
         };
@@ -760,4 +760,5 @@ mg_font mg_hlgfx_add_font_from_file(const char* file_name)
 
     free(buffer);
     return font;
+
 }
