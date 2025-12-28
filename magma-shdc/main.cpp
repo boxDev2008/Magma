@@ -18,7 +18,7 @@
 
 enum class ShaderType { Graphics, Compute };
 
-enum ShaderLangFlags
+enum
 {
     GLSL = 1 << 1,
     GLSLES = 1 << 2,
@@ -26,18 +26,19 @@ enum ShaderLangFlags
     MSL = 1 << 4,
     SPIRV = 1 << 5
 };
+typedef uint32_t ShaderLangFlags;
 
 struct ShaderStage
 {
-    EShLanguage stage;
-    std::string source;
     std::vector<uint32_t> spirv;
+    std::string source;
+    EShLanguage stage;
 };
 
 struct ShaderProgram
 {
-    ShaderType type;
     std::map<EShLanguage, ShaderStage> stages;
+    ShaderType type;
 };
 
 struct ShaderResources
@@ -118,7 +119,7 @@ private:
 
     static void save_stage(ShaderProgram &program, EShLanguage stage, const std::string &source)
     {
-        program.stages[stage] = { stage, source, {} };
+        program.stages[stage] = { {}, source, stage };
     }
 
     static bool validate_program(const ShaderProgram &program)

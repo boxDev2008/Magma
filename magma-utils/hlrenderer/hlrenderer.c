@@ -692,10 +692,10 @@ mg_texture mg_hlgfx_add_texture(uint32_t width, uint32_t height, mg_sampler_filt
     rdata->sprite_batch.samplers[texture.id] = mgfx_create_sampler(&sampler_create_info);
 
     mg_image_update_info texture_image_update_info = {
+        .data = data,
         .width = width,
         .height = height,
-        .bpp = 4,
-        .data = data
+        .bpp = 4
     };
 
     mgfx_update_image(rdata->sprite_batch.images[texture.id], &texture_image_update_info);

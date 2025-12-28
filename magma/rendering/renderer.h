@@ -42,48 +42,48 @@ extern "C" {
     #define MG_CONFIG_MAX_SCRATCH_BUFFER_SIZE (1 << 22)
 #endif
 
-typedef enum mg_renderer_type
+enum
 {
     MG_RENDERER_TYPE_VULKAN,
     MG_RENDERER_TYPE_DIRECT3D11,
     MG_RENDERER_TYPE_OPENGL,
     MG_RENDERER_TYPE_OPENGLES
-}
-mg_renderer_type;
+};
+typedef uint32_t mg_renderer_type;
 
-typedef enum mg_index_type
+enum
 {
     MG_INDEX_TYPE_UINT16 = 0,
     MG_INDEX_TYPE_UINT32 = 1
-}
-mg_index_type;
+};
+typedef uint32_t mg_index_type;
 
-typedef enum mg_buffer_usage
+enum
 {
     MG_BUFFER_USAGE_INDEX = 64,
     MG_BUFFER_USAGE_VERTEX = 128
-}
-mg_buffer_usage;
+};
+typedef uint32_t mg_buffer_usage;
 
-typedef enum mg_access_type
+enum
 {
     MG_ACCESS_TYPE_GPU,
     MG_ACCESS_TYPE_CPU
-}
-mg_access_type;
+};
+typedef uint32_t mg_access_type;
 
 typedef struct mg_buffer_create_info
 {
+    void *data;
+    size_t size;
     mg_buffer_usage usage;
     mg_access_type access;
-    size_t size;
-    void *data;
 }
 mg_buffer_create_info;
 
 typedef void *mg_buffer;
 
-typedef enum mg_pixel_format
+enum
 {
     MG_PIXEL_FORMAT_R8_UNORM = 9,
     MG_PIXEL_FORMAT_R8_SNORM = 10,
@@ -183,23 +183,23 @@ typedef enum mg_pixel_format
     MG_PIXEL_FORMAT_D16_UNORM_S8_UINT = 128,
     MG_PIXEL_FORMAT_D24_UNORM_S8_UINT = 129,
     MG_PIXEL_FORMAT_D32_SFLOAT_S8_UINT = 130
-}
-mg_pixel_format;
+};
+typedef uint32_t mg_pixel_format;
 
-typedef enum mg_image_type
+enum
 {
     MG_IMAGE_TYPE_2D = 1,
     MG_IMAGE_TYPE_3D = 2,
     MG_IMAGE_TYPE_CUBE = 3
-}
-mg_image_type;
+};
+typedef uint32_t mg_image_type;
 
-typedef enum mg_image_usage
+enum
 {
     MG_IMAGE_USAGE_COLOR_ATTACHMENT = 16,
     MG_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT = 32
-}
-mg_image_usage;
+};
+typedef uint32_t mg_image_usage;
 
 typedef struct mg_image_create_info
 {
@@ -214,28 +214,28 @@ typedef void *mg_image;
 
 typedef struct mg_image_update_info
 {
+    void *data;
     uint32_t width, height, depth;
     uint8_t bpp;
-    void *data;
 }
 mg_image_update_info;
 
-typedef enum mg_sampler_filter
+enum
 {
     MG_SAMPLER_FILTER_NEAREST = 0,
     MG_SAMPLER_FILTER_LINEAR = 1
-}
-mg_sampler_filter;
+};
+typedef uint32_t mg_sampler_filter;
 
-typedef enum mg_sampler_address_mode
+enum
 {
     MG_SAMPLER_ADDRESS_MODE_REPEAT = 0,
     MG_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT = 1,
     MG_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE = 2,
     MG_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER = 3,
     MG_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE = 4
-}
-mg_sampler_address_mode;
+};
+typedef uint32_t mg_sampler_address_mode;
 
 typedef struct mg_sampler_create_info
 {
@@ -252,8 +252,8 @@ typedef void *mg_sampler;
 
 typedef struct mg_attachment_info
 {
-    mg_pixel_format format;
     mg_image image;
+    mg_pixel_format format;
 }
 mg_attachment_info;
 
@@ -282,7 +282,7 @@ typedef struct mg_render_pass_bind_info
 }
 mg_render_pass_bind_info;
 
-typedef enum mg_primitive_topology
+enum
 {
     MG_PRIMITIVE_TOPOLOGY_POINT_LIST = 0,
     MG_PRIMITIVE_TOPOLOGY_LINE_LIST = 1,
@@ -290,34 +290,34 @@ typedef enum mg_primitive_topology
     MG_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST = 3,
     MG_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP = 4,
     MG_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN = 5
-}
-mg_primitive_topology;
+};
+typedef uint32_t mg_primitive_topology;
 
-typedef enum mg_polygon_mode
+enum
 {
     MG_POLYGON_MODE_FILL = 0,
     MG_POLYGON_MODE_LINE = 1,
     MG_POLYGON_MODE_POINT = 2
-}
-mg_polygon_mode;
+};
+typedef uint32_t mg_polygon_mode;
 
-typedef enum mg_cull_mode
+enum
 {
     MG_CULL_MODE_NONE = 0,
     MG_CULL_MODE_FRONT = 0x00000001,
     MG_CULL_MODE_BACK = 0x00000002,
     MG_CULL_MODE_FRONT_AND_BACK = 0x00000003
-}
-mg_cull_mode;
+};
+typedef uint32_t mg_cull_mode;
 
-typedef enum mg_front_face
+enum
 {
     MG_FRONT_FACE_CCW = 0,
     MG_FRONT_FACE_CW = 1
-}
-mg_front_face;
+};
+typedef uint32_t mg_front_face;
 
-typedef enum mg_blend_factor
+enum
 {
     MG_BLEND_FACTOR_ZERO = 0,
     MG_BLEND_FACTOR_ONE = 1,
@@ -338,10 +338,10 @@ typedef enum mg_blend_factor
     MG_BLEND_FACTOR_ONE_MINUS_SRC1_COLOR = 16,
     MG_BLEND_FACTOR_SRC1_ALPHA = 17,
     MG_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA = 18
-}
-mg_blend_factor;
+};
+typedef uint32_t mg_blend_factor;
 
-typedef enum mg_blend_op
+enum
 {
     MG_BLEND_OP_ADD = 0,
     MG_BLEND_OP_SUBTRACT = 1,
@@ -394,8 +394,8 @@ typedef enum mg_blend_op
     MG_BLEND_OP_RED = 1000148043,
     MG_BLEND_OP_GREEN = 1000148044,
     MG_BLEND_OP_BLUE = 1000148045
-}
-mg_blend_op;
+};
+typedef uint32_t mg_blend_op;
 
 typedef struct mg_multisample_state
 {
@@ -407,8 +407,6 @@ mg_multisample_state;
 
 typedef struct mg_color_blend
 {
-    bool blend_enabled;
-
     mg_blend_factor src_color_blend_factor;
     mg_blend_factor dst_color_blend_factor;
     mg_blend_op color_blend_op;
@@ -416,10 +414,12 @@ typedef struct mg_color_blend
     mg_blend_factor src_alpha_blend_factor;
     mg_blend_factor dst_alpha_blend_factor;
     mg_blend_op alpha_blend_op;
+
+    bool blend_enabled;
 }
 mg_color_blend;
 
-typedef enum mg_compare_op
+enum
 {
     MG_COMPARE_OP_NEVER = 0,
     MG_COMPARE_OP_LESS = 1,
@@ -429,18 +429,18 @@ typedef enum mg_compare_op
     MG_COMPARE_OP_NOT_EQUAL = 5,
     MG_COMPARE_OP_GREATER_OR_EQUAL = 6,
     MG_COMPARE_OP_ALWAYS = 7
-}
-mg_compare_op;
+};
+typedef uint32_t mg_compare_op;
 
 typedef struct mg_depth_stencil_state
 {
+    mg_compare_op depth_compare_op;
     bool depth_write_enabled;
     bool stencil_test_enabled;
-    mg_compare_op depth_compare_op;
 }
 mg_depth_stencil_state;
 
-typedef enum mg_vertex_format
+enum
 {
     MG_VERTEX_FORMAT_UINT = 98,
     MG_VERTEX_FORMAT_INT = 99,
@@ -463,8 +463,8 @@ typedef enum mg_vertex_format
 
     MG_VERTEX_FORMAT_UBYTE4N = 37,
     MG_VERTEX_FORMAT_BYTE4N = 38
-}
-mg_vertex_format;
+};
+typedef uint32_t mg_vertex_format;
 
 typedef struct mg_vertex_attribute_info
 {
@@ -476,8 +476,8 @@ mg_vertex_attribute_info;
 
 typedef struct mg_vertex_layout_info
 {
-    uint32_t stride;
     mg_vertex_attribute_info attributes[MG_CONFIG_MAX_VERTEX_ATTRIBUTES];
+    uint32_t stride;
 }
 mg_vertex_layout_info;
 
@@ -490,22 +490,23 @@ mg_shader_source;
 
 typedef struct mg_shader
 {
-    mg_shader_source vertex;
-    mg_shader_source fragment;
-    mg_shader_source compute;
-
     struct
     {
         const char *name;
         uint32_t binding;
     }
     uniform_blocks[MG_CONFIG_MAX_BINDABLE_UNIFORMS];
+
     struct
     {
         const char *name;
         uint32_t binding;
     }
     sampled_images[MG_CONFIG_MAX_BINDABLE_IMAGES];
+
+    mg_shader_source vertex;
+    mg_shader_source fragment;
+    mg_shader_source compute;
 }
 mg_shader;
 
