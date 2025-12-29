@@ -215,7 +215,7 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, uint32_t msg, WPARAM w_param, 
         case WM_RBUTTONUP:
         {
             bool pressed = msg == WM_LBUTTONDOWN || msg == WM_RBUTTONDOWN || msg == WM_MBUTTONDOWN;
-            mg_mouse_buttons mouse_button = MG_MOUSE_BUTTON_MAX_BUTTONS;
+            mg_mouse_buttons mouse_button = MG_MOUSE_BUTTON_MAX;
             switch (msg)
             {
                 case WM_LBUTTONDOWN:

@@ -114,7 +114,7 @@ static mg_keys xkey_to_mg_key(XKeyEvent *event)
         case XK_bracketright:return MG_KEY_RBRACKET;
         
         default:
-        return MG_KEY_MAX_KEYS;
+        return MG_KEY_MAX;
     }
 }
 
@@ -234,7 +234,7 @@ void mg_platform_poll_events(void)
             case ButtonRelease:
             {
                 bool pressed = (event.type == ButtonPress);
-                mg_mouse_buttons mouse_button = MG_MOUSE_BUTTON_MAX_BUTTONS;
+                mg_mouse_buttons mouse_button = MG_MOUSE_BUTTON_MAX;
 
                 switch (event.xbutton.button)
                 {

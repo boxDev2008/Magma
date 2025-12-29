@@ -11,7 +11,7 @@ typedef enum mg_mouse_buttons
     MG_MOUSE_BUTTON_LEFT,
     MG_MOUSE_BUTTON_RIGHT,
     MG_MOUSE_BUTTON_MIDDLE,
-    MG_MOUSE_BUTTON_MAX_BUTTONS
+    MG_MOUSE_BUTTON_MAX
 }
 mg_mouse_buttons;
 
@@ -166,7 +166,7 @@ typedef enum mg_keys
     MG_KEY_BACKSLASH = MG_KEY_PIPE,
     MG_KEY_RBRACKET = 0xDD,
 
-    MG_KEY_MAX_KEYS = 0xFF
+    MG_KEY_MAX = 0xFF
 }
 mg_keys;
 
