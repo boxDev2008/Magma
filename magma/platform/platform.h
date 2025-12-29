@@ -68,7 +68,7 @@ MG_API mg_dynamic_library  *mg_platform_load_library            (const char *lib
 MG_API mg_proc_address     *mg_platform_get_proc_address        (mg_dynamic_library *library, const char *proc_name);
 MG_API void                 mg_platform_unload_library          (mg_dynamic_library *library);
 
-MG_API inline mg_platform  *mg_platform_get_handle              (void);
+MG_API mg_platform         *mg_platform_get_handle              (void);
 
 #ifdef __cplusplus
 }

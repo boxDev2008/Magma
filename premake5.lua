@@ -1,3 +1,5 @@
+include "config.lua"
+
 local host = os.host()
 if host == "windows" then
 	VULKAN_SDK = os.getenv("VULKAN_SDK")
@@ -36,7 +38,6 @@ project "Magma"
 
 	filter { "system:linux" }
 		links { "vulkan", "X11", "m" }
-		buildoptions { "-fpermissive" }
 
 project "Magma-shdc"
 	kind "ConsoleApp"
@@ -77,29 +78,58 @@ project "Magma-shdc"
 	filter "configurations:Release"
 		defines { "NDEBUG" }
 
-project "SandboxApp"
+project(PROJECT_NAME)
 	kind "ConsoleApp"
-	language "C"
+	language "C++"
+	cppdialect "C++20"
 	targetdir "bin/%{cfg.buildcfg}"
 
 	architecture "x64"
 
-	files { "sandbox/*.c" }
+	local utils_files = {}
+	local additional_includes = {}
+	local additional_links = {}
+
+	if PROJECT_UTILS then
+		for _, dir in ipairs(PROJECT_UTILS) do
+			table.insert(utils_files, "magma-utils/" .. dir .. "/**.c")
+			table.insert(utils_files, "magma-utils/" .. dir .. "/**.cpp")
+		end
+	end
+
+	if ADDITIONAL_INCLUDES then
+		additional_includes = ADDITIONAL_INCLUDES
+	end
+
+	if ADDITIONAL_LINKS then
+		additional_links = ADDITIONAL_LINKS
+	end
+
+	files {
+		SOURCE_DIR.."/**.c",
+		SOURCE_DIR.."/**.cpp",
+		table.unpack(utils_files)
+	}
 
 	includedirs {
 		".",
 		"magma",
-		"magma/vendor"
+		"magma/vendor",
+		"magma-utils",
+		SOURCE_DIR,
+		table.unpack(additional_includes)
 	}
 
 	libdirs { "bin/%{cfg.buildcfg}" }
+	links {
+		"Magma",
+		table.unpack(additional_links)
+	}
 
 	optimize "On"
-	
+
 	filter "configurations:Release"
 		defines { "NDEBUG" }
 
-	filter { "system:windows" }
-		links { "Magma" }
 	filter { "system:linux" }
-		links { "Magma", "EGL" }
+		links { "EGL" }

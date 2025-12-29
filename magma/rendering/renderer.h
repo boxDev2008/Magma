@@ -537,49 +537,49 @@ typedef struct mgfx_init_info
 mgfx_init_info;
 
 MG_API void                            mgfx_initialize                      (const mgfx_init_info *init_info);
-MG_API inline void                     mgfx_shutdown                        (void);
+MG_API void                     mgfx_shutdown                        (void);
 
-MG_API inline void                     mgfx_begin                     		(void);
-MG_API inline void                     mgfx_end                       		(void);
+MG_API void                     mgfx_begin                     		(void);
+MG_API void                     mgfx_end                       		(void);
 
-MG_API inline void                     mgfx_viewport                        (int32_t x, int32_t y, uint32_t width, uint32_t height);
-MG_API inline void                     mgfx_scissor                         (int32_t x, int32_t y, uint32_t width, uint32_t height);
+MG_API void                     mgfx_viewport                        (int32_t x, int32_t y, uint32_t width, uint32_t height);
+MG_API void                     mgfx_scissor                         (int32_t x, int32_t y, uint32_t width, uint32_t height);
 
-MG_API inline void                      mgfx_draw                           (uint32_t vertex_count, uint32_t first_vertex);
-MG_API inline void                      mgfx_draw_indexed                   (uint32_t index_count, uint32_t first_index, uint32_t vertex_offset);
-MG_API inline void                      mgfx_draw_instanced                 (uint32_t vertex_count, uint32_t first_vertex, uint32_t instance_count, uint32_t first_instance);
-MG_API inline void                      mgfx_draw_indexed_instanced         (uint32_t index_count, uint32_t first_index, int32_t vertex_offset, uint32_t instance_count, uint32_t first_instance);
-MG_API inline void                      mgfx_dispatch                       (uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z);
+MG_API void                      mgfx_draw                           (uint32_t vertex_count, uint32_t first_vertex);
+MG_API void                      mgfx_draw_indexed                   (uint32_t index_count, uint32_t first_index, uint32_t vertex_offset);
+MG_API void                      mgfx_draw_instanced                 (uint32_t vertex_count, uint32_t first_vertex, uint32_t instance_count, uint32_t first_instance);
+MG_API void                      mgfx_draw_indexed_instanced         (uint32_t index_count, uint32_t first_index, int32_t vertex_offset, uint32_t instance_count, uint32_t first_instance);
+MG_API void                      mgfx_dispatch                       (uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z);
 
-MG_API inline void                      mgfx_reset                          (uint32_t width, uint32_t height, bool vsync);
+MG_API void                      mgfx_reset                          (uint32_t width, uint32_t height, bool vsync);
 
-MG_API inline mg_render_pass            mgfx_create_render_pass             (const mg_render_pass_create_info *create_info);
-MG_API inline void                      mgfx_destroy_render_pass            (mg_render_pass render_pass);
-MG_API inline void                      mgfx_update_render_pass             (mg_render_pass render_pass, const mg_render_pass_update_info *update_info);
-MG_API inline void                      mgfx_bind_render_pass               (mg_render_pass render_pass, const mg_render_pass_bind_info *begin_info);
+MG_API mg_render_pass            mgfx_create_render_pass             (const mg_render_pass_create_info *create_info);
+MG_API void                      mgfx_destroy_render_pass            (mg_render_pass render_pass);
+MG_API void                      mgfx_update_render_pass             (mg_render_pass render_pass, const mg_render_pass_update_info *update_info);
+MG_API void                      mgfx_bind_render_pass               (mg_render_pass render_pass, const mg_render_pass_bind_info *begin_info);
 
-MG_API inline mg_pipeline               mgfx_create_pipeline                (const mg_pipeline_create_info *create_info);
-MG_API inline void                      mgfx_destroy_pipeline               (mg_pipeline pipeline);
-MG_API inline void                      mgfx_bind_pipeline                  (mg_pipeline pipeline);
+MG_API mg_pipeline               mgfx_create_pipeline                (const mg_pipeline_create_info *create_info);
+MG_API void                      mgfx_destroy_pipeline               (mg_pipeline pipeline);
+MG_API void                      mgfx_bind_pipeline                  (mg_pipeline pipeline);
 
-MG_API inline mg_buffer                 mgfx_create_buffer                  (const mg_buffer_create_info *create_info);
-MG_API inline void                      mgfx_destroy_buffer                 (mg_buffer buffer);
-MG_API inline void                      mgfx_update_buffer                  (mg_buffer buffer, size_t size, void *data);
+MG_API mg_buffer                 mgfx_create_buffer                  (const mg_buffer_create_info *create_info);
+MG_API void                      mgfx_destroy_buffer                 (mg_buffer buffer);
+MG_API void                      mgfx_update_buffer                  (mg_buffer buffer, size_t size, void *data);
 
-MG_API inline void                      mgfx_bind_vertex_buffer             (mg_buffer buffer);
-MG_API inline void                      mgfx_bind_index_buffer              (mg_buffer buffer, mg_index_type index_type);
+MG_API void                      mgfx_bind_vertex_buffer             (mg_buffer buffer);
+MG_API void                      mgfx_bind_index_buffer              (mg_buffer buffer, mg_index_type index_type);
 
-MG_API inline void                      mgfx_bind_uniforms                  (uint32_t binding, size_t size, void *data);
+MG_API void                      mgfx_bind_uniforms                  (uint32_t binding, size_t size, void *data);
 
-MG_API inline mg_image                  mgfx_create_image                   (const mg_image_create_info *create_info);
-MG_API inline void                      mgfx_destroy_image                  (mg_image image);
-MG_API inline void                      mgfx_update_image                   (mg_image image, const mg_image_update_info *update_info);
-MG_API inline void                      mgfx_bind_image                     (mg_image image, mg_sampler sampler, uint32_t binding);
+MG_API mg_image                  mgfx_create_image                   (const mg_image_create_info *create_info);
+MG_API void                      mgfx_destroy_image                  (mg_image image);
+MG_API void                      mgfx_update_image                   (mg_image image, const mg_image_update_info *update_info);
+MG_API void                      mgfx_bind_image                     (mg_image image, mg_sampler sampler, uint32_t binding);
 
-MG_API inline mg_sampler                mgfx_create_sampler                 (const mg_sampler_create_info *create_info);
-MG_API inline void                      mgfx_destroy_sampler                (mg_sampler sampler);
+MG_API mg_sampler                mgfx_create_sampler                 (const mg_sampler_create_info *create_info);
+MG_API void                      mgfx_destroy_sampler                (mg_sampler sampler);
 
-MG_API inline mg_renderer_type          mgfx_get_type                       (void);
+MG_API mg_renderer_type          mgfx_get_type                       (void);
 
 #ifdef __cplusplus
 }
