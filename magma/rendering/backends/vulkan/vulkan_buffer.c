@@ -2,6 +2,7 @@
 #include "vulkan_resources.h"
 #include "vulkan_command_buffer.h"
 
+#include <string.h>
 #include <stdlib.h>
 #include <assert.h>
 

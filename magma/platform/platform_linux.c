@@ -138,7 +138,7 @@ void mg_platform_initialize(mg_platform_init_info *init_info)
     {
         fprintf(stderr, "Failed to open X11 display\n");
 		free(platform);
-        return NULL;
+        return;
     }
 
     platform->screen = DefaultScreen(platform->display);
@@ -160,7 +160,7 @@ void mg_platform_initialize(mg_platform_init_info *init_info)
         fprintf(stderr, "Failed to create X11 window\n");
         XCloseDisplay(platform->display);
 		free(platform);
-        return NULL;
+        return;
     }
 
     XStoreName(platform->display, platform->window, init_info->title);
@@ -180,8 +180,6 @@ void mg_platform_initialize(mg_platform_init_info *init_info)
 
     platform->window_width = init_info->width;
     platform->window_height = init_info->height;
-
-    return platform;
 }
 
 void mg_platform_shutdown(void)
@@ -265,7 +263,7 @@ void mg_platform_poll_events(void)
 			{
 				if ((Atom)event.xclient.data.l[0] == platform->wm_delete_window)
 				{
-					mg_quit_event_data data = {platform};
+					mg_quit_event_data data = {(mg_platform*)platform};
 					mg_event_call(MG_EVENT_CODE_QUIT, (void*)&data);
 				}
 			}

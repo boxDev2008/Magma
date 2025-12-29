@@ -1,6 +1,8 @@
 #include "opengl_render_pass.h"
 #include "opengl_renderer.h"
 
+#include <stdlib.h>
+
 mg_opengl_render_pass *mg_opengl_create_render_pass(const mg_render_pass_create_info *create_info)
 {
     mg_opengl_render_pass *render_pass = (mg_opengl_render_pass*)malloc(sizeof(mg_opengl_render_pass));

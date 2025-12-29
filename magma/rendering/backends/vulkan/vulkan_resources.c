@@ -3,6 +3,7 @@
 #include "vulkan_descriptor_cache.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <assert.h>
 
 void mg_vulkan_recycle(void)
