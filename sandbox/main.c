@@ -22,7 +22,7 @@ void on_initialize(int32_t argc, char* const* argv, uint32_t width, uint32_t hei
         .height = height,
         .vsync = true
     };
-    
+
     mgfx_initialize(&renderer_init_info);
 }
 
@@ -39,9 +39,9 @@ void on_update(float delta_time)
 
 static const mg_app_init_info app_info = {
     .name = "Sandbox",
-    .flags = MG_PLATFORM_FLAG_RESIZABLE,
     .width = 1280,
     .height = 720,
+    .flags = MG_PLATFORM_FLAG_RESIZABLE,
     .events = {
         .initialize = on_initialize,
         .shutdown = on_shutdown,
