@@ -70,9 +70,9 @@ mg_texture;
 
 typedef struct mg_sprite
 {
-    float x, y;
-    float width, height;
     mg_texture *texture;
+    mg_vec4 texture_area;
+    mg_vec2i size;
 }
 mg_sprite;
 
@@ -111,14 +111,12 @@ void mg_hlgfx_draw_sprite_2d_internal_ext(mg_mat4 model, mg_vec4 color, float gr
 void mg_hlgfx_draw_rect_2d              (mg_vec2 position, mg_vec2 scale, mg_vec2 pivot, mg_vec4 color);
 void mg_hlgfx_draw_sprite_2d            (mg_vec2 position, mg_vec2 scale, mg_vec2 pivot, mg_vec4 color, const mg_sprite *sprite);
 void mg_hlgfx_draw_sprite_2d_ext        (mg_vec2 position, mg_vec2 scale, mg_vec2 pivot, mg_vec4 color, float grayscale, const mg_sprite *sprite);
-void mg_hlgfx_draw_vertex_colored_sprite_2d (mg_vec2 position, mg_vec2 scale, mg_vec2 pivot, mg_vec4 c0 , mg_vec4 c1 , mg_vec4 c2 , mg_vec4 c3, const mg_sprite *sprite);
 
 void mg_hlgfx_draw_text_2d              (mg_vec2 position, float scale, mg_vec4 color, mg_text_alignment alignment, mg_font *font, const char *fmt, ...);
 
 void mg_hlgfx_draw_rotated_rect_2d		    (mg_vec2 position, mg_vec2 scale, mg_vec2 pivot, float rotation, mg_vec4 color);
 void mg_hlgfx_draw_rotated_sprite_2d	    (mg_vec2 position, mg_vec2 scale, mg_vec2 pivot, float rotation, mg_vec4 color, const mg_sprite *sprite);
 void mg_hlgfx_draw_rotated_sprite_2d_ext    (mg_vec2 position, mg_vec2 scale, mg_vec2 pivot, float rotation, mg_vec4 color, float grayscale, const mg_sprite *sprite);
-void mg_hlgfx_draw_rotated_vertex_colored_sprite_2d	    (mg_vec2 position, mg_vec2 scale, mg_vec2 pivot, float rotation, mg_vec4 c0, mg_vec4 c1, mg_vec4 c2, mg_vec4 c3, const mg_sprite *sprite);
 
 void mg_hlgfx_draw_point_light_2d       (mg_vec2 position, float scale, float intensity, mg_vec3 color);
 
