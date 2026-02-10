@@ -156,16 +156,16 @@ void mg_imgui_initialize(void)
     imgui_data = new ImGuiData;
 
     mg_buffer_create_info vb_create_info = {
+        .size = sizeof(imgui_data->vertices),
         .usage = MG_BUFFER_USAGE_VERTEX,
-        .access = MG_ACCESS_TYPE_GPU,
-        .size = sizeof(imgui_data->vertices)
+        .access = MG_ACCESS_TYPE_GPU
     };
     imgui_data->vb = mgfx_create_buffer(&vb_create_info);
 
     mg_buffer_create_info ib_create_info = {
+        .size = sizeof(imgui_data->indices),
         .usage = MG_BUFFER_USAGE_INDEX,
-        .access = MG_ACCESS_TYPE_GPU,
-        .size = sizeof(imgui_data->indices)
+        .access = MG_ACCESS_TYPE_GPU
     };
     imgui_data->ib = mgfx_create_buffer(&ib_create_info);
 
@@ -203,12 +203,12 @@ void mg_imgui_initialize(void)
     mg_pipeline_create_info pipeline_create_info = {
         .shader = get_imgui_shader(mgfx_get_type()),
         .vertex_layout = {
-            .stride = sizeof(ImDrawVert),
             .attributes = {
-            { .location = 0, .offset = offsetof(ImDrawVert, pos), .format = MG_VERTEX_FORMAT_FLOAT2, },
-            { .location = 1, .offset = offsetof(ImDrawVert, uv), .format = MG_VERTEX_FORMAT_FLOAT2, },
-            { .location = 2,  .offset = offsetof(ImDrawVert, col), .format = MG_VERTEX_FORMAT_UBYTE4N }
-        },
+                { .location = 0, .offset = offsetof(ImDrawVert, pos), .format = MG_VERTEX_FORMAT_FLOAT2, },
+                { .location = 1, .offset = offsetof(ImDrawVert, uv), .format = MG_VERTEX_FORMAT_FLOAT2, },
+                { .location = 2,  .offset = offsetof(ImDrawVert, col), .format = MG_VERTEX_FORMAT_UBYTE4N }
+            },
+            .stride = sizeof(ImDrawVert)
         },
     
         .primitive_topology = MG_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
@@ -217,13 +217,13 @@ void mg_imgui_initialize(void)
         .front_face = MG_FRONT_FACE_CW,
         
         .color_blend = {
-            .blend_enabled = true,
             .src_color_blend_factor = MG_BLEND_FACTOR_SRC_ALPHA,
             .dst_color_blend_factor = MG_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
             .color_blend_op = MG_BLEND_OP_ADD,
             .src_alpha_blend_factor = MG_BLEND_FACTOR_SRC_ALPHA,
             .dst_alpha_blend_factor = MG_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
-            .alpha_blend_op = MG_BLEND_OP_ADD
+            .alpha_blend_op = MG_BLEND_OP_ADD,
+            .blend_enabled = true
         }
     };
     

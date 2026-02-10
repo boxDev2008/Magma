@@ -197,6 +197,8 @@ void mg_platform_shutdown(void)
 
 void mg_platform_poll_events(void)
 {
+    mg_input_process_reset();
+
     XEvent event;
     while (XPending(platform->display) > 0)
     {

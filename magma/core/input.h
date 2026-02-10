@@ -212,9 +212,13 @@ void mg_input_process_char          (char ch);
 void mg_input_process_mouse_button  (mg_mouse_buttons button, bool pressed);
 void mg_input_process_mouse_move    (int32_t x, int32_t y);
 void mg_input_process_mouse_wheel   (int8_t z_delta);
+void mg_input_process_reset         (void);
 
 MG_API bool     mg_input_is_key_down            (mg_keys key);
-MG_API bool     mg_input_is_mouse_button_down   (mg_mouse_buttons button);
+MG_API bool     mg_input_is_key_pressed         (mg_keys key);
+
+MG_API bool     mg_input_is_mouse_down          (mg_mouse_buttons button);
+MG_API bool     mg_input_is_mouse_clicked       (mg_mouse_buttons button);
 
 MG_API int8_t   mg_input_get_mouse_delta        (void);
 MG_API void     mg_input_get_mouse_position     (int32_t *x, int32_t *y);

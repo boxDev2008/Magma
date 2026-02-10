@@ -236,7 +236,6 @@ private:
         comp.set_common_options(glsl_opts);
         
         const std::string glsl_source = comp.compile();
-        std::cout << glsl_source;
         
         return compile_glsl_to_spirv(glsl_source, stage.stage, spirv_out);
     }
@@ -250,7 +249,6 @@ public:
         spirv_cross::CompilerGLSL compiler(spirv);
         spirv_cross::CompilerGLSL::Options options;
         options.version = 450;
-        options.vertex.flip_vert_y = true;
         options.vulkan_semantics = false;
         options.es = false;
         set_entry_point(compiler);
@@ -263,7 +261,6 @@ public:
         spirv_cross::CompilerGLSL compiler(spirv);
         spirv_cross::CompilerGLSL::Options options;
         options.version = 300;
-        options.vertex.flip_vert_y = true;
         options.vulkan_semantics = false;
         options.es = true;
         set_entry_point(compiler);

@@ -136,9 +136,9 @@ void mg_platform_shutdown(void)
 void mg_platform_poll_events(void)
 {
     mg_win32_platform *handle = (mg_win32_platform*)platform;
+    mg_input_process_reset();
 
     MSG message;
-    
     while (PeekMessageA(&message, platform->hwnd, 0, 0, PM_REMOVE))
     {
         TranslateMessage(&message);

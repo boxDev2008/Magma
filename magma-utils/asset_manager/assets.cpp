@@ -1,6 +1,5 @@
 #include "assets.h"
-
-#include <magma-utils/hlrenderer/stb_image.h>
+#include <afterglow/stb_image.h>
 
 #include <unordered_map>
 #include <string>
@@ -11,10 +10,10 @@
 
 static struct
 {
-    std::unordered_map<std::string, mg_sprite> sprites;
+    std::unordered_map<std::string, ag_sprite> sprites;
+    std::unordered_map<std::string, ag_font> fonts;
     std::unordered_map<std::string, mg_sound_resource*> sounds;
-    std::unordered_map<std::string, mg_font> fonts;
-    mg_texture atlas;
+    ag_texture atlas;
 }
 asset_manager;
 
@@ -104,7 +103,7 @@ static void load_sprite_atlas(const char* folderPath)
         stbi_image_free(imageData[i]);
     }
 
-    asset_manager.atlas = mg_hlgfx_add_texture(ASSET_MANAGER_ATLAS_WIDTH, ASSET_MANAGER_ATLAS_HEIGHT,
+    asset_manager.atlas = ag_add_texture(ASSET_MANAGER_ATLAS_WIDTH, ASSET_MANAGER_ATLAS_HEIGHT,
         MG_SAMPLER_FILTER_NEAREST, MG_PIXEL_FORMAT_RGBA8_UNORM, atlasData);
 
     free(atlasData);
@@ -115,13 +114,13 @@ static void load_sprite_atlas(const char* folderPath)
         int w = r->w - SPRITE_PADDING * 2;
         int h = r->h - SPRITE_PADDING * 2;
 
-        mg_sprite sprite;
+        ag_sprite sprite;
         sprite.texture_area.x = (float)(r->x + SPRITE_PADDING) / ASSET_MANAGER_ATLAS_WIDTH;
         sprite.texture_area.y = (float)(r->y + SPRITE_PADDING) / ASSET_MANAGER_ATLAS_HEIGHT;
         sprite.texture_area.z  = (float)w / ASSET_MANAGER_ATLAS_WIDTH;
         sprite.texture_area.w = (float)h / ASSET_MANAGER_ATLAS_HEIGHT;
-        sprite.size.x = w;
-        sprite.size.y = h;
+        sprite.width = w;
+        sprite.height = h;
         sprite.texture = &asset_manager.atlas;
 
         asset_manager.sprites[imageNames[i]] = sprite;
@@ -180,40 +179,45 @@ static void load_fonts(const char* folderPath)
             strip_extension(fontName, ".ttf");
             strip_extension(fontName, ".otf");
 
-            asset_manager.fonts[fontName] = mg_hlgfx_add_font_from_file(fullPath);
+            asset_manager.fonts[fontName] = ag_add_font_from_file(fullPath);
         }
     }
 
     closedir(dir);
 }
 
-void mg_assets_initialize(void)
+void assets_initialize(void)
 {
     load_sprite_atlas("./assets/sprites");
     load_sounds("./assets/sounds");
     load_fonts("./assets/fonts");
 }
 
-void mg_assets_shutdown(void)
+void assets_shutdown(void)
 {
     for (auto& sound : asset_manager.sounds)
         mg_audio_destroy_sound_resource(sound.second);
 }
 
-mg_sprite *mg_assets_get_sprite(const char *name)
+ag_sprite *assets_get_sprite(const char *name)
 {
-    mg_sprite* sprite = &asset_manager.sprites[name];
-    return sprite;
+    auto result = asset_manager.sprites.find(name);
+    if (result == asset_manager.sprites.end())
+    {
+        fprintf(stderr, "Failed to find sprite: %s\n", name);
+        return NULL;
+    }
+    return &result->second;
 }
 
-mg_sound_resource *mg_assets_get_sound(const char *name)
+mg_sound_resource *assets_get_sound(const char *name)
 {
     mg_sound_resource* sound = asset_manager.sounds[name];
     return sound;
 }
 
-mg_font *mg_assets_get_font(const char *name)
+ag_font *assets_get_font(const char *name)
 {
-    mg_font *font = &asset_manager.fonts[name];
+    ag_font *font = &asset_manager.fonts[name];
     return font;
 }

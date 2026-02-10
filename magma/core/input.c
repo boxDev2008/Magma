@@ -10,6 +10,7 @@
 typedef struct mg_keyboard_state
 {
     bool keys[256];
+    bool keys_pressed[256];
 }
 mg_keyboard_state;
 
@@ -19,26 +20,14 @@ typedef struct mg_mouse_state
     int16_t y;
     int8_t delta;
     bool buttons[4];
+    bool buttons_pressed[4];
 }
 mg_mouse_state;
-
-/*typedef struct mg_gamepad_state
-{
-    uint32_t buttons;
-    bool left_trigger;
-    bool right_trigger;
-    float thumb_left_x;
-    float thumb_left_y;
-    float thumb_right_x;
-    float thumb_right_y;
-}
-mg_gamepad_state_t;*/
 
 typedef struct mg_input_state
 {
     mg_keyboard_state keyboard;
     mg_mouse_state mouse;
-    //mg_gamepad_state_t gamepads[4];
 }
 mg_input_state;
 
@@ -46,6 +35,9 @@ static mg_input_state input_state;
 
 void mg_input_process_key(mg_keys key, bool pressed)
 {
+    if (pressed && !input_state.keyboard.keys[key])
+        input_state.keyboard.keys_pressed[key] = true;
+    
     input_state.keyboard.keys[key] = pressed;
     mg_key_event_data data = {key};
     mg_event_call(pressed ? MG_EVENT_CODE_KEY_PRESSED : MG_EVENT_CODE_KEY_RELEASED, (void*)&data);
@@ -59,6 +51,9 @@ void mg_input_process_char(char ch)
 
 void mg_input_process_mouse_button(mg_mouse_buttons button, bool pressed)
 {
+    if (pressed && !input_state.mouse.buttons[button])
+        input_state.mouse.buttons_pressed[button] = true;
+    
     input_state.mouse.buttons[button] = pressed;
     mg_mouse_button_event_data data = {button};
     mg_event_call(pressed ? MG_EVENT_CODE_MOUSE_BUTTON_PRESSED : MG_EVENT_CODE_MOUSE_BUTTON_RELEASED, (void*)&data);
@@ -79,14 +74,31 @@ void mg_input_process_mouse_wheel(int8_t delta)
     mg_event_call(MG_EVENT_CODE_MOUSE_WHEEL, (void*)&data);
 }
 
+void mg_input_process_reset(void)
+{
+    input_state.mouse.delta = 0;
+    memset(input_state.keyboard.keys_pressed, 0, sizeof(input_state.keyboard.keys_pressed));
+    memset(input_state.mouse.buttons_pressed, 0, sizeof(input_state.mouse.buttons_pressed));
+}
+
 bool mg_input_is_key_down(mg_keys key)
 {
     return input_state.keyboard.keys[key];
 }
 
-bool mg_input_is_mouse_button_down(mg_mouse_buttons button)
+bool mg_input_is_key_pressed(mg_keys key)
+{
+    return input_state.keyboard.keys_pressed[key];
+}
+
+bool mg_input_is_mouse_down(mg_mouse_buttons button)
 {
     return input_state.mouse.buttons[button];
+}
+
+bool mg_input_is_mouse_clicked(mg_mouse_buttons button)
+{
+    return input_state.mouse.buttons_pressed[button];
 }
 
 int8_t mg_input_get_mouse_delta(void)
