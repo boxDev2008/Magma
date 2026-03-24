@@ -206,6 +206,7 @@ typedef struct mg_image_create_info
     mg_pixel_format format;
     mg_image_type type;
     mg_image_usage usage;
+    mg_access_type access;
     uint32_t width, height, depth;
 }
 mg_image_create_info;

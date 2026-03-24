@@ -131,10 +131,26 @@ mg_vulkan_image *mg_vulkan_create_image(const mg_image_create_info *create_info)
         VK_IMAGE_USAGE_SAMPLED_BIT |
         (uint32_t)create_info->usage;
 
-    mg_vulkan_allocate_image(create_info->width, create_info->height, create_info->depth ? create_info->depth : 1, create_info->type, create_info->format,
-        VK_IMAGE_TILING_OPTIMAL,
-        usage_flags,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &image->image, &image->memory);
+    VkImageTiling tiling;
+    VkMemoryPropertyFlags mem_props;
+
+    if (create_info->access == MG_ACCESS_TYPE_CPU)
+    {
+        tiling = VK_IMAGE_TILING_LINEAR;
+        mem_props = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+    }
+    else
+    {
+        tiling = VK_IMAGE_TILING_OPTIMAL;
+        mem_props = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    }
+
+    mg_vulkan_allocate_image(
+        create_info->width, create_info->height,
+        create_info->depth ? create_info->depth : 1,
+        create_info->type, create_info->format,
+        tiling, usage_flags, mem_props,
+        &image->image, &image->memory);
 
     VkImageViewCreateInfo view_info = {VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
     view_info.image = image->image;
@@ -153,6 +169,7 @@ mg_vulkan_image *mg_vulkan_create_image(const mg_image_create_info *create_info)
     assert(result == VK_SUCCESS);
 
     image->format = (VkFormat)create_info->format;
+    image->is_cpu = create_info->access == MG_ACCESS_TYPE_CPU;
 
     return image;
 }
@@ -166,6 +183,15 @@ void mg_vulkan_update_image(mg_vulkan_image *image, const mg_image_update_info *
 {
     const uint32_t depth = update_info->depth ? update_info->depth : 1;
     const VkDeviceSize image_size = update_info->height * update_info->width * depth * update_info->bpp;
+
+    if (image->is_cpu)
+    {
+        void *data;
+        vkMapMemory(vk_ctx.device.handle, image->memory, 0, image_size, 0, &data);
+        memcpy(data, update_info->data, image_size);
+        vkUnmapMemory(vk_ctx.device.handle, image->memory);
+        return;
+    }
 
     VkBuffer staging_buffer;
     VkDeviceMemory staging_memory;

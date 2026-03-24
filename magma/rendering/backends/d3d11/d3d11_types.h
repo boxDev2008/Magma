@@ -13,6 +13,7 @@ typedef struct mg_d3d11_image
 {
     ID3D11Resource *texture;
     ID3D11ShaderResourceView *view;
+    bool is_cpu;
 }
 mg_d3d11_image;
 

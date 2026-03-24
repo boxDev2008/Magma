@@ -20,8 +20,18 @@ mg_d3d11_image *mg_d3d11_create_image(const mg_image_create_info *create_info)
         texture_desc.ArraySize = 1;
         texture_desc.Format = format;
         texture_desc.SampleDesc.Count = 1;
-        texture_desc.Usage = D3D11_USAGE_DEFAULT;
         texture_desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+
+        if (create_info->access == MG_ACCESS_TYPE_CPU)
+        {
+            texture_desc.Usage = D3D11_USAGE_DYNAMIC;
+            texture_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        }
+        else
+        {
+            texture_desc.Usage = D3D11_USAGE_DEFAULT;
+            texture_desc.CPUAccessFlags = 0;
+        }
 
         switch (create_info->usage)
         {
@@ -47,6 +57,17 @@ mg_d3d11_image *mg_d3d11_create_image(const mg_image_create_info *create_info)
         texture_desc.Usage = D3D11_USAGE_DEFAULT;
         texture_desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 
+        if (create_info->access == MG_ACCESS_TYPE_CPU)
+        {
+            texture_desc.Usage = D3D11_USAGE_DYNAMIC;
+            texture_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        }
+        else
+        {
+            texture_desc.Usage = D3D11_USAGE_DEFAULT;
+            texture_desc.CPUAccessFlags = 0;
+        }
+
         ID3D11Device_CreateTexture3D(d3d11_ctx.device, &texture_desc, NULL, (ID3D11Texture3D**)&image->texture);
         view_desc.Texture3D.MipLevels = 1;
     }
@@ -54,6 +75,8 @@ mg_d3d11_image *mg_d3d11_create_image(const mg_image_create_info *create_info)
     view_desc.Format = mg_d3d11_get_srv_format(create_info->format);
     view_desc.ViewDimension = mg_d3d11_get_srv_dimension(create_info->type);
     ID3D11Device_CreateShaderResourceView(d3d11_ctx.device, (ID3D11Resource*)image->texture, &view_desc, &image->view);
+
+    image->is_cpu = create_info->access == MG_ACCESS_TYPE_CPU;
     
     return image;
 }
@@ -68,6 +91,21 @@ void mg_d3d11_destroy_image(mg_d3d11_image *image)
 
 void mg_d3d11_update_image(mg_d3d11_image *image, const mg_image_update_info *update_info)
 {
+    if (image->is_cpu)
+    {
+        D3D11_MAPPED_SUBRESOURCE mapped = { 0 };
+        ID3D11DeviceContext_Map(d3d11_ctx.immediate_context,
+            (ID3D11Resource*)image->texture, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+        const uint32_t row_pitch = update_info->width * update_info->bpp;
+        for (uint32_t y = 0; y < update_info->height; y++)
+            memcpy((uint8_t*)mapped.pData + y * mapped.RowPitch,
+                   (uint8_t*)update_info->data + y * row_pitch,
+                   row_pitch);
+        ID3D11DeviceContext_Unmap(d3d11_ctx.immediate_context,
+            (ID3D11Resource*)image->texture, 0);
+        return;
+    }
+
     const uint32_t row_pitch = update_info->width * update_info->bpp;
     const uint32_t depth_pitch = row_pitch * update_info->height;
 

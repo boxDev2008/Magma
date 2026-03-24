@@ -13,6 +13,7 @@ typedef struct mg_vulkan_image
     VkImageView view;
     VkDeviceMemory memory;
     VkFormat format;
+    bool is_cpu;
 }
 mg_vulkan_image;
 
