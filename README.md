@@ -28,7 +28,7 @@ Magma comes with a simple example to make sure it's working, if compilation was 
 ```
 
 ## Linux:
-> NOTE: This has been tested on Arch Linux only, please report any bugs if you encounter any on other linux distrobutions.<br>
+> NOTE: This has been tested on Arch Linux only, please report any bugs if you encounter any on other linux distributions.<br>
 > Another NOTE: Please make sure you have Xorg installed, if you're on Wayland you can use Xwayland.
 
 #### Arch Linux:
