@@ -2,9 +2,9 @@
   <img width="800" src="content/logo.svg">
 </p>
 
-`<br>`
+<br>
 Magma is a minimal set of header modules for making basic games and apps in C/C++ inspired by libraries like sokol and stb.
-`<br><br>`
+<br>
 
 # mgapp.h
 
