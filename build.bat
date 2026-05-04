@@ -1,1 +1,0 @@
-MSBuild.exe Magma.sln -property:Configuration=Release

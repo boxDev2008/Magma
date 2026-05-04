@@ -289,7 +289,23 @@ public:
     static std::string to_msl(const std::vector<uint32_t> &spirv)
     {
         spirv_cross::CompilerMSL compiler(spirv);
-        set_entry_point(compiler);
+
+        spirv_cross::CompilerGLSL::Options common_opts;
+        common_opts.vertex.flip_vert_y = true;
+        compiler.set_common_options(common_opts);
+
+        spirv_cross::ShaderResources resources = compiler.get_shader_resources();
+        for (const auto &ub : resources.uniform_buffers)
+        {
+            uint32_t binding = compiler.get_decoration(ub.id, spv::DecorationBinding);
+            spirv_cross::MSLResourceBinding rb;
+            rb.stage = compiler.get_execution_model();
+            rb.desc_set = compiler.get_decoration(ub.id, spv::DecorationDescriptorSet);
+            rb.binding = binding;
+            rb.msl_buffer = binding + 1;
+            compiler.add_msl_resource_binding(rb);
+        }
+
         return compiler.compile();
     }
 private:
@@ -344,9 +360,9 @@ public:
         const ShaderResources &resources
     )
     {
-        out << std::format("static inline const mg_shader get_{}_shader(mg_renderer_type type) {{\n", name);
-        out << "    mg_shader shader = {0};\n";
-        out << "    switch (type) {\n";
+        out << std::format("static inline const mgfx_shader get_{}_shader(mgfx_shader_lang lang) {{\n", name);
+        out << "    mgfx_shader shader = {0};\n";
+        out << "    switch (lang) {\n";
 
         if (type == ShaderType::Compute)
             write_compute_cases(out, name, lang_flags);
@@ -378,7 +394,7 @@ public:
 private:
     static void write_graphics_cases(std::ofstream &out, const std::string &name, uint32_t lang_flags)
     {
-        auto write_case = [&](const std::string &api, const std::string &renderer) {
+        auto write_case = [&](const char *api, const char *renderer) {
             out << std::format(
                 "        case {}:\n"
                 "            shader.vertex.code = (void*){}_{}_vert;\n"
@@ -390,11 +406,11 @@ private:
             );
         };
 
-        if (lang_flags & SPIRV)  write_case("spirv", "MG_RENDERER_TYPE_VULKAN");
-        if (lang_flags & HLSL)   write_case("hlsl", "MG_RENDERER_TYPE_DIRECT3D11");
-        if (lang_flags & GLSL)   write_case("glsl", "MG_RENDERER_TYPE_OPENGL");
-        if (lang_flags & GLSLES) write_case("glsles", "MG_RENDERER_TYPE_OPENGLES");
-        if (lang_flags & MSL)    write_case("msl", "MG_RENDERER_TYPE_METAL");
+        if (lang_flags & SPIRV)  write_case("spirv", "MGFX_SHADER_LANG_SPIRV");
+        if (lang_flags & HLSL)   write_case("hlsl", "MGFX_SHADER_LANG_HLSL");
+        if (lang_flags & GLSL)   write_case("glsl", "MGFX_SHADER_LANG_GLSL");
+        if (lang_flags & GLSLES) write_case("glsles", "MGFX_SHADER_LANG_GLSLES");
+        if (lang_flags & MSL)    write_case("msl", "MGFX_SHADER_LANG_MSL");
     }
 
     static void write_compute_cases(std::ofstream &out, const std::string &name, uint32_t lang_flags)
@@ -409,11 +425,11 @@ private:
             );
         };
 
-        if (lang_flags & SPIRV)  write_case("spirv", "MG_RENDERER_TYPE_VULKAN");
-        if (lang_flags & HLSL)   write_case("hlsl", "MG_RENDERER_TYPE_DIRECT3D11");
-        if (lang_flags & GLSL)   write_case("glsl", "MG_RENDERER_TYPE_OPENGL");
-        if (lang_flags & GLSLES) write_case("glsles", "MG_RENDERER_TYPE_OPENGLES");
-        if (lang_flags & MSL)    write_case("msl", "MG_RENDERER_TYPE_METAL");
+        if (lang_flags & SPIRV)  write_case("spirv", "MGFX_SHADER_LANG_SPIRV");
+        if (lang_flags & HLSL)   write_case("hlsl", "MGFX_SHADER_LANG_HLSL");
+        if (lang_flags & GLSL)   write_case("glsl", "MGFX_SHADER_LANG_GLSL");
+        if (lang_flags & GLSLES) write_case("glsles", "MGFX_SHADER_LANG_GLSLES");
+        if (lang_flags & MSL)    write_case("msl", "MGFX_SHADER_LANG_MSL");
     }
 };
 
