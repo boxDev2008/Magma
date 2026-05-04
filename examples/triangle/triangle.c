@@ -6,7 +6,7 @@
 
 #include "triangle.glsl.h"
 
-MG_DEFINE_APP("Sandbox")
+MG_DEFINE_APP("Triangle")
 
 static mgfx_pipeline pip;
 static mgfx_buffer vb;

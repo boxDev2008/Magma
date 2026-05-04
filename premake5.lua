@@ -8,7 +8,7 @@ end
 workspace "Magma"
 	configurations { "Release" }
 
-project "Magma-shdc"
+project "magma-shdc"
 	kind "ConsoleApp"
 	language "C++"
 	cppdialect "C++20"
