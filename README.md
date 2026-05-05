@@ -154,10 +154,6 @@ mg_mat4 view = mg_mat4_look_at((mg_vec3){0,2,5}, (mg_vec3){0,0,0}, (mg_vec3){0,1
 mg_mat4 mvp  = mg_mat4_mul(proj, view);
 ```
 
-**Types:** `mg_vec2`, `mg_vec3`, `mg_vec4`, `mg_mat4`
-
-**Macros:** `MG_PI`, `MG_DEG2RAD`, `MG_RAD2DEG`, `MG_CLAMP`, `MG_MIN`, `MG_MAX`, `MG_LERP`, `MG_ABS`
-
 ---
 
 ## Magma Shader Compiler (magma-shdc)
