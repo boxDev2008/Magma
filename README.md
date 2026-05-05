@@ -21,7 +21,7 @@ Magma is a minimal set of single-header modules for making games and apps in C/C
 | Header                | Description                                             |
 | --------------------- | ------------------------------------------------------- |
 | [`mgapp.h`](#mgapph)   | Platform layer — windowing, input, event loop          |
-| [`mgfx.h`](#mgfxh)     | Render API abstraction — D3D11, OpenGL, OpenGL, Vulkan |
+| [`mgfx.h`](#mgfxh)     | Render API abstraction — D3D11, OpenGL, OpenGL ES, Vulkan |
 | [`mgmath.h`](#mgmathh) | Math — vectors, matrices, quaternions                  |
 
 ---
