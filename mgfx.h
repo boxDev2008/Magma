@@ -423,8 +423,6 @@ typedef struct
     mgfx_front_face front_face;
     mgfx_color_blend color_blend;
     mgfx_depth_stencil_state depth_stencil;
-
-    mgfx_render_pass render_pass;
 }
 mgfx_pipeline_create_info;
 
@@ -498,6 +496,9 @@ MGFX_API void mgfx_destroy_image (mgfx_image image);
 MGFX_API void mgfx_update_image (mgfx_image image, const mgfx_image_update_info *update_info);
 MGFX_API void mgfx_bind_image (mgfx_image image, mgfx_sampler sampler, uint32_t binding);
 
+MGFX_API mgfx_sampler mgfx_create_sampler(const mgfx_sampler_create_info *create_info);
+MGFX_API void mgfx_destroy_sampler(mgfx_sampler sampler);
+
 MGFX_API mgfx_renderer_type mgfx_get_renderer_type (void);
 MGFX_API mgfx_shader_lang mgfx_get_shader_lang (void);
 
@@ -558,8 +559,10 @@ mgfx_vk_pipeline;
 
 typedef struct
 {
-    VkRenderPass render_pass;
-    VkFramebuffer framebuffer;
+    VkImageView color_view;
+    VkImageView depth_view;
+    VkFormat color_format;
+    VkFormat depth_format;
     uint32_t width, height;
 }
 mgfx_vk_render_pass;
@@ -675,7 +678,7 @@ typedef struct
     sync_objects;
 
     bool inside_render_pass;
-    VkRenderPass default_render_pass;
+    VkFormat depth_format;
 
     VkCommandPool command_pool;
     VkCommandBuffer command_buffer;
@@ -1592,11 +1595,6 @@ static void mgfx_vk_recycle(void)
             vkDestroyImageView(ctx.vk.device.handle, resource->image->view, NULL);
             free(resource->image);
             break;
-        case MGFX_VULKAN_RESOURCE_TYPE_RENDER_PASS:
-            vkDestroyRenderPass(ctx.vk.device.handle, resource->render_pass->render_pass, NULL);
-            vkDestroyFramebuffer(ctx.vk.device.handle, resource->render_pass->framebuffer, NULL);
-            free(resource->render_pass);
-            break;
         case MGFX_VULKAN_RESOURCE_TYPE_PIPELINE:
             vkDestroyPipeline(ctx.vk.device.handle, resource->pipeline->pipeline, NULL);
             vkDestroyPipelineLayout(ctx.vk.device.handle, resource->pipeline->pipeline_layout, NULL);
@@ -1605,6 +1603,9 @@ static void mgfx_vk_recycle(void)
         case MGFX_VULKAN_RESOURCE_TYPE_SAMPLER:
             mgfx_vk_descriptor_cache_invalidate_sampler(&ctx.vk.descriptor_cache, resource->sampler);
             vkDestroySampler(ctx.vk.device.handle, resource->sampler, NULL);
+            break;
+        case MGFX_VULKAN_RESOURCE_TYPE_RENDER_PASS:
+            free(resource->render_pass);
             break;
         }
     }
@@ -1689,111 +1690,33 @@ static VkFormat mgfx_vk_find_supported_format(const VkFormat *candidates, uint32
     return VK_FORMAT_UNDEFINED;
 }
 
-static VkRenderPass mgfx_vk_create_render_pass_internal(
-    VkFormat color_format,
-    VkFormat depth_format
-)
+mgfx_vk_render_pass *mgfx_vk_create_render_pass(const mgfx_render_pass_create_info *create_info)
 {
-    VkAttachmentDescription attachments[2];
-    VkAttachmentReference color_ref = {0};
-    VkAttachmentReference depth_ref = {0};
-    uint32_t attachment_count = 0;
+    mgfx_vk_render_pass *render_pass = (mgfx_vk_render_pass*)malloc(sizeof(mgfx_vk_render_pass));
 
-    VkSubpassDescription subpass = {0};
-    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    render_pass->color_view = create_info->color_attachment.image ?
+        ((mgfx_vk_image*)create_info->color_attachment.image)->view : VK_NULL_HANDLE;
+    render_pass->color_format = mgfx_vk_get_format(create_info->color_attachment.format);
 
-    VkSubpassDependency deps[2] = {0};
-    uint32_t dep_count = 0;
+    render_pass->depth_view = create_info->depth_stencil_attachment.image ?
+        ((mgfx_vk_image*)create_info->depth_stencil_attachment.image)->view : VK_NULL_HANDLE;
+    render_pass->depth_format = mgfx_vk_get_format(create_info->depth_stencil_attachment.format);
 
-    const bool is_default = !ctx.vk.default_render_pass;
-    if (color_format != VK_FORMAT_UNDEFINED)
-    {
-        VkAttachmentDescription color_attachment = {0};
-        color_attachment.format = color_format;
-        color_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
-        color_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        color_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        color_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        color_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        color_attachment.finalLayout =
-            is_default ?
-            VK_IMAGE_LAYOUT_PRESENT_SRC_KHR :
-            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-        color_ref.attachment = attachment_count;
-        color_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-        attachments[attachment_count++] = color_attachment;
-        subpass.pColorAttachments = &color_ref;
-        subpass.colorAttachmentCount = 1;
-
-        deps[dep_count].srcSubpass = VK_SUBPASS_EXTERNAL;
-        deps[dep_count].dstSubpass = 0;
-        deps[dep_count].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        deps[dep_count].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        deps[dep_count].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-        dep_count++;
-    }
-
-    if (depth_format != VK_FORMAT_UNDEFINED)
-    {
-        VkAttachmentDescription depth_attachment = {0};
-        depth_attachment.format = depth_format;
-        depth_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
-        depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        depth_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        depth_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        depth_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        depth_attachment.finalLayout =
-            is_default ?
-            VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL :
-            VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-
-        depth_ref.attachment = attachment_count;
-        depth_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-        attachments[attachment_count++] = depth_attachment;
-        subpass.pDepthStencilAttachment = &depth_ref;
-
-        deps[dep_count].srcSubpass = VK_SUBPASS_EXTERNAL;
-        deps[dep_count].dstSubpass = 0;
-        deps[dep_count].srcStageMask = 
-            VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-        deps[dep_count].dstStageMask = 
-            VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-        deps[dep_count].dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-        dep_count++;
-    }
-
-    VkRenderPassCreateInfo render_pass_info = {VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};
-    render_pass_info.attachmentCount = attachment_count;
-    render_pass_info.pAttachments = attachment_count ? attachments : NULL;
-    render_pass_info.subpassCount = 1;
-    render_pass_info.pSubpasses = &subpass;
-    render_pass_info.dependencyCount = dep_count;
-    render_pass_info.pDependencies = dep_count ? deps : NULL;
-
-    VkRenderPass render_pass;
-    VkResult result = vkCreateRenderPass(ctx.vk.device.handle, &render_pass_info, NULL, &render_pass);
-    MGFX_ASSERT(result == VK_SUCCESS, "Failed to create vulkan render pass.");
+    render_pass->width = create_info->width;
+    render_pass->height = create_info->height;
 
     return render_pass;
 }
 
 static void mgfx_vk_create_or_recreate_swapchain(void)
 {
-    const VkFormat depth_format = mgfx_vk_find_supported_format(
+    ctx.vk.depth_format = mgfx_vk_find_supported_format(
         (VkFormat[]){VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT}, 3,
         VK_IMAGE_TILING_OPTIMAL,
         VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
     );
 
     const bool is_initial_creation = (ctx.vk.swapchain.handle == VK_NULL_HANDLE);
-
-    if (!ctx.vk.default_render_pass)
-        ctx.vk.default_render_pass = mgfx_vk_create_render_pass_internal(VK_FORMAT_B8G8R8A8_UNORM, depth_format);
 
     VkSurfaceCapabilitiesKHR capabilities;
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(ctx.vk.physical_device.handle, ctx.vk.surface, &capabilities);
@@ -1829,7 +1752,7 @@ static void mgfx_vk_create_or_recreate_swapchain(void)
         vkDestroySwapchainKHR(ctx.vk.device.handle, old_swapchain, NULL);
 
     vkGetSwapchainImagesKHR(ctx.vk.device.handle, ctx.vk.swapchain.handle, &image_count, NULL);
-    
+
     if (!is_initial_creation)
     {
         vkDestroyImageView(ctx.vk.device.handle, ctx.vk.swapchain.depth_image_view, NULL);
@@ -1837,19 +1760,15 @@ static void mgfx_vk_create_or_recreate_swapchain(void)
         vkFreeMemory(ctx.vk.device.handle, ctx.vk.swapchain.depth_image_memory, NULL);
 
         for (uint32_t i = 0; i < ctx.vk.swapchain.image_count; i++)
-        {
-            vkDestroyFramebuffer(ctx.vk.device.handle, ctx.vk.swapchain.framebuffers[i], NULL);
             vkDestroyImageView(ctx.vk.device.handle, ctx.vk.swapchain.image_views[i], NULL);
-        }
     }
-    
+
     ctx.vk.swapchain.image_count = image_count;
     vkGetSwapchainImagesKHR(ctx.vk.device.handle, ctx.vk.swapchain.handle, &image_count, ctx.vk.swapchain.images);
 
-    uint32_t i;
-    for (i = 0; i < image_count; i++)
+    for (uint32_t i = 0; i < image_count; i++)
     {
-        VkImageViewCreateInfo image_view_create_info = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+        VkImageViewCreateInfo image_view_create_info = {VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
         image_view_create_info.image = ctx.vk.swapchain.images[i];
         image_view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
         image_view_create_info.format = create_info.imageFormat;
@@ -1864,14 +1783,14 @@ static void mgfx_vk_create_or_recreate_swapchain(void)
     }
 
     mgfx_vk_allocate_image(extent.width, extent.height, 1,
-        VK_IMAGE_TYPE_2D, depth_format, VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_TYPE_2D, ctx.vk.depth_format, VK_IMAGE_TILING_OPTIMAL,
         VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
         &ctx.vk.swapchain.depth_image, &ctx.vk.swapchain.depth_image_memory);
 
     VkImageViewCreateInfo view_info = {VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
     view_info.image = ctx.vk.swapchain.depth_image;
     view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    view_info.format = depth_format;
+    view_info.format = ctx.vk.depth_format;
     view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
     view_info.subresourceRange.baseMipLevel = 0;
     view_info.subresourceRange.levelCount = 1;
@@ -1879,31 +1798,13 @@ static void mgfx_vk_create_or_recreate_swapchain(void)
     view_info.subresourceRange.layerCount = 1;
 
     result = vkCreateImageView(ctx.vk.device.handle, &view_info, NULL, &ctx.vk.swapchain.depth_image_view);
-    MGFX_ASSERT(result == VK_SUCCESS, "Failed to create vulkan depth image for the swapchain.");
-
-    for (i = 0; i < image_count; i++)
-    {
-        VkFramebufferCreateInfo framebuffer_create_info = {VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
-        framebuffer_create_info.attachmentCount = 2;
-        framebuffer_create_info.renderPass = ctx.vk.default_render_pass;
-        VkImageView attachments[2] = { ctx.vk.swapchain.image_views[i], ctx.vk.swapchain.depth_image_view };
-        framebuffer_create_info.pAttachments = attachments;
-        framebuffer_create_info.width = extent.width;
-        framebuffer_create_info.height = extent.height;
-        framebuffer_create_info.layers = 1;
-
-        result = vkCreateFramebuffer(ctx.vk.device.handle, &framebuffer_create_info, NULL, &ctx.vk.swapchain.framebuffers[i]);
-        MGFX_ASSERT(result == VK_SUCCESS, "Failed to create vulkan framebuffer for the swapchain.");
-    }
+    MGFX_ASSERT(result == VK_SUCCESS, "Failed to create vulkan depth image view for the swapchain.");
 }
 
 static void mgfx_vk_cleanup_swapchain(void)
 {
     for (uint32_t i = 0; i < ctx.vk.swapchain.image_count; i++)
-    {
-        vkDestroyFramebuffer(ctx.vk.device.handle, ctx.vk.swapchain.framebuffers[i], NULL);
         vkDestroyImageView(ctx.vk.device.handle, ctx.vk.swapchain.image_views[i], NULL);
-    }
 
     vkDestroyImageView(ctx.vk.device.handle, ctx.vk.swapchain.depth_image_view, NULL);
     vkDestroyImage(ctx.vk.device.handle, ctx.vk.swapchain.depth_image, NULL);
@@ -2350,137 +2251,82 @@ static void mgfx_vk_destroy_sampler(VkSampler sampler)
     mgfx_vk_free_resource((mgfx_vk_resource){.type = MGFX_VULKAN_RESOURCE_TYPE_SAMPLER, .sampler = sampler});
 }
 
-static VkFramebuffer mgfx_vk_create_framebuffer(
-    VkRenderPass render_pass,
-    VkImageView *attachments,
-    uint32_t attachment_count,
-    uint32_t width,
-    uint32_t height
-)
+static inline void mgfx_vk_image_barrier(
+    VkImage image,
+    VkImageLayout old_layout, VkImageLayout new_layout,
+    VkAccessFlags src_access, VkAccessFlags dst_access,
+    VkPipelineStageFlags src_stage, VkPipelineStageFlags dst_stage,
+    VkImageAspectFlags aspect)
 {
-    VkFramebufferCreateInfo fb_info = {VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
-    fb_info.renderPass = render_pass;
-    fb_info.attachmentCount = attachment_count;
-    fb_info.pAttachments = attachments;
-    fb_info.width = width;
-    fb_info.height = height;
-    fb_info.layers = 1;
+    VkImageMemoryBarrier barrier = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+    barrier.oldLayout = old_layout;
+    barrier.newLayout = new_layout;
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.image = image;
+    barrier.subresourceRange.aspectMask = aspect;
+    barrier.subresourceRange.baseMipLevel = 0;
+    barrier.subresourceRange.levelCount = 1;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount = 1;
+    barrier.srcAccessMask = src_access;
+    barrier.dstAccessMask = dst_access;
 
-    VkFramebuffer framebuffer;
-    VkResult result = vkCreateFramebuffer(ctx.vk.device.handle, &fb_info, NULL, &framebuffer);
-    MGFX_ASSERT(result == VK_SUCCESS, "Failed to create vulkan framebuffer.");
-
-    return framebuffer;
+    vkCmdPipelineBarrier(ctx.vk.command_buffer,
+        src_stage, dst_stage, 0,
+        0, NULL, 0, NULL,
+        1, &barrier);
 }
 
-static void mgfx_vk_begin_render_pass_internal(
-    VkRenderPass render_pass,
-    VkFramebuffer framebuffer,
-    uint32_t width,
-    uint32_t height,
-    const mgfx_color clear_value
-)
+static void mgfx_vk_begin_rendering_internal(
+    VkImageView color_view, VkFormat color_format,
+    VkImageView depth_view, VkFormat depth_format,
+    uint32_t width, uint32_t height,
+    mgfx_color clear_value)
 {
-    VkRenderPassBeginInfo info = {VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
-    info.renderPass = render_pass;
-    info.framebuffer = framebuffer;
-    info.renderArea.offset = (VkOffset2D){0, 0};
-    info.renderArea.extent = (VkExtent2D){width, height};
-
-    VkClearValue clear_values[2] = {0};
-    clear_values[0].color = (VkClearColorValue){{
-        clear_value.r, 
-        clear_value.g,
-        clear_value.b, 
-        clear_value.a
+    VkRenderingAttachmentInfo color_attachment = {VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO};
+    color_attachment.imageView = color_view;
+    color_attachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    color_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    color_attachment.clearValue.color = (VkClearColorValue){{
+        clear_value.r, clear_value.g, clear_value.b, clear_value.a
     }};
-    clear_values[1].depthStencil = (VkClearDepthStencilValue){1.0f, 0};
 
-    info.clearValueCount = 2;
-    info.pClearValues = clear_values;
+    VkRenderingAttachmentInfo depth_attachment = {VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO};
+    depth_attachment.imageView = depth_view;
+    depth_attachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    depth_attachment.clearValue.depthStencil = (VkClearDepthStencilValue){1.0f, 0};
 
-    vkCmdBeginRenderPass(ctx.vk.command_buffer, &info, VK_SUBPASS_CONTENTS_INLINE);
-    mgfx_vk_command_buffer_set_viewport(
-        ctx.vk.command_buffer,
-        0,
-        0,
-        width,
-        height
-    );
-    mgfx_vk_command_buffer_set_scissor(
-        ctx.vk.command_buffer,
-        0,
-        0,
-        width,
-        height
-    );
+    VkRenderingInfo rendering_info = {VK_STRUCTURE_TYPE_RENDERING_INFO};
+    rendering_info.renderArea.offset = (VkOffset2D){0, 0};
+    rendering_info.renderArea.extent = (VkExtent2D){width, height};
+    rendering_info.layerCount = 1;
+    rendering_info.colorAttachmentCount = color_view ? 1 : 0;
+    rendering_info.pColorAttachments = color_view ? &color_attachment : NULL;
+    rendering_info.pDepthAttachment = depth_view ? &depth_attachment : NULL;
+
+    vkCmdBeginRendering(ctx.vk.command_buffer, &rendering_info);
+
+    mgfx_vk_command_buffer_set_viewport(ctx.vk.command_buffer, 0, 0, width, height);
+    mgfx_vk_command_buffer_set_scissor(ctx.vk.command_buffer, 0, 0, width, height);
 }
 
-void mgfx_vk_update_render_pass(
-    mgfx_vk_render_pass *render_pass, 
-    const mgfx_render_pass_update_info *update_info)
+void mgfx_vk_update_render_pass(mgfx_vk_render_pass *render_pass, const mgfx_render_pass_update_info *update_info)
 {
-    VkImageView fb_attachments[2];
-    uint32_t attachment_count = 0;
-
     if (update_info->color_image)
-    {
-        fb_attachments[attachment_count++] =
-            ((mgfx_vk_image*)update_info->color_image)->view;
-    }
-
+        render_pass->color_view = ((mgfx_vk_image*)update_info->color_image)->view;
     if (update_info->depth_stencil_image)
-    {
-        fb_attachments[attachment_count++] =
-            ((mgfx_vk_image*)update_info->depth_stencil_image)->view;
-    }
-
-    vkDestroyFramebuffer(ctx.vk.device.handle, render_pass->framebuffer, NULL);
-
-    render_pass->framebuffer = mgfx_vk_create_framebuffer(
-        render_pass->render_pass,
-        fb_attachments,
-        attachment_count,
-        update_info->width,
-        update_info->height
-    );
+        render_pass->depth_view = ((mgfx_vk_image*)update_info->depth_stencil_image)->view;
+    render_pass->width = update_info->width;
+    render_pass->height = update_info->height;
 }
 
-mgfx_vk_render_pass *mgfx_vk_create_render_pass(const mgfx_render_pass_create_info *create_info)
+void mgfx_vk_destroy_render_pass(mgfx_vk_render_pass *render_pass)
 {
-    mgfx_vk_render_pass *render_pass =
-        (mgfx_vk_render_pass*)malloc(sizeof(mgfx_vk_render_pass));
-
-    render_pass->render_pass =
-        mgfx_vk_create_render_pass_internal(
-            mgfx_vk_get_format(create_info->color_attachment.format),
-            mgfx_vk_get_format(create_info->depth_stencil_attachment.format)
-        );
-
-    VkImageView fb_attachments[2];
-    uint32_t attachment_count = 0;
-
-    if (create_info->color_attachment.image)
-    {
-        fb_attachments[attachment_count++] =
-            ((mgfx_vk_image*)create_info->color_attachment.image)->view;
-    }
-
-    if (create_info->depth_stencil_attachment.image)
-    {
-        fb_attachments[attachment_count++] =
-            ((mgfx_vk_image*)create_info->depth_stencil_attachment.image)->view;
-    }
-
-    render_pass->framebuffer = mgfx_vk_create_framebuffer(
-        render_pass->render_pass,
-        attachment_count ? fb_attachments : NULL,
-        attachment_count,
-        create_info->width,
-        create_info->height
-    );
-
-    return render_pass;
+    mgfx_vk_free_resource((mgfx_vk_resource){.type = MGFX_VULKAN_RESOURCE_TYPE_RENDER_PASS, .render_pass = render_pass});
 }
 
 static VkShaderModule mgfx_vk_create_shader(const uint32_t *code, size_t size)
@@ -2528,7 +2374,7 @@ static void mgfx_vk_fill_graphics_pipeline(mgfx_vk_pipeline *pipeline, const mgf
     uint32_t stride = 0;
     for (; attribute_count < MGFX_MAX_VERTEX_ATTRIBUTES && create_info->vertex_attributes[attribute_count]; attribute_count++)
     {
-		const mgfx_vertex_format format = create_info->vertex_attributes[attribute_count];
+        const mgfx_vertex_format format = create_info->vertex_attributes[attribute_count];
         VkVertexInputAttributeDescription *desc = &attribute_descriptions[attribute_count];
         desc->format = mgfx_vk_get_vertex_format(format);
         desc->location = attribute_count;
@@ -2578,7 +2424,7 @@ static void mgfx_vk_fill_graphics_pipeline(mgfx_vk_pipeline *pipeline, const mgf
     }
     depth_stencil.stencilTestEnable = create_info->depth_stencil.stencil_test_enabled;
 
-    VkPipelineColorBlendAttachmentState color_blend_attachment = { 0 };
+    VkPipelineColorBlendAttachmentState color_blend_attachment = {0};
     color_blend_attachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
     color_blend_attachment.blendEnable = create_info->color_blend.blend_enabled;
     if (create_info->color_blend.blend_enabled)
@@ -2598,22 +2444,26 @@ static void mgfx_vk_fill_graphics_pipeline(mgfx_vk_pipeline *pipeline, const mgf
     color_blending.pAttachments = &color_blend_attachment;
 
     VkPipelineLayoutCreateInfo pipeline_layout_info = {VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
-
     const VkDescriptorSetLayout set_layouts[] = {
         ctx.vk.layouts.scratch_buffer_layout,
         ctx.vk.layouts.image_sampler_layout,
     };
-
     pipeline_layout_info.pSetLayouts = set_layouts;
     pipeline_layout_info.setLayoutCount = 2;
 
     VkResult result = vkCreatePipelineLayout(ctx.vk.device.handle, &pipeline_layout_info, NULL, &pipeline->pipeline_layout);
     MGFX_ASSERT(result == VK_SUCCESS, "Failed to create vulkan graphics pipeline layout.");
 
+    VkFormat color_format = VK_FORMAT_B8G8R8A8_UNORM;
+    VkPipelineRenderingCreateInfo rendering_create_info = {VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
+    rendering_create_info.colorAttachmentCount = 1;
+    rendering_create_info.pColorAttachmentFormats = &color_format;
+    rendering_create_info.depthAttachmentFormat = ctx.vk.depth_format;
+
     VkGraphicsPipelineCreateInfo pipeline_info = {VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
+    pipeline_info.pNext = &rendering_create_info;
     pipeline_info.stageCount = 2;
     pipeline_info.pStages = shader_stages;
-
     pipeline_info.pVertexInputState = &vertex_input_info;
     pipeline_info.pInputAssemblyState = &input_assembly;
     pipeline_info.pViewportState = &viewport_state;
@@ -2622,11 +2472,7 @@ static void mgfx_vk_fill_graphics_pipeline(mgfx_vk_pipeline *pipeline, const mgf
     pipeline_info.pDepthStencilState = &depth_stencil;
     pipeline_info.pColorBlendState = &color_blending;
     pipeline_info.pDynamicState = &dynamic_state;
-
     pipeline_info.layout = pipeline->pipeline_layout;
-    pipeline_info.renderPass = create_info->render_pass ?
-        ((mgfx_vk_render_pass*)create_info->render_pass)->render_pass : ctx.vk.default_render_pass;
-    pipeline_info.subpass = 0;
 
     result = vkCreateGraphicsPipelines(ctx.vk.device.handle, VK_NULL_HANDLE, 1, &pipeline_info, NULL, &pipeline->pipeline);
     MGFX_ASSERT(result == VK_SUCCESS, "Failed to create vulkan graphics pipeline.");
@@ -2700,31 +2546,37 @@ void mgfx_vk_bind_pipeline(mgfx_vk_pipeline *pipeline)
     ctx.vk.current_pipeline = pipeline;
 }
 
-void mgfx_vk_destroy_render_pass(mgfx_vk_render_pass *render_pass)
-{
-    mgfx_vk_free_resource((mgfx_vk_resource){.type = MGFX_VULKAN_RESOURCE_TYPE_RENDER_PASS, .render_pass = render_pass});
-}
-
 void mgfx_vk_bind_render_pass(mgfx_vk_render_pass *render_pass, mgfx_color clear_value)
 {
     if (ctx.vk.inside_render_pass)
-        vkCmdEndRenderPass(ctx.vk.command_buffer);
-    else ctx.vk.inside_render_pass = true;
+        vkCmdEndRendering(ctx.vk.command_buffer);
+    else
+        ctx.vk.inside_render_pass = true;
 
     if (render_pass)
-        mgfx_vk_begin_render_pass_internal(
-            render_pass->render_pass, 
-            render_pass->framebuffer,
-            render_pass->width,
-            render_pass->height,
+    {
+        mgfx_vk_begin_rendering_internal(
+            render_pass->color_view, render_pass->color_format,
+            render_pass->depth_view, render_pass->depth_format,
+            render_pass->width, render_pass->height,
             clear_value);
+    }
     else
-        mgfx_vk_begin_render_pass_internal(
-            ctx.vk.default_render_pass, 
-            ctx.vk.swapchain.framebuffers[ctx.vk.swapchain.image_index],
-            ctx.vk.width,
-            ctx.vk.height,
+    {
+        VkImage swapchain_image = ctx.vk.swapchain.images[ctx.vk.swapchain.image_index];
+
+        mgfx_vk_image_barrier(swapchain_image,
+            VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+            0, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+            VK_IMAGE_ASPECT_COLOR_BIT);
+
+        mgfx_vk_begin_rendering_internal(
+            ctx.vk.swapchain.image_views[ctx.vk.swapchain.image_index], VK_FORMAT_B8G8R8A8_UNORM,
+            ctx.vk.swapchain.depth_image_view, ctx.vk.depth_format,
+            ctx.vk.width, ctx.vk.height,
             clear_value);
+    }
 }
 
 #if defined(_WIN32)
@@ -2758,7 +2610,7 @@ void mgfx_vk_create_surface(mgfx_platform_handle *handle)
 static void mgfx_vk_create_instance(void)
 {
     VkApplicationInfo app_info = {VK_STRUCTURE_TYPE_APPLICATION_INFO};
-    app_info.apiVersion = VK_API_VERSION_1_0;
+    app_info.apiVersion = VK_API_VERSION_1_3;
     app_info.pApplicationName = NULL;
     app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
     app_info.pEngineName = "Magma";
@@ -2852,13 +2704,17 @@ static void mgfx_vk_create_device(void)
     float queue_priority = 1.0f;
     queue_create_info.pQueuePriorities = &queue_priority;
 
-    VkPhysicalDeviceFeatures device_features = { 0 };
+    VkPhysicalDeviceFeatures device_features = {0};
+
+    VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamic_rendering = {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR,
+        .dynamicRendering = VK_TRUE,
+    };
 
     VkDeviceCreateInfo create_info = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
-
+    create_info.pNext = &dynamic_rendering;
     create_info.pQueueCreateInfos = &queue_create_info;
     create_info.queueCreateInfoCount = 1;
-
     create_info.pEnabledFeatures = &device_features;
 
     const char *device_extensions[] = {
@@ -3042,8 +2898,6 @@ static void mgfx_vk_shutdown(void)
 
     mgfx_vk_cleanup_swapchain();
 
-    vkDestroyRenderPass(ctx.vk.device.handle, ctx.vk.default_render_pass, NULL);
-
     vkDestroySemaphore(ctx.vk.device.handle, ctx.vk.sync_objects.image_available_semaphore, NULL);
     vkDestroySemaphore(ctx.vk.device.handle, ctx.vk.sync_objects.image_rendered_semaphore, NULL);
     vkDestroyFence(ctx.vk.device.handle, ctx.vk.sync_objects.fence, NULL);
@@ -3085,8 +2939,15 @@ static void mgfx_vk_end(void)
 {
     if (ctx.vk.inside_render_pass)
     {
-        vkCmdEndRenderPass(ctx.vk.command_buffer);
+        vkCmdEndRendering(ctx.vk.command_buffer);
         ctx.vk.inside_render_pass = false;
+
+        mgfx_vk_image_barrier(
+            ctx.vk.swapchain.images[ctx.vk.swapchain.image_index],
+            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+            VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, 0,
+            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+            VK_IMAGE_ASPECT_COLOR_BIT);
     }
 
     mgfx_vk_end_command_buffer(ctx.vk.command_buffer);
@@ -5416,6 +5277,18 @@ void mgfx_update_image(mgfx_image image, const mgfx_image_update_info *update_in
 void mgfx_bind_image(mgfx_image image, mgfx_sampler sampler, uint32_t binding)
 {
     pipe.bind_image(image, sampler, binding);
+}
+
+mgfx_sampler mgfx_create_sampler(const mgfx_sampler_create_info *create_info)
+{
+    mgfx_sampler sampler;
+    sampler = pipe.create_sampler(create_info);
+    return sampler;
+}
+
+void mgfx_destroy_sampler(mgfx_sampler sampler)
+{
+    pipe.destroy_sampler(sampler);
 }
 
 mgfx_renderer_type mgfx_get_renderer_type(void)
