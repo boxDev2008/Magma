@@ -508,7 +508,6 @@ static LRESULT CALLBACK mg_win32_process_message(HWND hwnd, uint32_t msg, WPARAM
             GetClientRect(hwnd, &r);
             platform.window_width  = r.right - r.left;
             platform.window_height = r.bottom - r.top;
-
             mg_app_call_event(&(mg_app_event){
                 .window_width = platform.window_width,
                 .window_height = platform.window_height,
