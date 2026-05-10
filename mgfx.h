@@ -1831,7 +1831,7 @@ static void mgfx_vk_update_buffer(mgfx_vk_buffer *buffer, size_t size, void *dat
 
 static mgfx_vk_buffer *mgfx_vk_create_buffer(const mgfx_buffer_create_info *create_info)
 {
-    mgfx_vk_buffer *buffer = (mgfx_vk_buffer*)malloc(sizeof(mgfx_vk_buffer));
+    mgfx_vk_buffer *buffer = (mgfx_vk_buffer*)calloc(1, sizeof(mgfx_vk_buffer));
 
     if (create_info->access == MGFX_ACCESS_GPU)
     {
@@ -1964,7 +1964,7 @@ static void mgfx_vk_copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_
 
 static mgfx_vk_image *mgfx_vk_create_image(const mgfx_image_create_info *create_info)
 {
-    mgfx_vk_image *image = (mgfx_vk_image*)malloc(sizeof(mgfx_vk_image));
+    mgfx_vk_image *image = (mgfx_vk_image*)calloc(1, sizeof(mgfx_vk_image));
 
     const VkImageUsageFlagBits usage_flags =
         VK_IMAGE_USAGE_TRANSFER_DST_BIT |
@@ -2310,7 +2310,7 @@ static void mgfx_vk_fill_compute_pipeline(mgfx_vk_pipeline *pipeline, const mgfx
 
 mgfx_vk_pipeline *mgfx_vk_create_pipeline(const mgfx_pipeline_create_info *create_info)
 {
-    mgfx_vk_pipeline *pipeline = (mgfx_vk_pipeline*)malloc(sizeof(mgfx_vk_pipeline));
+    mgfx_vk_pipeline *pipeline = (mgfx_vk_pipeline*)calloc(1, sizeof(mgfx_vk_pipeline));
     if (create_info->shader.compute.size)
         mgfx_vk_fill_compute_pipeline(pipeline, create_info);
     else mgfx_vk_fill_graphics_pipeline(pipeline, create_info);
@@ -3306,7 +3306,7 @@ static void mgfx_gl_bind_vertex_attributes(void)
 
 static mgfx_gl_buffer *mgfx_gl_create_buffer(const mgfx_buffer_create_info *create_info)
 {
-    mgfx_gl_buffer *buffer = (mgfx_gl_buffer*)malloc(sizeof(mgfx_gl_buffer));
+    mgfx_gl_buffer *buffer = (mgfx_gl_buffer*)calloc(1, sizeof(mgfx_gl_buffer));
     buffer->target = mgfx_gl_get_buffer_target(create_info->usage);
     buffer->usage = mgfx_gl_get_data_usage(create_info->access);
     glGenBuffers(1, &buffer->id);
@@ -3438,7 +3438,7 @@ static inline GLint mgfx_gl_get_address_mode(mgfx_sampler_address_mode address_m
 
 static mgfx_gl_image *mgfx_gl_create_image(const mgfx_image_create_info *create_info)
 {
-    mgfx_gl_image *image = (mgfx_gl_image*)malloc(sizeof(mgfx_gl_image));
+    mgfx_gl_image *image = (mgfx_gl_image*)calloc(1, sizeof(mgfx_gl_image));
 
     glGenTextures(1, &image->texture_id);
 
@@ -3511,7 +3511,7 @@ static void mgfx_gl_bind_image(mgfx_gl_image *image, mgfx_gl_sampler *sampler, u
 
 static mgfx_gl_sampler *mgfx_gl_create_sampler(const mgfx_sampler_create_info *create_info)
 {
-    mgfx_gl_sampler *sampler = (mgfx_gl_sampler*)malloc(sizeof(mgfx_gl_sampler));
+    mgfx_gl_sampler *sampler = (mgfx_gl_sampler*)calloc(1, sizeof(mgfx_gl_sampler));
 
     sampler->min_filter = mgfx_gl_get_filter(create_info->min_filter);
     sampler->mag_filter = mgfx_gl_get_filter(create_info->mag_filter);
@@ -3703,7 +3703,7 @@ static void mgfx_gl_fill_compute_pipeline(mgfx_gl_pipeline *pipeline, const mgfx
 
 static mgfx_gl_pipeline *mgfx_gl_create_pipeline(const mgfx_pipeline_create_info *create_info)
 {
-    mgfx_gl_pipeline *pipeline = (mgfx_gl_pipeline*)malloc(sizeof(mgfx_gl_pipeline));
+    mgfx_gl_pipeline *pipeline = (mgfx_gl_pipeline*)calloc(1, sizeof(mgfx_gl_pipeline));
     if (create_info->shader.compute.size)
         mgfx_gl_fill_compute_pipeline(pipeline, create_info);
     else mgfx_gl_fill_graphics_pipeline(pipeline, create_info);
@@ -3996,6 +3996,8 @@ static void mgfx_gl_bind_uniforms(uint32_t binding, size_t size, void *data)
 
 #if defined(MGFX_D3D11)
 
+#define MGFX_D3D11_SAFE_RELEASE(obj) if (obj) { (obj)->lpVtbl->Release(obj); obj = NULL; }
+
 static DXGI_FORMAT mgfx_d3d11_get_format(mgfx_format format)
 {
     switch (format)
@@ -4281,13 +4283,10 @@ static void mgfx_d3d11_begin(void)
     if (ctx.d3d11.rebuild_swapchain)
     {
         ctx.d3d11.rebuild_swapchain = false;
-        ID3D11DeviceContext_Flush(ctx.d3d11.immediate_context);
 
-        if (ctx.d3d11.target_view)
-        {
-            ID3D11RenderTargetView_Release(ctx.d3d11.target_view);
-            ctx.d3d11.target_view = NULL;
-        }
+        ID3D11DeviceContext_OMSetRenderTargets(ctx.d3d11.immediate_context, 0, NULL, NULL);
+
+        MGFX_D3D11_SAFE_RELEASE(ctx.d3d11.target_view);
 
         IDXGISwapChain_ResizeBuffers(ctx.d3d11.swapchain, 0,
             ctx.d3d11.width, ctx.d3d11.height,
@@ -4308,7 +4307,6 @@ static void mgfx_d3d11_begin(void)
 static void mgfx_d3d11_end(void)
 {
     IDXGISwapChain_Present(ctx.d3d11.swapchain, ctx.d3d11.vsync, 0);
-    ID3D11DeviceContext_ClearState(ctx.d3d11.immediate_context);
 }
 
 static void mgfx_d3d11_resize(uint32_t width, uint32_t height)
@@ -4380,7 +4378,7 @@ static void mgfx_d3d11_bind_uniforms(uint32_t binding, size_t size, void *data)
 
 static mgfx_d3d11_buffer *mgfx_d3d11_create_buffer(const mgfx_buffer_create_info *create_info)
 {
-    mgfx_d3d11_buffer *buffer = (mgfx_d3d11_buffer*)malloc(sizeof(mgfx_d3d11_buffer));
+    mgfx_d3d11_buffer *buffer = (mgfx_d3d11_buffer*)calloc(1, sizeof(mgfx_d3d11_buffer));
 
     D3D11_BUFFER_DESC desc = { 0 };
     if (create_info->access == MGFX_ACCESS_GPU)
@@ -4448,13 +4446,13 @@ static void mgfx_d3d11_bind_index_buffer(mgfx_d3d11_buffer *buffer, mgfx_index_t
 
 static void mgfx_d3d11_destroy_buffer(mgfx_d3d11_buffer *buffer)
 {
-    ID3D11Buffer_Release(buffer->buffer);
+    MGFX_D3D11_SAFE_RELEASE(buffer->buffer);
     free(buffer);
 }
 
 static mgfx_d3d11_image *mgfx_d3d11_create_image(const mgfx_image_create_info *create_info)
 {
-    mgfx_d3d11_image *image = (mgfx_d3d11_image*)malloc(sizeof(mgfx_d3d11_image));
+    mgfx_d3d11_image *image = (mgfx_d3d11_image*)calloc(1, sizeof(mgfx_d3d11_image));
     const DXGI_FORMAT format = mgfx_d3d11_get_format(create_info->format);
 
     D3D11_SHADER_RESOURCE_VIEW_DESC view_desc = { 0 };
@@ -4474,21 +4472,12 @@ static mgfx_d3d11_image *mgfx_d3d11_create_image(const mgfx_image_create_info *c
             texture_desc.Usage = D3D11_USAGE_DYNAMIC;
             texture_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
         }
-        else
-        {
-            texture_desc.Usage = D3D11_USAGE_DEFAULT;
-            texture_desc.CPUAccessFlags = 0;
-        }
+        else texture_desc.Usage = D3D11_USAGE_DEFAULT;
 
-        switch (create_info->usage)
-        {
-        case MGFX_IMAGE_USAGE_COLOR_ATTACHMENT:
+        if (create_info->usage == MGFX_IMAGE_USAGE_COLOR_ATTACHMENT)
             texture_desc.BindFlags |= D3D11_BIND_RENDER_TARGET;
-            break;
-        case MGFX_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT:
+        else if (create_info->usage == MGFX_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT)
             texture_desc.BindFlags |= D3D11_BIND_DEPTH_STENCIL;
-            break;
-        }
 
         ID3D11Device_CreateTexture2D(ctx.d3d11.device, &texture_desc, NULL, (ID3D11Texture2D**)&image->texture);
         view_desc.Texture2D.MipLevels = 1;
@@ -4509,11 +4498,7 @@ static mgfx_d3d11_image *mgfx_d3d11_create_image(const mgfx_image_create_info *c
             texture_desc.Usage = D3D11_USAGE_DYNAMIC;
             texture_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
         }
-        else
-        {
-            texture_desc.Usage = D3D11_USAGE_DEFAULT;
-            texture_desc.CPUAccessFlags = 0;
-        }
+        else texture_desc.Usage = D3D11_USAGE_DEFAULT;
 
         ID3D11Device_CreateTexture3D(ctx.d3d11.device, &texture_desc, NULL, (ID3D11Texture3D**)&image->texture);
         view_desc.Texture3D.MipLevels = 1;
@@ -4523,26 +4508,19 @@ static mgfx_d3d11_image *mgfx_d3d11_create_image(const mgfx_image_create_info *c
     view_desc.ViewDimension = mgfx_d3d11_get_srv_dimension(create_info->type);
     ID3D11Device_CreateShaderResourceView(ctx.d3d11.device, (ID3D11Resource*)image->texture, &view_desc, &image->view);
 
-    switch (create_info->usage)
+    if (create_info->usage == MGFX_IMAGE_USAGE_COLOR_ATTACHMENT)
     {
-    case MGFX_IMAGE_USAGE_COLOR_ATTACHMENT:
-    {
-        ID3D11Device_CreateRenderTargetView(ctx.d3d11.device,
-            image->texture, NULL, &image->rtv);
-        break;
+        D3D11_RENDER_TARGET_VIEW_DESC rtv_desc = { 0 };
+        rtv_desc.Format = format;
+        rtv_desc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+        ID3D11Device_CreateRenderTargetView(ctx.d3d11.device, image->texture, &rtv_desc, &image->rtv);
     }
-    case MGFX_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT:
+    else if (create_info->usage == MGFX_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT)
     {
         D3D11_DEPTH_STENCIL_VIEW_DESC dsv_desc = { 0 };
         dsv_desc.Format = mgfx_d3d11_get_dsv_format(create_info->format);
         dsv_desc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
-        ID3D11Device_CreateDepthStencilView(ctx.d3d11.device,
-            image->texture, &dsv_desc, &image->dsv);
-        break;
-    }
-    default:
-        image->rtv = NULL;
-        break;
+        ID3D11Device_CreateDepthStencilView(ctx.d3d11.device, image->texture, &dsv_desc, &image->dsv);
     }
 
     image->width = create_info->width;
@@ -4556,9 +4534,9 @@ static mgfx_d3d11_image *mgfx_d3d11_create_image(const mgfx_image_create_info *c
 
 static void mgfx_d3d11_destroy_image(mgfx_d3d11_image *image)
 {
-    if (image->rtv) ID3D11RenderTargetView_Release(image->rtv);
-    if (image->view) ID3D11ShaderResourceView_Release(image->view);
-    ID3D11Resource_Release(image->texture);
+    MGFX_D3D11_SAFE_RELEASE(image->rtv);
+    MGFX_D3D11_SAFE_RELEASE(image->view);
+    MGFX_D3D11_SAFE_RELEASE(image->texture);
     free(image);
 }
 
@@ -4617,7 +4595,7 @@ static ID3D11SamplerState *mgfx_d3d11_create_sampler(const mgfx_sampler_create_i
 
 static void mgfx_d3d11_destroy_sampler(ID3D11SamplerState *sampler)
 {
-    ID3D11SamplerState_Release(sampler);
+    MGFX_D3D11_SAFE_RELEASE(sampler);
 }
 
 static void mgfx_d3d11_begin_clear_render_target(ID3D11RenderTargetView *color_attachment, mgfx_color clear_value, uint32_t width, uint32_t height)
@@ -4650,7 +4628,7 @@ static void mgfx_d3d11_bind_pass(const mgfx_pass_info *pass)
     mgfx_d3d11_image *depth = (mgfx_d3d11_image*)pass->depth_stencil_image;
 
     ID3D11DeviceContext_OMSetRenderTargets(ctx.d3d11.immediate_context,
-        1, color ? &color->rtv : NULL, depth ? depth->dsv : NULL);
+        color ? 1 : 0, color ? &color->rtv : NULL, depth ? depth->dsv : NULL);
 
     if (color)
         mgfx_d3d11_begin_clear_render_target(color->rtv, pass->clear,
@@ -4668,7 +4646,7 @@ static void mgfx_d3d11_bind_pass(const mgfx_pass_info *pass)
 
 static mgfx_d3d11_pipeline *mgfx_d3d11_create_pipeline(const mgfx_pipeline_create_info *create_info)
 {
-    mgfx_d3d11_pipeline *pipeline = (mgfx_d3d11_pipeline*)malloc(sizeof(mgfx_d3d11_pipeline));
+    mgfx_d3d11_pipeline *pipeline = (mgfx_d3d11_pipeline*)calloc(1, sizeof(mgfx_d3d11_pipeline));
 
     ID3DBlob* error_blob = NULL;
 
