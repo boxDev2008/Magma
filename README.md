@@ -117,7 +117,7 @@ void mg_app_on_end(void)
 void mg_app_on_update(void)
 {
     mgfx_begin();
-    mgfx_bind_render_pass(0, (mgfx_color){ 0.05f, 0.05f, 0.05f, 1.0f });
+    mgfx_bind_pass(&(mgfx_pass_info){.clear = {0.05f, 0.05f, 0.05f, 1.0f}});
     mgfx_bind_pipeline(pip);
     mgfx_bind_vertex_buffer(vb);
     mgfx_draw(4, 0);
