@@ -663,6 +663,12 @@ int32_t mg_app_run(const mg_app_init_info *info)
             DispatchMessageW(&msg);
         }
 
+        if (IsIconic(platform.hwnd))
+        {
+            Sleep(10);
+            continue;
+        }
+
         LARGE_INTEGER now_time;
         QueryPerformanceCounter(&now_time);
         float new_time = (float)(now_time.QuadPart - start_time.QuadPart) * clock_frequency;

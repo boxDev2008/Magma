@@ -36,7 +36,7 @@ void mg_app_on_start(void)
             MGFX_VERTEX_FORMAT_FLOAT3
         },
         .primitive_topology = MGFX_PRIMITIVE_TOPOLOGY_LINE_STRIP,
-        .shader = get_triangle_shader(mgfx_get_shader_lang()),
+        .shader = get_triangle_shader(mgfx_get_shader_lang())
     });
 }
 

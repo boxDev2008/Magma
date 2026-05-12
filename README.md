@@ -103,7 +103,7 @@ void mg_app_on_start(void)
     pip = mgfx_create_pipeline(&(mgfx_pipeline_create_info){
         .vertex_attributes  = { MGFX_VERTEX_FORMAT_FLOAT2, MGFX_VERTEX_FORMAT_FLOAT3 },
         .primitive_topology = MGFX_PRIMITIVE_TOPOLOGY_LINE_STRIP,
-        .shader             = get_triangle_shader(mgfx_get_shader_lang()),
+        .shader             = get_triangle_shader(mgfx_get_shader_lang())
     });
 }
 

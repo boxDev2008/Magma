@@ -155,7 +155,6 @@ enum
 
     MGFX_FORMAT_D16_UNORM_S8_UINT,
     MGFX_FORMAT_D24_UNORM_S8_UINT,
-    MGFX_FORMAT_D32_SFLOAT,
     MGFX_FORMAT_D32_SFLOAT_S8_UINT
 };
 
@@ -511,6 +510,18 @@ MGFX_API mgfx_shader_lang mgfx_get_shader_lang (void);
 
 typedef struct
 {
+    uint8_t *buffer;
+    uint32_t capacity;
+    uint32_t element_size;
+
+    uint32_t head;
+    uint32_t tail;
+    uint32_t count;
+}
+mgfx_queue;
+
+typedef struct
+{
     VkImage image;
     VkImageView view;
     VkDeviceMemory memory;
@@ -576,6 +587,28 @@ typedef struct
     uint32_t pending_image_binding_count;
 }
 mgfx_vk_descriptor_cache;
+
+typedef uint8_t mgfx_vk_release_queue_entry_type;
+enum
+{
+    MGFX_VK_RELEASE_QUEUE_ENTRY_BUFFER,
+    MGFX_VK_RELEASE_QUEUE_ENTRY_IMAGE,
+    MGFX_VK_RELEASE_QUEUE_ENTRY_SAMPLER,
+    MGFX_VK_RELEASE_QUEUE_ENTRY_PIPELINE
+};
+
+typedef struct
+{
+    union
+    {
+        mgfx_vk_buffer *buffer;
+        mgfx_vk_image *image;
+        VkSampler sampler;
+        mgfx_vk_pipeline *pipeline;
+    };
+    mgfx_vk_release_queue_entry_type type;
+}
+mgfx_vk_release_queue_entry;
 
 typedef struct
 {
@@ -659,6 +692,7 @@ typedef struct
     scratch_buffer;
 
     mgfx_vk_descriptor_cache descriptor_cache;
+    mgfx_queue release_queue;
 
     uint32_t width, height;
     bool vsync, rebuild_swapchain;
@@ -885,7 +919,6 @@ mgfx_gl_pipeline;
 typedef struct
 {
     GLuint texture_id;
-    GLuint framebuffer;
     GLenum texture_target;
     GLenum format;
     GLenum internal_format;
@@ -908,6 +941,8 @@ typedef struct
 {
     GLuint vao;
     GLuint uniform_buffers[MGFX_MAX_BINDABLE_UNIFORMS];
+
+    GLuint scratch_framebuffer;
 
     GLenum index_type;
     GLenum primitive_topology;
@@ -1021,7 +1056,7 @@ typedef struct
     ID3D11Buffer *constant_buffers[MGFX_MAX_BINDABLE_UNIFORMS];
 
     uint32_t width, height;
-    bool vsync, rebuild_swapchain;
+    bool vsync, pending_resize;
 }
 mgfx_d3d11_context;
 
@@ -1083,7 +1118,6 @@ static inline uint8_t mgfx_format_bpp(mgfx_format format)
 
         case MGFX_FORMAT_D16_UNORM_S8_UINT:  return 3;
         case MGFX_FORMAT_D24_UNORM_S8_UINT:  return 4;
-        case MGFX_FORMAT_D32_SFLOAT:         return 4;
         case MGFX_FORMAT_D32_SFLOAT_S8_UINT: return 5;
 
         default: return 4;
@@ -1121,10 +1155,64 @@ static inline uint32_t mgfx_vertex_format_size(mgfx_vertex_format format)
 
 #if defined(MGFX_VULKAN)
 
-static inline int32_t mgfx_math_clampi(int32_t d, int32_t min, int32_t max)
+static inline int32_t mgfx_clampi(int32_t d, int32_t min, int32_t max)
 {
     const int t = d < min ? min : d;
     return t > max ? max : t;
+}
+
+static inline void mgfx_create_queue(mgfx_queue *queue, uint32_t element_size, uint32_t capacity)
+{
+    queue->buffer = (uint8_t*)malloc(capacity * element_size);
+    queue->capacity = capacity;
+    queue->element_size = element_size;
+
+    queue->head = 0;
+    queue->tail = 0;
+    queue->count = 0;
+}
+
+static inline void mgfx_destroy_queue(mgfx_queue *queue)
+{
+    free(queue->buffer);
+}
+
+static inline bool mgfx_queue_full(mgfx_queue *queue)
+{
+    return queue->count >= queue->capacity;
+}
+
+static inline bool mgfx_queue_empty(mgfx_queue *queue)
+{
+    return queue->count == 0;
+}
+
+static inline void mgfx_queue_push(mgfx_queue *queue, const void *data)
+{
+    if (mgfx_queue_full(queue))
+        return;
+
+    memcpy(
+        queue->buffer + (queue->tail * queue->element_size),
+        data,
+        queue->element_size
+    );
+
+    queue->tail = (queue->tail + 1) % queue->capacity;
+    queue->count++;
+}
+
+static inline void *mgfx_queue_pop(mgfx_queue *queue)
+{
+    if (mgfx_queue_empty(queue))
+        return NULL;
+
+    void *result = queue->buffer + (queue->head * queue->element_size);
+
+    queue->head = (queue->head + 1) % queue->capacity;
+    queue->count--;
+
+    return result;
 }
 
 static inline VkFormat mgfx_vk_get_format(mgfx_format format)
@@ -1155,7 +1243,6 @@ static inline VkFormat mgfx_vk_get_format(mgfx_format format)
 
         case MGFX_FORMAT_D16_UNORM_S8_UINT:   return VK_FORMAT_D16_UNORM_S8_UINT;
         case MGFX_FORMAT_D24_UNORM_S8_UINT:   return VK_FORMAT_D24_UNORM_S8_UINT;
-        case MGFX_FORMAT_D32_SFLOAT:          return VK_FORMAT_D32_SFLOAT;
         case MGFX_FORMAT_D32_SFLOAT_S8_UINT:  return VK_FORMAT_D32_SFLOAT_S8_UINT;
 
         default: return VK_FORMAT_UNDEFINED;
@@ -1545,8 +1632,8 @@ static VkExtent2D mgfx_vk_choose_swap_extent(const VkSurfaceCapabilitiesKHR *cap
     else
     {
         VkExtent2D actual_extent = {width, height};
-        actual_extent.width = mgfx_math_clampi(actual_extent.width, capabilities->minImageExtent.width, capabilities->maxImageExtent.width);
-        actual_extent.height = mgfx_math_clampi(actual_extent.height, capabilities->minImageExtent.height, capabilities->maxImageExtent.height);
+        actual_extent.width = mgfx_clampi(actual_extent.width, capabilities->minImageExtent.width, capabilities->maxImageExtent.width);
+        actual_extent.height = mgfx_clampi(actual_extent.height, capabilities->minImageExtent.height, capabilities->maxImageExtent.height);
         return actual_extent;
     }
 }
@@ -1662,11 +1749,44 @@ static void mgfx_vk_cleanup_swapchain(void)
     vkDestroySwapchainKHR(ctx.vk.device.handle, ctx.vk.swapchain.handle, NULL);
 }
 
+static void mgfx_vk_recycle(void)
+{
+    while (!mgfx_queue_empty(&ctx.vk.release_queue))
+    {
+        mgfx_vk_release_queue_entry *entry = mgfx_queue_pop(&ctx.vk.release_queue);
+        switch (entry->type)
+        {
+        case MGFX_VK_RELEASE_QUEUE_ENTRY_BUFFER:
+            vkDestroyBuffer(ctx.vk.device.handle, entry->buffer->buffer, NULL);
+            vkFreeMemory(ctx.vk.device.handle, entry->buffer->memory, NULL);
+            free(entry->buffer);
+            break;
+        case MGFX_VK_RELEASE_QUEUE_ENTRY_IMAGE:
+            vkDestroyImage(ctx.vk.device.handle, entry->image->image, NULL);
+            vkFreeMemory(ctx.vk.device.handle, entry->image->memory, NULL);
+            mgfx_vk_descriptor_cache_invalidate_image_view(&ctx.vk.descriptor_cache, entry->image->view);
+            vkDestroyImageView(ctx.vk.device.handle, entry->image->view, NULL);
+            free(entry->image);
+            break;
+        case MGFX_VK_RELEASE_QUEUE_ENTRY_SAMPLER:
+            mgfx_vk_descriptor_cache_invalidate_sampler(&ctx.vk.descriptor_cache, entry->sampler);
+            vkDestroySampler(ctx.vk.device.handle, entry->sampler, NULL);
+            break;
+        case MGFX_VK_RELEASE_QUEUE_ENTRY_PIPELINE:
+            vkDestroyPipeline(ctx.vk.device.handle, entry->pipeline->pipeline, NULL);
+            vkDestroyPipelineLayout(ctx.vk.device.handle, entry->pipeline->pipeline_layout, NULL);
+            free(entry->pipeline);
+            break;
+        }
+    }
+}
+
 static void mgfx_vk_resize(uint32_t width, uint32_t height)
 {
     ctx.vk.width = width;
     ctx.vk.height = height;
     ctx.vk.rebuild_swapchain = true;
+    mgfx_vk_recycle();
 }
 
 static void mgfx_vk_vsync(bool vsync)
@@ -1856,9 +1976,10 @@ static mgfx_vk_buffer *mgfx_vk_create_buffer(const mgfx_buffer_create_info *crea
 
 static void mgfx_vk_destroy_buffer(mgfx_vk_buffer *buffer)
 {
-    vkDestroyBuffer(ctx.vk.device.handle, buffer->buffer, NULL);
-    vkFreeMemory(ctx.vk.device.handle, buffer->memory, NULL);
-    free(buffer);
+    mgfx_queue_push(&ctx.vk.release_queue, &(mgfx_vk_release_queue_entry){
+        .buffer = buffer,
+        .type = MGFX_VK_RELEASE_QUEUE_ENTRY_BUFFER
+    });
 }
 
 static void mgfx_vk_bind_vertex_buffer(mgfx_vk_buffer *buffer)
@@ -2021,11 +2142,10 @@ static mgfx_vk_image *mgfx_vk_create_image(const mgfx_image_create_info *create_
 
 static void mgfx_vk_destroy_image(mgfx_vk_image *image)
 {
-    vkDestroyImage(ctx.vk.device.handle, image->image, NULL);
-    vkFreeMemory(ctx.vk.device.handle, image->memory, NULL);
-    mgfx_vk_descriptor_cache_invalidate_image_view(&ctx.vk.descriptor_cache, image->view);
-    vkDestroyImageView(ctx.vk.device.handle, image->view, NULL);
-    free(image);
+    mgfx_queue_push(&ctx.vk.release_queue, &(mgfx_vk_release_queue_entry){
+        .image = image,
+        .type = MGFX_VK_RELEASE_QUEUE_ENTRY_IMAGE
+    });
 }
 
 static void mgfx_vk_update_image(mgfx_vk_image *image, const mgfx_image_update_info *update_info)
@@ -2107,8 +2227,10 @@ static VkSampler mgfx_vk_create_sampler(const mgfx_sampler_create_info *create_i
 
 static void mgfx_vk_destroy_sampler(VkSampler sampler)
 {
-    mgfx_vk_descriptor_cache_invalidate_sampler(&ctx.vk.descriptor_cache, sampler);
-    vkDestroySampler(ctx.vk.device.handle, sampler, NULL);
+    mgfx_queue_push(&ctx.vk.release_queue, &(mgfx_vk_release_queue_entry){
+        .sampler = sampler,
+        .type = MGFX_VK_RELEASE_QUEUE_ENTRY_SAMPLER
+    });
 }
 
 static VkShaderModule mgfx_vk_create_shader(const uint32_t *code, size_t size)
@@ -2319,9 +2441,10 @@ mgfx_vk_pipeline *mgfx_vk_create_pipeline(const mgfx_pipeline_create_info *creat
 
 void mgfx_vk_destroy_pipeline(mgfx_vk_pipeline *pipeline)
 {
-    vkDestroyPipeline(ctx.vk.device.handle, pipeline->pipeline, NULL);
-    vkDestroyPipelineLayout(ctx.vk.device.handle, pipeline->pipeline_layout, NULL);
-    free(pipeline);
+    mgfx_queue_push(&ctx.vk.release_queue, &(mgfx_vk_release_queue_entry){
+        .pipeline = pipeline,
+        .type = MGFX_VK_RELEASE_QUEUE_ENTRY_PIPELINE
+    });
 }
 
 void mgfx_vk_bind_pipeline(mgfx_vk_pipeline *pipeline)
@@ -2828,11 +2951,16 @@ static void mgfx_vk_init(const mgfx_init_info *init_info)
 	mgfx_vk_create_descriptor_pool();
     
     mgfx_vk_create_scratch_buffer();
+
+    mgfx_create_queue(&ctx.vk.release_queue, sizeof(mgfx_vk_release_queue_entry), MGFX_MAX_DEVICE_ALLOCATIONS);
 }
 
 static void mgfx_vk_shutdown(void)
 {
     vkDeviceWaitIdle(ctx.vk.device.handle);
+
+    mgfx_vk_recycle();
+    mgfx_destroy_queue(&ctx.vk.release_queue);
 
     vkDestroyDescriptorSetLayout(ctx.vk.device.handle, ctx.vk.layouts.image_sampler_layout, NULL);
     vkDestroyDescriptorSetLayout(ctx.vk.device.handle, ctx.vk.layouts.scratch_buffer_layout, NULL);
@@ -2890,13 +3018,16 @@ static void mgfx_vk_end(void)
     if (ctx.vk.inside_pass)
     {
         vkCmdEndRendering(cmd);
-        mgfx_vk_transition_image_layout(cmd, ctx.vk.swapchain.images[ctx.vk.swapchain.image_index], VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, 1);
+        mgfx_vk_transition_image_layout(cmd,
+            ctx.vk.swapchain.images[ctx.vk.swapchain.image_index],
+            VK_FORMAT_B8G8R8A8_UNORM,
+            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+            VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, 1);
     }
 
     mgfx_vk_end_command_buffer(cmd);
 
     VkSubmitInfo submit_info = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
-
     submit_info.commandBufferCount = 1;
     submit_info.pCommandBuffers = &cmd;
 
@@ -2909,11 +3040,8 @@ static void mgfx_vk_end(void)
     VkSemaphore signal_semaphores[] = {ctx.vk.sync_objects.image_rendered_semaphore};
     submit_info.signalSemaphoreCount = 1;
     submit_info.pSignalSemaphores = signal_semaphores;
-    
-    vkQueueSubmit(ctx.vk.device.graphics_compute_queue, 1, &submit_info, ctx.vk.sync_objects.fence);
 
-    if (ctx.vk.rebuild_swapchain)
-        return;
+    vkQueueSubmit(ctx.vk.device.graphics_compute_queue, 1, &submit_info, ctx.vk.sync_objects.fence);
 
     VkPresentInfoKHR present_info = {VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
     present_info.waitSemaphoreCount = 1;
@@ -2927,6 +3055,8 @@ static void mgfx_vk_end(void)
     VkResult result = vkQueuePresentKHR(ctx.vk.device.graphics_compute_queue, &present_info);
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
         ctx.vk.rebuild_swapchain = true;
+
+    mgfx_vk_recycle();
 }
 
 static void mgfx_vk_viewport(int32_t x, int32_t y, uint32_t width, uint32_t height)
@@ -3368,7 +3498,6 @@ static inline GLenum mgfx_gl_get_internal_format(mgfx_format format)
 
         case MGFX_FORMAT_D16_UNORM_S8_UINT: return GL_DEPTH24_STENCIL8;
         case MGFX_FORMAT_D24_UNORM_S8_UINT: return GL_DEPTH24_STENCIL8;
-        case MGFX_FORMAT_D32_SFLOAT:        return GL_DEPTH_COMPONENT32F;
         case MGFX_FORMAT_D32_SFLOAT_S8_UINT:return GL_DEPTH32F_STENCIL8;
     }
     return GL_RGBA8;
@@ -3398,7 +3527,6 @@ static inline GLenum mgfx_gl_get_format(mgfx_format format)
 
         case MGFX_FORMAT_D16_UNORM_S8_UINT:
         case MGFX_FORMAT_D24_UNORM_S8_UINT:
-        case MGFX_FORMAT_D32_SFLOAT:
         case MGFX_FORMAT_D32_SFLOAT_S8_UINT: return GL_DEPTH_STENCIL;
     }
     return GL_RGBA;
@@ -3460,30 +3588,12 @@ static mgfx_gl_image *mgfx_gl_create_image(const mgfx_image_create_info *create_
     glTexImage2D(image->texture_target, 0, image->internal_format,
         create_info->width, create_info->height, 0, image->format, usage, NULL);
 
-    if (create_info->usage != MGFX_IMAGE_USAGE_NONE)
-    {
-        glGenFramebuffers(1, &image->framebuffer);
-        glBindFramebuffer(GL_FRAMEBUFFER, image->framebuffer);
-
-        GLenum attachment = (create_info->usage == MGFX_IMAGE_USAGE_COLOR_ATTACHMENT)
-            ? GL_COLOR_ATTACHMENT0
-            : GL_DEPTH_STENCIL_ATTACHMENT;
-
-        glFramebufferTexture2D(GL_FRAMEBUFFER, attachment,
-            image->texture_target, image->texture_id, 0);
-
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    }
-    else image->framebuffer = 0;
-
     return image;
 }
 
 static void mgfx_gl_destroy_image(mgfx_gl_image *image)
 {
     glDeleteTextures(1, &image->texture_id);
-    if (image->framebuffer)
-        glDeleteFramebuffers(1, &image->framebuffer);
     free(image);
 }
 
@@ -3775,25 +3885,44 @@ static void mgfx_gl_bind_pass(const mgfx_pass_info *pass)
     mgfx_gl_image *color = (mgfx_gl_image*)pass->color_image;
     mgfx_gl_image *depth = (mgfx_gl_image*)pass->depth_stencil_image;
 
-    GLuint fbo = color ? color->framebuffer : depth->framebuffer;
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, ctx.gl.scratch_framebuffer);
 
-    if (color && depth && color->framebuffer != depth->framebuffer)
-    {
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
-            depth->texture_target, depth->texture_id, 0);
-    }
+    if (color) glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, color->texture_target, color->texture_id, 0);
+    if (depth) glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, depth->texture_target, depth->texture_id, 0);
 
-    uint32_t width  = color ? color->width  : depth->width;
+    uint32_t width = color ? color->width  : depth->width;
     uint32_t height = color ? color->height : depth->height;
 
     glViewport(0, 0, width, height);
     glScissor(0, 0, width, height);
     glClearColor(pass->clear.r, pass->clear.g, pass->clear.b, pass->clear.a);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    GLbitfield clear_mask = GL_COLOR_BUFFER_BIT;
+    if (depth) clear_mask |= GL_DEPTH_BUFFER_BIT;
+    glClear(clear_mask);
 }
 
-static const char *_MGFX_BACK_BUFFER_VERT =
+static void mgfx_gl_resize(uint32_t width, uint32_t height)
+{
+    glBindTexture(GL_TEXTURE_2D, ctx.gl.swapchain.color_attachment);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+
+    ctx.gl.width = width;
+    ctx.gl.height = height;
+}
+
+static void mgfx_gl_vsync(bool vsync)
+{
+    if (ctx.gl.vsync != vsync)
+    {
+        _mgfx_gl_set_swap_interval(vsync);
+        ctx.gl.vsync = vsync;
+    }
+}
+
+static void mgfx_gl_init_backbuffer(void)
+{
+    const char *vert_code =
 #if defined(__EMSCRIPTEN__)
     "#version 300 es\n"
     "precision mediump float;"
@@ -3820,14 +3949,14 @@ static const char *_MGFX_BACK_BUFFER_VERT =
         "tex_coord = tex_coords[gl_VertexID];"
     "}\0";
 
-static const char *_MGFX_BACK_BUFFER_FRAG =
+    const char *frag_code =
 #if defined(__EMSCRIPTEN__)
     "#version 300 es\n"
     "precision mediump float;"
 #else
     "#version 450 core\n"
 #endif
-    "out vec4 out_color;\n"
+    "out vec4 out_color;"
     "in vec2 tex_coord;"
     "uniform sampler2D u_texture;"
     "void main()"
@@ -3835,41 +3964,12 @@ static const char *_MGFX_BACK_BUFFER_FRAG =
         "out_color = texture(u_texture, tex_coord);"
     "}\0";
 
-static void mgfx_gl_resize(uint32_t width, uint32_t height)
-{
-    glBindTexture(GL_TEXTURE_2D, ctx.gl.swapchain.color_attachment);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
-
-    ctx.gl.width = width;
-    ctx.gl.height = height;
-}
-
-static void mgfx_gl_vsync(bool vsync)
-{
-    if (ctx.gl.vsync != vsync)
-    {
-        _mgfx_gl_set_swap_interval(vsync);
-        ctx.gl.vsync = vsync;
-    }
-}
-
-static void mgfx_gl_init(const mgfx_init_info *init_info)
-{
-    ctx.gl = (mgfx_gl_context){ 0 };
-
-    _mgfx_gl_load_platform(init_info->handle);
-#if !defined(__EMSCRIPTEN__)
-    _mgfx_gl_load_opengl();
-#endif
-
-    glGenVertexArrays(1, &ctx.gl.vao);
-
     uint32_t vertex = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertex, 1, &_MGFX_BACK_BUFFER_VERT, NULL);
+    glShaderSource(vertex, 1, &vert_code, NULL);
     glCompileShader(vertex);
     
     uint32_t fragment = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragment, 1, &_MGFX_BACK_BUFFER_FRAG, NULL);
+    glShaderSource(fragment, 1, &frag_code, NULL);
     glCompileShader(fragment);
 
     ctx.gl.swapchain.program = glCreateProgram();
@@ -3891,25 +3991,44 @@ static void mgfx_gl_init(const mgfx_init_info *init_info)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-    mgfx_gl_resize(init_info->width, init_info->height);
-    _mgfx_gl_set_swap_interval(init_info->vsync);
-    ctx.gl.vsync = init_info->vsync;
-
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ctx.gl.swapchain.color_attachment, 0);
 
     glBindTexture(GL_TEXTURE_2D, 0);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
 
+static void mgfx_gl_destroy_backbuffer(void)
+{
+    glDeleteFramebuffers(1, &ctx.gl.swapchain.framebuffer);
+    glDeleteTextures(1, &ctx.gl.swapchain.color_attachment);
+    glDeleteProgram(ctx.gl.swapchain.program);
+}
+
+static void mgfx_gl_init(const mgfx_init_info *init_info)
+{
+    ctx.gl = (mgfx_gl_context){ 0 };
+
+    _mgfx_gl_load_platform(init_info->handle);
+#if !defined(__EMSCRIPTEN__)
+    _mgfx_gl_load_opengl();
+#endif
+    mgfx_gl_init_backbuffer();
+
+    mgfx_gl_resize(init_info->width, init_info->height);
+    _mgfx_gl_set_swap_interval(init_info->vsync);
+    ctx.gl.vsync = init_info->vsync;
+
+    glGenVertexArrays(1, &ctx.gl.vao);
+    glGenFramebuffers(1, &ctx.gl.scratch_framebuffer);
     glGenBuffers(MGFX_MAX_BINDABLE_UNIFORMS, ctx.gl.uniform_buffers);
 }
 
 static void mgfx_gl_shutdown(void)
 {
     glDeleteBuffers(MGFX_MAX_BINDABLE_UNIFORMS, ctx.gl.uniform_buffers);
-    glDeleteFramebuffers(1, &ctx.gl.swapchain.framebuffer);
-    glDeleteTextures(1, &ctx.gl.swapchain.color_attachment);
-    glDeleteProgram(ctx.gl.swapchain.program);
+    glDeleteFramebuffers(1, &ctx.gl.scratch_framebuffer);
     glDeleteVertexArrays(1, &ctx.gl.vao);
+    mgfx_gl_destroy_backbuffer();
 #if !defined(__EMSCRIPTEN__)
     _mgfx_gl_unload_opengl();
 #endif
@@ -4027,7 +4146,6 @@ static DXGI_FORMAT mgfx_d3d11_get_format(mgfx_format format)
 
         case MGFX_FORMAT_D16_UNORM_S8_UINT: return DXGI_FORMAT_R16_TYPELESS;
         case MGFX_FORMAT_D24_UNORM_S8_UINT: return DXGI_FORMAT_R24G8_TYPELESS;
-        case MGFX_FORMAT_D32_SFLOAT:        return DXGI_FORMAT_R32_TYPELESS;
         case MGFX_FORMAT_D32_SFLOAT_S8_UINT:return DXGI_FORMAT_R32G8X24_TYPELESS;
     }
     return DXGI_FORMAT_UNKNOWN;
@@ -4102,7 +4220,6 @@ static DXGI_FORMAT mgfx_d3d11_get_dsv_format(mgfx_format format)
     {
         case MGFX_FORMAT_D16_UNORM_S8_UINT: return DXGI_FORMAT_D16_UNORM;
         case MGFX_FORMAT_D24_UNORM_S8_UINT: return DXGI_FORMAT_D24_UNORM_S8_UINT;
-        case MGFX_FORMAT_D32_SFLOAT:        return DXGI_FORMAT_D32_FLOAT;
         case MGFX_FORMAT_D32_SFLOAT_S8_UINT:return DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
     }
     return DXGI_FORMAT_UNKNOWN;
@@ -4114,7 +4231,6 @@ static DXGI_FORMAT mgfx_d3d11_get_srv_format(mgfx_format format)
     {
         case MGFX_FORMAT_D16_UNORM_S8_UINT: return DXGI_FORMAT_R16_UNORM;
         case MGFX_FORMAT_D24_UNORM_S8_UINT: return DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
-        case MGFX_FORMAT_D32_SFLOAT:        return DXGI_FORMAT_R32_FLOAT;
         case MGFX_FORMAT_D32_SFLOAT_S8_UINT:return DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS;
     }
     return mgfx_d3d11_get_format(format);
@@ -4225,7 +4341,7 @@ static void mgfx_d3d11_init(const mgfx_init_info *init_info)
     sd.BufferCount = 1;
     sd.BufferDesc.Width = init_info->width;
     sd.BufferDesc.Height = init_info->height;
-    sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    sd.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
     sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     sd.OutputWindow = (HWND)init_info->handle->win32.hwnd;
     sd.SampleDesc.Count = 1;
@@ -4246,11 +4362,11 @@ static void mgfx_d3d11_init(const mgfx_init_info *init_info)
         NULL,
         &ctx.d3d11.immediate_context);
 
-    ID3D11Texture2D* pBackBuffer = NULL;
-    IDXGISwapChain_GetBuffer(ctx.d3d11.swapchain, 0, &IID_ID3D11Texture2D, (void**)&pBackBuffer);
-    ID3D11Device_CreateRenderTargetView(ctx.d3d11.device, (ID3D11Resource*)pBackBuffer, NULL, &ctx.d3d11.target_view);
-    ID3D11Buffer_Release(pBackBuffer);
-
+    ID3D11Texture2D *backbuffer;
+    IDXGISwapChain_GetBuffer(ctx.d3d11.swapchain, 0, &IID_ID3D11Texture2D, (void**)&backbuffer);
+    ID3D11Device_CreateRenderTargetView(ctx.d3d11.device, (ID3D11Resource*)backbuffer, NULL, &ctx.d3d11.target_view);
+    ID3D11Texture2D_Release(backbuffer);
+    
     for (uint32_t i = 0; i < MGFX_MAX_BINDABLE_UNIFORMS; i++)
     {
         D3D11_BUFFER_DESC buffer_desc = { 0 };
@@ -4278,26 +4394,53 @@ static void mgfx_d3d11_shutdown(void)
     ID3D11Device_Release(ctx.d3d11.device);
 }
 
+static void mgfx_d3d11_resize_backbuffer(void)
+{
+    ID3D11DeviceContext_ClearState(ctx.d3d11.immediate_context);
+    ID3D11DeviceContext_Flush(ctx.d3d11.immediate_context);
+
+    MGFX_D3D11_SAFE_RELEASE(ctx.d3d11.target_view);
+
+    HRESULT hr = IDXGISwapChain_ResizeBuffers(
+        ctx.d3d11.swapchain,
+        0,
+        ctx.d3d11.width,
+        ctx.d3d11.height,
+        DXGI_FORMAT_B8G8R8A8_UNORM,
+        0
+    );
+
+    if (FAILED(hr))
+        return;
+
+    ID3D11Texture2D* backbuffer = NULL;
+
+    hr = IDXGISwapChain_GetBuffer(
+        ctx.d3d11.swapchain,
+        0,
+        &IID_ID3D11Texture2D,
+        (void**)&backbuffer
+    );
+
+    if (FAILED(hr))
+        return;
+
+    hr = ID3D11Device_CreateRenderTargetView(
+        ctx.d3d11.device,
+        (ID3D11Resource*)backbuffer,
+        NULL,
+        &ctx.d3d11.target_view
+    );
+
+    ID3D11Texture2D_Release(backbuffer);
+}
+
 static void mgfx_d3d11_begin(void)
 {
-    if (ctx.d3d11.rebuild_swapchain)
+    if (ctx.d3d11.pending_resize)
     {
-        ctx.d3d11.rebuild_swapchain = false;
-
-        ID3D11DeviceContext_OMSetRenderTargets(ctx.d3d11.immediate_context, 0, NULL, NULL);
-
-        MGFX_D3D11_SAFE_RELEASE(ctx.d3d11.target_view);
-
-        IDXGISwapChain_ResizeBuffers(ctx.d3d11.swapchain, 0,
-            ctx.d3d11.width, ctx.d3d11.height,
-            DXGI_FORMAT_UNKNOWN, 0);
-
-        ID3D11Texture2D *pBackBuffer = NULL;
-        IDXGISwapChain_GetBuffer(ctx.d3d11.swapchain, 0,
-            &IID_ID3D11Texture2D, (void**)&pBackBuffer);
-        ID3D11Device_CreateRenderTargetView(ctx.d3d11.device,
-            (ID3D11Resource*)pBackBuffer, NULL, &ctx.d3d11.target_view);
-        ID3D11Texture2D_Release(pBackBuffer);
+        ctx.d3d11.pending_resize = false;
+        mgfx_d3d11_resize_backbuffer();
     }
 
     ID3D11DeviceContext_VSSetConstantBuffers(ctx.d3d11.immediate_context, 0, MGFX_MAX_BINDABLE_UNIFORMS, ctx.d3d11.constant_buffers);
@@ -4313,7 +4456,7 @@ static void mgfx_d3d11_resize(uint32_t width, uint32_t height)
 {
     ctx.d3d11.width = width;
     ctx.d3d11.height = height;
-    ctx.d3d11.rebuild_swapchain = true;
+    ctx.d3d11.pending_resize = true;
 }
 
 static void mgfx_d3d11_vsync(bool vsync)
@@ -4615,6 +4758,8 @@ static void mgfx_d3d11_begin_clear_render_target(ID3D11RenderTargetView *color_a
 
 static void mgfx_d3d11_bind_pass(const mgfx_pass_info *pass)
 {
+    ID3D11DeviceContext_ClearState(ctx.d3d11.immediate_context);
+
     if (!mgfx_valid_pass(pass))
     {
         ID3D11DeviceContext_OMSetRenderTargets(ctx.d3d11.immediate_context,
