@@ -3201,7 +3201,7 @@ void _mgfx_gl_set_swap_interval(bool enabled)
     _MGFX_XMACRO(glDrawArrays,              void,   (GLenum mode, GLint first, GLsizei count)) \
     _MGFX_XMACRO(glDrawElementsInstanced,   void,   (GLenum mode, GLsizei count, GLenum type, const void* indices, GLsizei instancecount)) \
     _MGFX_XMACRO(glVertexAttribPointer,     void,   (GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void* pointer)) \
-    _MGFX_XMACRO(glUniform1i,               void,   (GLint location, GLint v0)) \
+    _MGFX_XMACRO(glVertexAttribIPointer,    void,   (GLuint index, GLint size, GLenum type, GLsizei stride, const void* pointer)) \
     _MGFX_XMACRO(glDisable,                 void,   (GLenum cap)) \
     _MGFX_XMACRO(glBindBuffer,              void,   (GLenum target, GLuint buffer)) \
     _MGFX_XMACRO(glDeleteVertexArrays,      void,   (GLsizei n, const GLuint* arrays)) \
