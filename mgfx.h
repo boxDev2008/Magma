@@ -3395,41 +3395,35 @@ static inline GLenum mgfx_gl_get_data_usage(mgfx_access access)
 static void mgfx_gl_bind_vertex_attributes(void)
 {
     const mgfx_gl_pipeline *pipeline = ctx.gl.current_pipeline;
-
     GLenum type;
     GLint size;
     GLboolean norm;
-
+    GLboolean is_integer;
     for (uint32_t i = 0; i < pipeline->vertex_layout.attribute_count; i++)
     {
         const mgfx_gl_vertex_attribute *attr = &pipeline->vertex_layout.attributes[i];
-
         switch (attr->format)
         {
-            case MGFX_VERTEX_FORMAT_UINT:    type = GL_UNSIGNED_INT; size = 1; norm = GL_FALSE; break;
-            case MGFX_VERTEX_FORMAT_INT:     type = GL_INT;          size = 1; norm = GL_FALSE; break;
-            case MGFX_VERTEX_FORMAT_FLOAT:   type = GL_FLOAT;        size = 1; norm = GL_FALSE; break;
-
-            case MGFX_VERTEX_FORMAT_UINT2:   type = GL_UNSIGNED_INT; size = 2; norm = GL_FALSE; break;
-            case MGFX_VERTEX_FORMAT_INT2:    type = GL_INT;          size = 2; norm = GL_FALSE; break;
-            case MGFX_VERTEX_FORMAT_FLOAT2:  type = GL_FLOAT;        size = 2; norm = GL_FALSE; break;
-
-            case MGFX_VERTEX_FORMAT_UINT3:   type = GL_UNSIGNED_INT; size = 3; norm = GL_FALSE; break;
-            case MGFX_VERTEX_FORMAT_INT3:    type = GL_INT;          size = 3; norm = GL_FALSE; break;
-            case MGFX_VERTEX_FORMAT_FLOAT3:  type = GL_FLOAT;        size = 3; norm = GL_FALSE; break;
-
-            case MGFX_VERTEX_FORMAT_UINT4:   type = GL_UNSIGNED_INT; size = 4; norm = GL_FALSE; break;
-            case MGFX_VERTEX_FORMAT_INT4:    type = GL_INT;          size = 4; norm = GL_FALSE; break;
-            case MGFX_VERTEX_FORMAT_FLOAT4:  type = GL_FLOAT;        size = 4; norm = GL_FALSE; break;
-
-            case MGFX_VERTEX_FORMAT_UBYTE4:  type = GL_UNSIGNED_BYTE; size = 4; norm = GL_TRUE; break;
-            case MGFX_VERTEX_FORMAT_BYTE4:   type = GL_BYTE;          size = 4; norm = GL_TRUE; break;
-
-            case MGFX_VERTEX_FORMAT_UBYTE4N: type = GL_UNSIGNED_BYTE; size = 4; norm = GL_TRUE; break;
-            case MGFX_VERTEX_FORMAT_BYTE4N:  type = GL_BYTE;          size = 4; norm = GL_TRUE; break;
+            case MGFX_VERTEX_FORMAT_UINT:    type = GL_UNSIGNED_INT;  size = 1; norm = GL_FALSE; is_integer = GL_TRUE;  break;
+            case MGFX_VERTEX_FORMAT_INT:     type = GL_INT;           size = 1; norm = GL_FALSE; is_integer = GL_TRUE;  break;
+            case MGFX_VERTEX_FORMAT_FLOAT:   type = GL_FLOAT;         size = 1; norm = GL_FALSE; is_integer = GL_FALSE; break;
+            case MGFX_VERTEX_FORMAT_UINT2:   type = GL_UNSIGNED_INT;  size = 2; norm = GL_FALSE; is_integer = GL_TRUE;  break;
+            case MGFX_VERTEX_FORMAT_INT2:    type = GL_INT;           size = 2; norm = GL_FALSE; is_integer = GL_TRUE;  break;
+            case MGFX_VERTEX_FORMAT_FLOAT2:  type = GL_FLOAT;         size = 2; norm = GL_FALSE; is_integer = GL_FALSE; break;
+            case MGFX_VERTEX_FORMAT_UINT3:   type = GL_UNSIGNED_INT;  size = 3; norm = GL_FALSE; is_integer = GL_TRUE;  break;
+            case MGFX_VERTEX_FORMAT_INT3:    type = GL_INT;           size = 3; norm = GL_FALSE; is_integer = GL_TRUE;  break;
+            case MGFX_VERTEX_FORMAT_FLOAT3:  type = GL_FLOAT;         size = 3; norm = GL_FALSE; is_integer = GL_FALSE; break;
+            case MGFX_VERTEX_FORMAT_UINT4:   type = GL_UNSIGNED_INT;  size = 4; norm = GL_FALSE; is_integer = GL_TRUE;  break;
+            case MGFX_VERTEX_FORMAT_INT4:    type = GL_INT;           size = 4; norm = GL_FALSE; is_integer = GL_TRUE;  break;
+            case MGFX_VERTEX_FORMAT_FLOAT4:  type = GL_FLOAT;         size = 4; norm = GL_FALSE; is_integer = GL_FALSE; break;
+            case MGFX_VERTEX_FORMAT_UBYTE4:  type = GL_UNSIGNED_BYTE; size = 4; norm = GL_FALSE; is_integer = GL_TRUE;  break;
+            case MGFX_VERTEX_FORMAT_BYTE4:   type = GL_BYTE;          size = 4; norm = GL_FALSE; is_integer = GL_TRUE;  break;
+            case MGFX_VERTEX_FORMAT_UBYTE4N: type = GL_UNSIGNED_BYTE; size = 4; norm = GL_TRUE;  is_integer = GL_FALSE; break;
+            case MGFX_VERTEX_FORMAT_BYTE4N:  type = GL_BYTE;          size = 4; norm = GL_TRUE;  is_integer = GL_FALSE; break;
         }
-
-        glVertexAttribPointer(attr->location, size, type, norm, pipeline->vertex_layout.stride, (const void*)(uintptr_t)attr->offset);
+        if (is_integer)
+            glVertexAttribIPointer(attr->location, size, type, pipeline->vertex_layout.stride, (const void*)(uintptr_t)attr->offset);
+        else glVertexAttribPointer(attr->location, size, type, norm, pipeline->vertex_layout.stride, (const void*)(uintptr_t)attr->offset);
         glEnableVertexAttribArray(attr->location);
     }
 }
@@ -4758,8 +4752,6 @@ static void mgfx_d3d11_begin_clear_render_target(ID3D11RenderTargetView *color_a
 
 static void mgfx_d3d11_bind_pass(const mgfx_pass_info *pass)
 {
-    ID3D11DeviceContext_ClearState(ctx.d3d11.immediate_context);
-
     if (!mgfx_valid_pass(pass))
     {
         ID3D11DeviceContext_OMSetRenderTargets(ctx.d3d11.immediate_context,
