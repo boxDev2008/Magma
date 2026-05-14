@@ -205,6 +205,7 @@ typedef void *mgfx_sampler;
 
 typedef struct
 {
+    void *data;
     mgfx_format format;
     mgfx_image_type type;
     mgfx_image_usage usage;
@@ -214,13 +215,6 @@ typedef struct
 mgfx_image_create_info;
 
 typedef void *mgfx_image;
-
-typedef struct
-{
-    void *data;
-    uint32_t width, height, depth;
-}
-mgfx_image_update_info;
 
 typedef struct
 {
@@ -480,7 +474,7 @@ MGFX_API void mgfx_bind_uniforms (uint32_t binding, size_t size, void *data);
 
 MGFX_API mgfx_image mgfx_create_image (const mgfx_image_create_info *create_info);
 MGFX_API void mgfx_destroy_image (mgfx_image image);
-MGFX_API void mgfx_update_image (mgfx_image image, const mgfx_image_update_info *update_info);
+MGFX_API void mgfx_update_image (mgfx_image image, size_t size, void *data);
 MGFX_API void mgfx_bind_image (mgfx_image image, mgfx_sampler sampler, uint32_t binding);
 
 MGFX_API mgfx_sampler mgfx_create_sampler(const mgfx_sampler_create_info *create_info);
@@ -526,8 +520,7 @@ typedef struct
     VkImageView view;
     VkDeviceMemory memory;
     VkFormat format;
-    uint32_t width, height;
-    uint8_t bpp;
+    uint32_t width, height, depth;
     bool is_cpu;
 }
 mgfx_vk_image;
@@ -921,8 +914,7 @@ typedef struct
     GLuint texture_id;
     GLenum texture_target;
     GLenum format;
-    GLenum internal_format;
-    uint32_t width, height;
+    uint32_t width, height, depth;
 }
 mgfx_gl_image;
 
@@ -1010,7 +1002,6 @@ typedef struct
         ID3D11DepthStencilView  *dsv;
     };
     uint32_t width, height;
-    uint8_t bpp;
     bool is_cpu;
 }
 mgfx_d3d11_image;
@@ -2083,6 +2074,39 @@ static void mgfx_vk_copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_
     mgfx_vk_end_single_time_commands(command_buffer);
 }
 
+static void mgfx_vk_update_image(mgfx_vk_image *image, size_t size, void *data)
+{
+    const VkDeviceSize image_size = size;
+
+    if (image->is_cpu)
+    {
+        void *_data;
+        vkMapMemory(ctx.vk.device.handle, image->memory, 0, image_size, 0, &_data);
+        memcpy(_data, data, image_size);
+        vkUnmapMemory(ctx.vk.device.handle, image->memory);
+        return;
+    }
+
+    VkBuffer staging_buffer;
+    VkDeviceMemory staging_memory;
+
+    mgfx_vk_allocate_buffer(image_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+    &staging_buffer, &staging_memory);
+
+    void* _data;
+    vkMapMemory(ctx.vk.device.handle, staging_memory, 0, image_size, 0, &_data);
+        memcpy(_data, data, image_size);
+    vkUnmapMemory(ctx.vk.device.handle, staging_memory);
+
+    mgfx_vk_transition_image_layout_temp(image->image, image->format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    mgfx_vk_copy_buffer_to_image(staging_buffer, image->image, image->width, image->height, image->depth);
+    mgfx_vk_transition_image_layout_temp(image->image, image->format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+    vkDestroyBuffer(ctx.vk.device.handle, staging_buffer, NULL);
+    vkFreeMemory(ctx.vk.device.handle, staging_memory, NULL);
+}
+
 static mgfx_vk_image *mgfx_vk_create_image(const mgfx_image_create_info *create_info)
 {
     mgfx_vk_image *image = (mgfx_vk_image*)calloc(1, sizeof(mgfx_vk_image));
@@ -2106,9 +2130,9 @@ static mgfx_vk_image *mgfx_vk_create_image(const mgfx_image_create_info *create_
         mem_props = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
     }
 
+    const uint32_t depth = create_info->depth ? create_info->depth : 1;
     mgfx_vk_allocate_image(
-        create_info->width, create_info->height,
-        create_info->depth ? create_info->depth : 1,
+        create_info->width, create_info->height, depth,
         mgfx_vk_get_image_type(create_info->type),
         mgfx_vk_get_format(create_info->format),
         tiling, usage_flags, mem_props,
@@ -2132,10 +2156,13 @@ static mgfx_vk_image *mgfx_vk_create_image(const mgfx_image_create_info *create_
 
     image->width  = create_info->width;
     image->height = create_info->height;
+    image->depth = depth;
 
-    image->bpp = mgfx_format_bpp(create_info->format);
     image->format = view_info.format;
     image->is_cpu = create_info->access == MGFX_ACCESS_CPU;
+    
+    if (create_info->data)
+        mgfx_vk_update_image(image, image->width * image->height * depth * mgfx_format_bpp(create_info->format), create_info->data);
 
     return image;
 }
@@ -2146,40 +2173,6 @@ static void mgfx_vk_destroy_image(mgfx_vk_image *image)
         .image = image,
         .type = MGFX_VK_RELEASE_QUEUE_ENTRY_IMAGE
     });
-}
-
-static void mgfx_vk_update_image(mgfx_vk_image *image, const mgfx_image_update_info *update_info)
-{
-    const uint32_t depth = update_info->depth ? update_info->depth : 1;
-    const VkDeviceSize image_size = update_info->height * update_info->width * depth * image->bpp;
-
-    if (image->is_cpu)
-    {
-        void *data;
-        vkMapMemory(ctx.vk.device.handle, image->memory, 0, image_size, 0, &data);
-        memcpy(data, update_info->data, image_size);
-        vkUnmapMemory(ctx.vk.device.handle, image->memory);
-        return;
-    }
-
-    VkBuffer staging_buffer;
-    VkDeviceMemory staging_memory;
-
-    mgfx_vk_allocate_buffer(image_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-    &staging_buffer, &staging_memory);
-
-    void* data;
-    vkMapMemory(ctx.vk.device.handle, staging_memory, 0, image_size, 0, &data);
-        memcpy(data, update_info->data, image_size);
-    vkUnmapMemory(ctx.vk.device.handle, staging_memory);
-
-    mgfx_vk_transition_image_layout_temp(image->image, image->format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-    mgfx_vk_copy_buffer_to_image(staging_buffer, image->image, update_info->width, update_info->height, depth);
-    mgfx_vk_transition_image_layout_temp(image->image, image->format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
-    vkDestroyBuffer(ctx.vk.device.handle, staging_buffer, NULL);
-    vkFreeMemory(ctx.vk.device.handle, staging_memory, NULL);
 }
 
 static void mgfx_vk_bind_image(mgfx_vk_image *image, VkSampler sampler, uint32_t binding)
@@ -3192,7 +3185,10 @@ void _mgfx_gl_set_swap_interval(bool enabled)
     _MGFX_XMACRO(glBlendEquationSeparate,   void,   (GLenum modeRGB, GLenum modeAlpha)) \
     _MGFX_XMACRO(glDeleteTextures,          void,   (GLsizei n, const GLuint* textures)) \
     _MGFX_XMACRO(glBindTexture,             void,   (GLenum target, GLuint texture)) \
+    _MGFX_XMACRO(glTexImage2D,              void,   (GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const void* pixels)) \
     _MGFX_XMACRO(glTexImage3D,              void,   (GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLenum format, GLenum type, const void* pixels)) \
+    _MGFX_XMACRO(glTexSubImage2D,           void,   (GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const void* pixels)) \
+    _MGFX_XMACRO(glTexSubImage3D,           void,   (GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLenum type, const void* pixels)) \
     _MGFX_XMACRO(glCreateShader,            GLuint, (GLenum type)) \
     _MGFX_XMACRO(glFramebufferTexture2D,    void,   (GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level)) \
     _MGFX_XMACRO(glCreateProgram,           GLuint, (void)) \
@@ -3216,7 +3212,6 @@ void _mgfx_gl_set_swap_interval(bool enabled)
     _MGFX_XMACRO(glDepthFunc,               void,   (GLenum func)) \
     _MGFX_XMACRO(glEnableVertexAttribArray, void,   (GLuint index)) \
     _MGFX_XMACRO(glBlendFunc,               void,   (GLenum sfactor, GLenum dfactor)) \
-    _MGFX_XMACRO(glTexImage2D,              void,   (GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const void* pixels)) \
     _MGFX_XMACRO(glGenVertexArrays,         void,   (GLsizei n, GLuint* arrays)) \
     _MGFX_XMACRO(glFrontFace,               void,   (GLenum mode)) \
     _MGFX_XMACRO(glCullFace,                void,   (GLenum mode)) \
@@ -3573,14 +3568,20 @@ static mgfx_gl_image *mgfx_gl_create_image(const mgfx_image_create_info *create_
 
     glBindTexture(image->texture_target, image->texture_id);
 
-    image->internal_format = mgfx_gl_get_internal_format(create_info->format);
+    GLenum internal_format = mgfx_gl_get_internal_format(create_info->format);
     image->format = mgfx_gl_get_format(create_info->format);
-    image->width = create_info->width;
-    image->height = create_info->height;
 
     const GLuint usage = create_info->usage == MGFX_IMAGE_USAGE_COLOR_ATTACHMENT ? GL_UNSIGNED_BYTE : GL_UNSIGNED_INT_24_8;
-    glTexImage2D(image->texture_target, 0, image->internal_format,
-        create_info->width, create_info->height, 0, image->format, usage, NULL);
+    if (image->texture_target == GL_TEXTURE_2D)
+        glTexImage2D(GL_TEXTURE_2D, 0, internal_format,
+            create_info->width, create_info->height, 0, image->format, usage, create_info->data);
+    else if (image->texture_target == GL_TEXTURE_3D)
+        glTexImage3D(GL_TEXTURE_3D, 0, internal_format,
+            create_info->width, create_info->height, create_info->depth, 0, image->format, GL_UNSIGNED_BYTE, create_info->data);
+
+    image->width = create_info->width;
+    image->height = create_info->height;
+    image->depth = create_info->depth;
 
     return image;
 }
@@ -3591,15 +3592,15 @@ static void mgfx_gl_destroy_image(mgfx_gl_image *image)
     free(image);
 }
 
-static void mgfx_gl_update_image(mgfx_gl_image *image, const mgfx_image_update_info *update_info)
+static void mgfx_gl_update_image(mgfx_gl_image *image, size_t size, void *data)
 {
 	glBindTexture(image->texture_target, image->texture_id);
     if (image->texture_target == GL_TEXTURE_2D)
-        glTexImage2D(GL_TEXTURE_2D, 0, image->internal_format,
-            update_info->width, update_info->height, 0, image->format, GL_UNSIGNED_BYTE, update_info->data);
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0,
+            image->width, image->height, image->format, GL_UNSIGNED_BYTE, data);
     else if (image->texture_target == GL_TEXTURE_3D)
-        glTexImage3D(GL_TEXTURE_3D, 0, image->internal_format,
-            update_info->width, update_info->height, update_info->depth, 0, image->format, GL_UNSIGNED_BYTE, update_info->data);
+        glTexSubImage3D(GL_TEXTURE_3D, 0, 0, 0, 0,
+            image->width, image->height, image->depth, image->format, GL_UNSIGNED_BYTE, data);
 }
 
 static void mgfx_gl_bind_image(mgfx_gl_image *image, mgfx_gl_sampler *sampler, uint32_t binding)
@@ -4590,7 +4591,18 @@ static void mgfx_d3d11_destroy_buffer(mgfx_d3d11_buffer *buffer)
 static mgfx_d3d11_image *mgfx_d3d11_create_image(const mgfx_image_create_info *create_info)
 {
     mgfx_d3d11_image *image = (mgfx_d3d11_image*)calloc(1, sizeof(mgfx_d3d11_image));
+
     const DXGI_FORMAT format = mgfx_d3d11_get_format(create_info->format);
+
+    D3D11_SUBRESOURCE_DATA *init_data_ptr = NULL;
+    D3D11_SUBRESOURCE_DATA init_data = { 0 };
+    if (create_info->data)
+    {
+        init_data.pSysMem = create_info->data;
+        init_data.SysMemPitch = create_info->width * mgfx_format_bpp(create_info->format);
+        init_data.SysMemSlicePitch = init_data.SysMemPitch * create_info->height;
+        init_data_ptr = &init_data;
+    }
 
     D3D11_SHADER_RESOURCE_VIEW_DESC view_desc = { 0 };
     if (create_info->type == MGFX_IMAGE_TYPE_2D)
@@ -4616,7 +4628,7 @@ static mgfx_d3d11_image *mgfx_d3d11_create_image(const mgfx_image_create_info *c
         else if (create_info->usage == MGFX_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT)
             texture_desc.BindFlags |= D3D11_BIND_DEPTH_STENCIL;
 
-        ID3D11Device_CreateTexture2D(ctx.d3d11.device, &texture_desc, NULL, (ID3D11Texture2D**)&image->texture);
+        ID3D11Device_CreateTexture2D(ctx.d3d11.device, &texture_desc, init_data_ptr, (ID3D11Texture2D**)&image->texture);
         view_desc.Texture2D.MipLevels = 1;
     }
     else if (create_info->type == MGFX_IMAGE_TYPE_3D)
@@ -4627,7 +4639,6 @@ static mgfx_d3d11_image *mgfx_d3d11_create_image(const mgfx_image_create_info *c
         texture_desc.Depth = create_info->depth;
         texture_desc.MipLevels = 1;
         texture_desc.Format = format;
-        texture_desc.Usage = D3D11_USAGE_DEFAULT;
         texture_desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 
         if (create_info->access == MGFX_ACCESS_CPU)
@@ -4637,7 +4648,7 @@ static mgfx_d3d11_image *mgfx_d3d11_create_image(const mgfx_image_create_info *c
         }
         else texture_desc.Usage = D3D11_USAGE_DEFAULT;
 
-        ID3D11Device_CreateTexture3D(ctx.d3d11.device, &texture_desc, NULL, (ID3D11Texture3D**)&image->texture);
+        ID3D11Device_CreateTexture3D(ctx.d3d11.device, &texture_desc, init_data_ptr, (ID3D11Texture3D**)&image->texture);
         view_desc.Texture3D.MipLevels = 1;
     }
 
@@ -4662,10 +4673,8 @@ static mgfx_d3d11_image *mgfx_d3d11_create_image(const mgfx_image_create_info *c
 
     image->width = create_info->width;
     image->height = create_info->height;
-
-    image->bpp = mgfx_format_bpp(create_info->format);
     image->is_cpu = create_info->access == MGFX_ACCESS_CPU;
-    
+
     return image;
 }
 
@@ -4677,32 +4686,31 @@ static void mgfx_d3d11_destroy_image(mgfx_d3d11_image *image)
     free(image);
 }
 
-static void mgfx_d3d11_update_image(mgfx_d3d11_image *image, const mgfx_image_update_info *update_info)
+static void mgfx_d3d11_update_image(mgfx_d3d11_image *image, size_t size, void *data)
 {
     if (image->is_cpu)
     {
         D3D11_MAPPED_SUBRESOURCE mapped = { 0 };
         ID3D11DeviceContext_Map(ctx.d3d11.immediate_context,
             (ID3D11Resource*)image->texture, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-        const uint32_t row_pitch = update_info->width * image->bpp;
-        for (uint32_t y = 0; y < update_info->height; y++)
+        const uint32_t row_pitch = (uint32_t)size / image->height;
+        for (uint32_t y = 0; y < image->height; y++)
             memcpy((uint8_t*)mapped.pData + y * mapped.RowPitch,
-                   (uint8_t*)update_info->data + y * row_pitch,
+                   (uint8_t*)data + y * row_pitch,
                    row_pitch);
         ID3D11DeviceContext_Unmap(ctx.d3d11.immediate_context,
             (ID3D11Resource*)image->texture, 0);
         return;
     }
 
-    const uint32_t row_pitch = update_info->width * image->bpp;
-    const uint32_t depth_pitch = row_pitch * update_info->height;
+    const uint32_t row_pitch = (uint32_t)size / image->height;
+    const uint32_t depth_pitch = (uint32_t)size;
 
     ID3D11DeviceContext_UpdateSubresource(
         ctx.d3d11.immediate_context,
         (ID3D11Resource*)image->texture,
-        0,
-        NULL,
-        update_info->data,
+        0, NULL,
+        data,
         row_pitch,
         depth_pitch
     );
@@ -4992,7 +5000,7 @@ typedef void (*mgfx_bind_pipeline_fn)(void *pipeline);
 
 typedef void *(*mgfx_create_image_fn)(const mgfx_image_create_info *create_info);
 typedef void (*mgfx_destroy_image_fn)(void *image);
-typedef void (*mgfx_update_image_fn)(void *image, const mgfx_image_update_info *update_info);
+typedef void (*mgfx_update_image_fn)(void *image, size_t size, void *data);
 typedef void (*mgfx_bind_image_fn)(void *image, void *sampler, uint32_t binding);
 
 typedef void *(*mgfx_create_sampler_fn)(const mgfx_sampler_create_info *create_info);
@@ -5260,9 +5268,9 @@ void mgfx_destroy_image(mgfx_image image)
     pipe.destroy_image(image);
 }
 
-void mgfx_update_image(mgfx_image image, const mgfx_image_update_info *update_info)
+void mgfx_update_image(mgfx_image image, size_t size, void *data)
 {
-    pipe.update_image(image, update_info);
+    pipe.update_image(image, size, data);
 }
 
 void mgfx_bind_image(mgfx_image image, mgfx_sampler sampler, uint32_t binding)
