@@ -465,7 +465,7 @@ MGFX_API void mgfx_bind_pipeline (mgfx_pipeline pipeline);
 
 MGFX_API mgfx_buffer mgfx_create_buffer (const mgfx_buffer_create_info *create_info);
 MGFX_API void mgfx_destroy_buffer (mgfx_buffer buffer);
-MGFX_API void mgfx_update_buffer (mgfx_buffer buffer, size_t size, void *data);
+MGFX_API void mgfx_update_buffer (mgfx_buffer buffer, size_t offset, size_t size, void *data);
 
 MGFX_API void mgfx_bind_vertex_buffer (mgfx_buffer buffer);
 MGFX_API void mgfx_bind_index_buffer (mgfx_buffer buffer, mgfx_index_type index_type);
@@ -1899,23 +1899,12 @@ static void mgfx_vk_allocate_buffer(size_t size, VkBufferUsageFlags usage, VkMem
     vkBindBufferMemory(ctx.vk.device.handle, *buffer, *memory, 0);
 }
 
-static void mgfx_vk_copy_buffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size)
-{
-    VkCommandBuffer command_buffer = mgfx_vk_begin_single_time_commands();
-
-    VkBufferCopy copy_region = { 0 };
-    copy_region.size = size;
-    vkCmdCopyBuffer(command_buffer, src_buffer, dst_buffer, 1, &copy_region);
-
-    mgfx_vk_end_single_time_commands(command_buffer);
-}
-
-static void mgfx_vk_update_buffer(mgfx_vk_buffer *buffer, size_t size, void *data)
+static void mgfx_vk_update_buffer(mgfx_vk_buffer *buffer, size_t offset, size_t size, void *data)
 {
     if (buffer->is_cpu)
     {
         void *_data;
-        vkMapMemory(ctx.vk.device.handle, buffer->memory, 0, size, 0, &_data);
+        vkMapMemory(ctx.vk.device.handle, buffer->memory, offset, size, 0, &_data);
         memcpy(_data, data, size);
         vkUnmapMemory(ctx.vk.device.handle, buffer->memory);
     }
@@ -1933,7 +1922,10 @@ static void mgfx_vk_update_buffer(mgfx_vk_buffer *buffer, size_t size, void *dat
         memcpy(_data, data, size);
         vkUnmapMemory(ctx.vk.device.handle, staging_memory);
 
-        mgfx_vk_copy_buffer(staging_buffer, buffer->buffer, size);
+        VkCommandBuffer cmd = mgfx_vk_begin_single_time_commands();
+        VkBufferCopy copy_region = { .srcOffset = 0, .dstOffset = offset, .size = size };
+        vkCmdCopyBuffer(cmd, staging_buffer, buffer->buffer, 1, &copy_region);
+        mgfx_vk_end_single_time_commands(cmd);
 
         vkDestroyBuffer(ctx.vk.device.handle, staging_buffer, NULL);
         vkFreeMemory(ctx.vk.device.handle, staging_memory, NULL);
@@ -3205,6 +3197,7 @@ void _mgfx_gl_set_swap_interval(bool enabled)
     _MGFX_XMACRO(glDrawArraysInstanced,     void,   (GLenum mode, GLint first, GLsizei count, GLsizei instancecount)) \
     _MGFX_XMACRO(glScissor,                 void,   (GLint x, GLint y, GLsizei width, GLsizei height)) \
     _MGFX_XMACRO(glBufferData,              void,   (GLenum target, GLsizeiptr size, const void* data, GLenum usage)) \
+    _MGFX_XMACRO(glBufferSubData,           void,   (GLenum target, GLintptr offset, GLsizeiptr size, const void* data)) \
     _MGFX_XMACRO(glBlendFuncSeparate,       void,   (GLenum sfactorRGB, GLenum dfactorRGB, GLenum sfactorAlpha, GLenum dfactorAlpha)) \
     _MGFX_XMACRO(glTexParameteri,           void,   (GLenum target, GLenum pname, GLint param)) \
     _MGFX_XMACRO(glEnable,                  void,   (GLenum cap)) \
@@ -3439,10 +3432,10 @@ static mgfx_gl_buffer *mgfx_gl_create_buffer(const mgfx_buffer_create_info *crea
     return buffer;
 }
 
-static void mgfx_gl_update_buffer(mgfx_gl_buffer *buffer, size_t size, void *data)
+static void mgfx_gl_update_buffer(mgfx_gl_buffer *buffer, size_t offset, size_t size, void *data)
 {
     glBindBuffer(buffer->target, buffer->id);
-    glBufferData(buffer->target, size, data, buffer->usage);
+    glBufferSubData(buffer->target, offset, size, data);
 }
 
 static void mgfx_gl_bind_vertex_buffer(mgfx_gl_buffer *buffer)
@@ -4547,22 +4540,23 @@ static mgfx_d3d11_buffer *mgfx_d3d11_create_buffer(const mgfx_buffer_create_info
     return buffer;
 }
 
-static void mgfx_d3d11_update_buffer(mgfx_d3d11_buffer *buffer, size_t size, void *data)
+static void mgfx_d3d11_update_buffer(mgfx_d3d11_buffer *buffer, size_t offset, size_t size, void *data)
 {
     if (buffer->is_cpu)
     {
         D3D11_MAPPED_SUBRESOURCE mapped_resource;
-        ID3D11DeviceContext_Map(ctx.d3d11.immediate_context, (ID3D11Resource*)buffer->buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
-        memcpy(mapped_resource.pData, data, size);
+        ID3D11DeviceContext_Map(ctx.d3d11.immediate_context, (ID3D11Resource*)buffer->buffer, 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &mapped_resource);
+        memcpy((uint8_t*)mapped_resource.pData + offset, data, size);
         ID3D11DeviceContext_Unmap(ctx.d3d11.immediate_context, (ID3D11Resource*)buffer->buffer, 0);
         return;
     }
 
+    D3D11_BOX box = { (UINT)offset, 0, 0, (UINT)(offset + size), 1, 1 };
     ID3D11DeviceContext_UpdateSubresource(
         ctx.d3d11.immediate_context,
         (ID3D11Resource*)buffer->buffer,
         0,
-        NULL,
+        &box,
         data,
         0,
         0
@@ -5008,7 +5002,7 @@ typedef void (*mgfx_destroy_sampler_fn)(void *sampler);
 
 typedef void *(*mgfx_create_buffer_fn)(const mgfx_buffer_create_info *create_info);
 typedef void (*mgfx_destroy_buffer_fn)(void *buffer);
-typedef void (*mgfx_update_buffer_fn)(void *buffer, size_t size, void *data);
+typedef void (*mgfx_update_buffer_fn)(void *buffer, size_t offset, size_t size, void *data);
 
 typedef void (*mgfx_bind_vertex_buffer_fn)(void *buffer);
 typedef void (*mgfx_bind_index_buffer_fn)(void *buffer, mgfx_index_type index_type);
@@ -5236,9 +5230,9 @@ void mgfx_destroy_buffer(mgfx_buffer buffer)
     pipe.destroy_buffer(buffer);
 }
 
-void mgfx_update_buffer(mgfx_buffer buffer, size_t size, void *data)
+void mgfx_update_buffer(mgfx_buffer buffer, size_t offset, size_t size, void *data)
 {
-    pipe.update_buffer(buffer, size, data);
+    pipe.update_buffer(buffer, offset, size, data);
 }
 
 void mgfx_bind_vertex_buffer(mgfx_buffer buffer)
