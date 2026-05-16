@@ -1952,7 +1952,7 @@ static mgfx_vk_buffer *mgfx_vk_create_buffer(const mgfx_buffer_create_info *crea
 
     buffer->is_cpu = create_info->access == MGFX_ACCESS_CPU;
     if (create_info->data)
-        mgfx_vk_update_buffer(buffer, create_info->size, create_info->data);
+        mgfx_vk_update_buffer(buffer, 0, create_info->size, create_info->data);
 
     return buffer;
 }
