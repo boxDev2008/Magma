@@ -30,12 +30,12 @@ project "magma-shdc"
         "MachineIndependent",
         "OSDependent",
         "SPIRV",
-        "spirv-cross-core",
+        "SPIRV-Tools",
+        "SPIRV-Tools-opt",
         "spirv-cross-glsl",
         "spirv-cross-hlsl",
         "spirv-cross-msl",
-        "SPIRV-Tools",
-        "SPIRV-Tools-opt"
+        "spirv-cross-core"
     }
 
     optimize "On"
