@@ -48,15 +48,20 @@ struct ShaderResources
         std::string name;
         uint32_t binding;
         uint32_t size;
+
+        bool operator<(const UniformBlock &other) const { return binding < other.binding; }
     };
+
     struct SampledImage
     {
         std::string name;
         uint32_t binding;
+
+        bool operator<(const SampledImage &other) const { return binding < other.binding; }
     };
-    std::vector<UniformBlock> uniform_blocks;
-    std::vector<SampledImage> sampled_images;
-    std::set<uint32_t> used_uniform_bindings;
+
+    std::set<UniformBlock> uniform_blocks;
+    std::set<SampledImage> sampled_images;
 };
 
 class ShaderParser
@@ -228,16 +233,10 @@ private:
 
             const uint32_t binding = comp.get_decoration(ub.id, spv::DecorationBinding);
 
-            if (!resources_out.used_uniform_bindings.insert(binding).second)
-            {
-                std::cerr << "Error: Uniform block '" << ub.name << "' conflicts with an existing binding at " << binding << "\n";
-                return false;
-            }
-            
             const spirv_cross::SPIRType &type = comp.get_type(ub.base_type_id);
             const uint32_t size = static_cast<uint32_t>(comp.get_declared_struct_size(type));
             
-            resources_out.uniform_blocks.push_back({ ub.name, binding, size });
+            resources_out.uniform_blocks.insert({ ub.name, binding, size });
         }
 
         for (const auto &smp : resources.sampled_images)
@@ -245,7 +244,7 @@ private:
             comp.set_decoration(smp.id, spv::DecorationDescriptorSet, 1);
 
             const uint32_t binding = comp.get_decoration(smp.id, spv::DecorationBinding);
-            resources_out.sampled_images.push_back({ smp.name, binding });
+            resources_out.sampled_images.insert({ smp.name, binding });
         }
         
         CompilerGLSL::Options glsl_opts;
@@ -388,22 +387,21 @@ public:
 
         out << "    }\n\n";
 
-        for (size_t i = 0; i < resources.uniform_blocks.size(); ++i)
+        uint32_t i = 0;
+        for (const auto &ub : resources.uniform_blocks)
         {
-            out << std::format("    shader.uniform_blocks[{}].name = \"{}\";\n",
-                i, resources.uniform_blocks[i].name);
-            out << std::format("    shader.uniform_blocks[{}].binding = {};\n",
-                i, resources.uniform_blocks[i].binding);
-            out << std::format("    shader.uniform_blocks[{}].size = {};\n",
-                i, resources.uniform_blocks[i].size);
+            out << std::format("    shader.uniform_blocks[{}].name = \"{}\";\n",    i, ub.name);
+            out << std::format("    shader.uniform_blocks[{}].binding = {};\n",     i, ub.binding);
+            out << std::format("    shader.uniform_blocks[{}].size = {};\n",        i, ub.size);
+            ++i;
         }
 
-        for (size_t i = 0; i < resources.sampled_images.size(); ++i)
+        i = 0;
+        for (const auto &si : resources.sampled_images)
         {
-            out << std::format("    shader.sampled_images[{}].name = \"{}\";\n",
-                i, resources.sampled_images[i].name);
-            out << std::format("    shader.sampled_images[{}].binding = {};\n",
-                i, resources.sampled_images[i].binding);
+            out << std::format("    shader.sampled_images[{}].name = \"{}\";\n",    i, si.name);
+            out << std::format("    shader.sampled_images[{}].binding = {};\n",     i, si.binding);
+            ++i;
         }
 
         out << "    return shader;\n";
