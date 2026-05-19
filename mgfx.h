@@ -4560,7 +4560,8 @@ static void mgfx_d3d11_update_buffer(mgfx_d3d11_buffer *buffer, size_t offset, s
     if (buffer->is_cpu)
     {
         D3D11_MAPPED_SUBRESOURCE mapped_resource;
-        ID3D11DeviceContext_Map(ctx.d3d11.immediate_context, (ID3D11Resource*)buffer->buffer, 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &mapped_resource);
+        ID3D11DeviceContext_Map(ctx.d3d11.immediate_context, (ID3D11Resource*)buffer->buffer, 0,
+            (offset == 0) ? D3D11_MAP_WRITE_DISCARD : D3D11_MAP_WRITE_NO_OVERWRITE, 0, &mapped_resource); // TODO (box): add proper buffer tracking after implementing pool allocators
         memcpy((uint8_t*)mapped_resource.pData + offset, data, size);
         ID3D11DeviceContext_Unmap(ctx.d3d11.immediate_context, (ID3D11Resource*)buffer->buffer, 0);
         return;
