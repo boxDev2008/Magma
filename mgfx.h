@@ -3759,13 +3759,13 @@ static void mgfx_gl_fill_graphics_pipeline(mgfx_gl_pipeline *pipeline, const mgf
 
     glUseProgram(pipeline->program_id);
 
-    for (uint32_t i = 0; i < MGFX_MAX_BINDABLE_UNIFORMS && create_info->shader.uniform_blocks[i].size; i++)
+    for (uint32_t i = 0; i < MGFX_MAX_BINDABLE_UNIFORMS && create_info->shader.uniform_blocks[i].name; i++)
     {
         const uint32_t index = glGetUniformBlockIndex(pipeline->program_id, create_info->shader.uniform_blocks[i].name);   
         glUniformBlockBinding(pipeline->program_id, index, create_info->shader.uniform_blocks[i].binding);
     }
 
-    for (uint32_t i = 0; i < MGFX_MAX_BINDABLE_IMAGES && create_info->shader.sampled_images[i].size; i++)
+    for (uint32_t i = 0; i < MGFX_MAX_BINDABLE_IMAGES && create_info->shader.sampled_images[i].name; i++)
     {
         const GLint index = glGetUniformLocation(pipeline->program_id, create_info->shader.sampled_images[i].name);
         glUniform1iv(index, 1, &create_info->shader.sampled_images[i].binding);
