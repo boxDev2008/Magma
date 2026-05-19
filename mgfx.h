@@ -380,6 +380,7 @@ typedef struct
     {
         const char *name;
         int32_t binding;
+        uint32_t size;
     }
     uniform_blocks[MGFX_MAX_BINDABLE_UNIFORMS];
 
@@ -1014,16 +1015,16 @@ typedef struct
 }
 mgfx_d3d11_buffer;
 
-typedef enum
+typedef uint32_t mgfx_d3d11_pipeline_type;
+enum
 {
     MGFX_D3D11_PIPELINE_TYPE_GRAPHICS,
     MGFX_D3D11_PIPELINE_TYPE_COMPUTE
-}
-mgfx_d3d11_pipeline_type;
+};
 
 typedef struct
 {
-    mgfx_d3d11_pipeline_type type;
+    ID3D11Buffer *constant_buffers[MGFX_MAX_BINDABLE_UNIFORMS];
     ID3D11InputLayout *vertex_layout;
     ID3D11VertexShader *vertex_shader;
     ID3D11PixelShader *pixel_shader;
@@ -1033,6 +1034,7 @@ typedef struct
     ID3D11BlendState *blend_state;
     D3D11_PRIMITIVE_TOPOLOGY primitive_topology;
     uint32_t layout_stride;
+    mgfx_d3d11_pipeline_type type;
 }
 mgfx_d3d11_pipeline;
 
@@ -1044,8 +1046,6 @@ typedef struct
     IDXGISwapChain *swapchain;
     ID3D11DeviceContext *immediate_context;
     ID3D11RenderTargetView *target_view;
-
-    ID3D11Buffer *constant_buffers[MGFX_MAX_BINDABLE_UNIFORMS];
 
     uint32_t width, height;
     bool vsync, pending_resize;
@@ -4024,6 +4024,11 @@ static void mgfx_gl_init(const mgfx_init_info *init_info)
     glGenVertexArrays(1, &ctx.gl.vao);
     glGenFramebuffers(1, &ctx.gl.scratch_framebuffer);
     glGenBuffers(MGFX_MAX_BINDABLE_UNIFORMS, ctx.gl.uniform_buffers);
+    for (uint32_t i = 0; i < MGFX_MAX_BINDABLE_UNIFORMS; i++)
+    {
+        glBindBuffer(GL_UNIFORM_BUFFER, ctx.gl.uniform_buffers[i]);
+        glBufferData(GL_UNIFORM_BUFFER, MGFX_MAX_UNIFORM_UPDATE_SIZE, NULL, GL_DYNAMIC_DRAW);
+    }
 }
 
 static void mgfx_gl_shutdown(void)
@@ -4110,7 +4115,7 @@ static void mgfx_gl_dispatch(uint32_t group_count_x, uint32_t group_count_y, uin
 static void mgfx_gl_bind_uniforms(uint32_t binding, size_t size, void *data)
 {
     glBindBuffer(GL_UNIFORM_BUFFER, ctx.gl.uniform_buffers[binding]);
-    glBufferData(GL_UNIFORM_BUFFER, size, data, GL_DYNAMIC_DRAW);
+    glBufferSubData(GL_UNIFORM_BUFFER, 0, size, data);
     glBindBufferBase(GL_UNIFORM_BUFFER, binding, ctx.gl.uniform_buffers[binding]);
 }
 
@@ -4369,16 +4374,6 @@ static void mgfx_d3d11_init(const mgfx_init_info *init_info)
     IDXGISwapChain_GetBuffer(ctx.d3d11.swapchain, 0, &IID_ID3D11Texture2D, (void**)&backbuffer);
     ID3D11Device_CreateRenderTargetView(ctx.d3d11.device, (ID3D11Resource*)backbuffer, NULL, &ctx.d3d11.target_view);
     ID3D11Texture2D_Release(backbuffer);
-    
-    for (uint32_t i = 0; i < MGFX_MAX_BINDABLE_UNIFORMS; i++)
-    {
-        D3D11_BUFFER_DESC buffer_desc = { 0 };
-        buffer_desc.Usage = D3D11_USAGE_DYNAMIC;
-        buffer_desc.ByteWidth = MGFX_MAX_UNIFORM_UPDATE_SIZE;
-        buffer_desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-        buffer_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-        ID3D11Device_CreateBuffer(ctx.d3d11.device, &buffer_desc, NULL, &ctx.d3d11.constant_buffers[i]);
-    }
 
     ctx.d3d11.width = init_info->width;
     ctx.d3d11.height = init_info->height;
@@ -4387,9 +4382,6 @@ static void mgfx_d3d11_init(const mgfx_init_info *init_info)
 
 static void mgfx_d3d11_shutdown(void)
 {
-    for (uint32_t i = 0; i < MGFX_MAX_BINDABLE_UNIFORMS; i++)
-        ID3D11Buffer_Release(ctx.d3d11.constant_buffers[i]);
-
     ID3D11DeviceContext_ClearState(ctx.d3d11.immediate_context);
     ID3D11RenderTargetView_Release(ctx.d3d11.target_view);
     IDXGISwapChain_Release(ctx.d3d11.swapchain);
@@ -4445,9 +4437,6 @@ static void mgfx_d3d11_begin(void)
         ctx.d3d11.pending_resize = false;
         mgfx_d3d11_resize_backbuffer();
     }
-
-    ID3D11DeviceContext_VSSetConstantBuffers(ctx.d3d11.immediate_context, 0, MGFX_MAX_BINDABLE_UNIFORMS, ctx.d3d11.constant_buffers);
-    ID3D11DeviceContext_PSSetConstantBuffers(ctx.d3d11.immediate_context, 0, MGFX_MAX_BINDABLE_UNIFORMS, ctx.d3d11.constant_buffers);
 }
 
 static void mgfx_d3d11_end(void)
@@ -4517,9 +4506,9 @@ static void mgfx_d3d11_dispatch(uint32_t group_count_x, uint32_t group_count_y, 
 static void mgfx_d3d11_bind_uniforms(uint32_t binding, size_t size, void *data)
 {
     D3D11_MAPPED_SUBRESOURCE mapped_resource;
-    ID3D11DeviceContext_Map(ctx.d3d11.immediate_context, (ID3D11Resource*)ctx.d3d11.constant_buffers[binding], 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
+    ID3D11DeviceContext_Map(ctx.d3d11.immediate_context, (ID3D11Resource*)ctx.d3d11.current_pipeline->constant_buffers[binding], 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
     memcpy(mapped_resource.pData, data, size);
-    ID3D11DeviceContext_Unmap(ctx.d3d11.immediate_context, (ID3D11Resource*)ctx.d3d11.constant_buffers[binding], 0);
+    ID3D11DeviceContext_Unmap(ctx.d3d11.immediate_context, (ID3D11Resource*)ctx.d3d11.current_pipeline->constant_buffers[binding], 0);
 }
 
 static mgfx_d3d11_buffer *mgfx_d3d11_create_buffer(const mgfx_buffer_create_info *create_info)
@@ -4937,6 +4926,17 @@ static mgfx_d3d11_pipeline *mgfx_d3d11_create_pipeline(const mgfx_pipeline_creat
 
     pipeline->primitive_topology = mgfx_d3d11_get_primitive_topology(create_info->primitive_topology);
     
+    for (uint32_t i = 0; i < MGFX_MAX_BINDABLE_UNIFORMS && create_info->shader.uniform_blocks[i].size; i++)
+    {
+        D3D11_BUFFER_DESC buffer_desc = { 0 };
+        buffer_desc.Usage = D3D11_USAGE_DYNAMIC;
+        buffer_desc.ByteWidth = mgfx_stride_align(create_info->shader.uniform_blocks[i].size, 16);
+        buffer_desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+        buffer_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        uint32_t binding = create_info->shader.uniform_blocks[i].binding;
+        ID3D11Device_CreateBuffer(ctx.d3d11.device, &buffer_desc, NULL, &pipeline->constant_buffers[binding]);
+    }
+
     ID3D10Blob_Release(vs_blob);
     ID3D10Blob_Release(ps_blob);
 
@@ -4961,6 +4961,8 @@ static void mgfx_d3d11_destroy_pipeline(mgfx_d3d11_pipeline *pipeline)
     ID3D11BlendState_Release(pipeline->blend_state);
 	if (pipeline->vertex_layout)
     	ID3D11InputLayout_Release(pipeline->vertex_layout);
+    for (uint32_t i = 0; i < MGFX_MAX_BINDABLE_UNIFORMS && pipeline->constant_buffers[i]; i++)
+        ID3D11Buffer_Release(pipeline->constant_buffers[i]);
     free(pipeline);
 }
 
@@ -4972,20 +4974,23 @@ static void mgfx_d3d11_bind_pipeline(mgfx_d3d11_pipeline *pipeline)
     if (pipeline->type == MGFX_D3D11_PIPELINE_TYPE_COMPUTE)
     {
         ID3D11DeviceContext_CSSetShader(context, pipeline->compute_shader, NULL, 0);
+        ID3D11DeviceContext_CSSetConstantBuffers(context, 0, MGFX_MAX_BINDABLE_UNIFORMS,
+            pipeline->constant_buffers);
         return;
     }
 
     ID3D11DeviceContext_VSSetShader(context, pipeline->vertex_shader, NULL, 0);
     ID3D11DeviceContext_PSSetShader(context, pipeline->pixel_shader, NULL, 0);
-
     ID3D11DeviceContext_IASetInputLayout(context, pipeline->vertex_layout);
     ID3D11DeviceContext_IASetPrimitiveTopology(context, pipeline->primitive_topology);
-
     ID3D11DeviceContext_RSSetState(context, pipeline->raster_state);
     ID3D11DeviceContext_OMSetDepthStencilState(context, pipeline->depth_stencil_state, 0);
 
     const float blend_factor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
     ID3D11DeviceContext_OMSetBlendState(context, pipeline->blend_state, blend_factor, 0xffffffff);
+
+    ID3D11DeviceContext_VSSetConstantBuffers(context, 0, MGFX_MAX_BINDABLE_UNIFORMS, pipeline->constant_buffers);
+    ID3D11DeviceContext_PSSetConstantBuffers(context, 0, MGFX_MAX_BINDABLE_UNIFORMS, pipeline->constant_buffers);
 }
 
 #endif // MGFX_D3D11

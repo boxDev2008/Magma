@@ -47,9 +47,15 @@ struct ShaderResources
     {
         std::string name;
         uint32_t binding;
+        uint32_t size;
+    };
+    struct SampledImage
+    {
+        std::string name;
+        uint32_t binding;
     };
     std::vector<UniformBlock> uniform_blocks;
-    std::vector<UniformBlock> sampled_images;
+    std::vector<SampledImage> sampled_images;
 };
 
 class ShaderParser
@@ -220,7 +226,11 @@ private:
             comp.set_decoration(ub.id, spv::DecorationDescriptorSet, 0);
 
             const uint32_t binding = comp.get_decoration(ub.id, spv::DecorationBinding);
-            resources_out.uniform_blocks.push_back({ ub.name, binding });
+            
+            const spirv_cross::SPIRType &type = comp.get_type(ub.base_type_id);
+            const uint32_t size = static_cast<uint32_t>(comp.get_declared_struct_size(type));
+            
+            resources_out.uniform_blocks.push_back({ ub.name, binding, size });
         }
 
         for (const auto &smp : resources.sampled_images)
@@ -377,6 +387,8 @@ public:
                 i, resources.uniform_blocks[i].name);
             out << std::format("    shader.uniform_blocks[{}].binding = {};\n",
                 i, resources.uniform_blocks[i].binding);
+            out << std::format("    shader.uniform_blocks[{}].size = {};\n",
+                i, resources.uniform_blocks[i].size);
         }
 
         for (size_t i = 0; i < resources.sampled_images.size(); ++i)
