@@ -56,6 +56,7 @@ struct ShaderResources
     };
     std::vector<UniformBlock> uniform_blocks;
     std::vector<SampledImage> sampled_images;
+    std::set<uint32_t> used_uniform_bindings;
 };
 
 class ShaderParser
@@ -226,6 +227,12 @@ private:
             comp.set_decoration(ub.id, spv::DecorationDescriptorSet, 0);
 
             const uint32_t binding = comp.get_decoration(ub.id, spv::DecorationBinding);
+
+            if (!resources_out.used_uniform_bindings.insert(binding).second)
+            {
+                std::cerr << "Error: Uniform block '" << ub.name << "' conflicts with an existing binding at " << binding << "\n";
+                return false;
+            }
             
             const spirv_cross::SPIRType &type = comp.get_type(ub.base_type_id);
             const uint32_t size = static_cast<uint32_t>(comp.get_declared_struct_size(type));
