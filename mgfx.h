@@ -77,9 +77,8 @@ enum
 #if defined(MGFX_OPENGL)
 #if !defined(__EMSCRIPTEN__)
     MGFX_RENDERER_OPENGL,
-#else
-    MGFX_RENDERER_OPENGLES
 #endif
+    MGFX_RENDERER_OPENGLES
 #endif
 };
 
@@ -5138,12 +5137,11 @@ void mgfx_init(const mgfx_init_info *init_info)
         pipe.shader_lang = MGFX_SHADER_LANG_GLSL;
         MGFX_PIPELINE_BIND(gl);
         break;
-#else
+#endif
     case MGFX_RENDERER_OPENGLES:
         pipe.shader_lang = MGFX_SHADER_LANG_GLSLES;
         MGFX_PIPELINE_BIND(gl);
         break;
-#endif
 #endif
 #if defined(MGFX_D3D11)
     case MGFX_RENDERER_D3D11:
