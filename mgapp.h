@@ -35,6 +35,7 @@ enum
     MG_KEY_SHIFT = 0x10,
     MG_KEY_CONTROL = 0x11,
 
+    MG_KEY_ALT = 0x12,
     MG_KEY_PAUSE = 0x13,
     MG_KEY_CAPITAL = 0x14,
 
@@ -181,6 +182,23 @@ enum
     MG_KEY_MAX = 0xFF
 };
 
+typedef uint8_t mg_cursor;
+enum
+{
+    MG_CURSOR_ARROW,
+    MG_CURSOR_IBEAM,
+    MG_CURSOR_CROSSHAIR,
+    MG_CURSOR_HAND,
+    MG_CURSOR_RESIZE_NS,
+    MG_CURSOR_RESIZE_EW,
+    MG_CURSOR_RESIZE_NESW,
+    MG_CURSOR_RESIZE_NWSE,
+    MG_CURSOR_RESIZE_ALL,
+    MG_CURSOR_NOT_ALLOWED,
+    MG_CURSOR_HIDDEN,
+    MG_CURSOR_MAX
+};
+
 typedef uint8_t mg_app_event_type;
 enum
 {
@@ -216,10 +234,17 @@ typedef struct
 }
 mg_app_event;
 
+typedef uint32_t mg_app_flags;
+enum
+{
+    MG_APP_FLAG_NO_TITLEBAR = 1 << 0,
+    MG_APP_FLAG_HIDDEN = 1 << 1
+};
+
 typedef struct
 {
     const char *title;
-    uint32_t flags;
+    mg_app_flags flags;
     uint32_t width, height;
     struct
     {
@@ -234,18 +259,37 @@ mg_app_init_info;
 
 MG_APP_API int32_t mg_app_run(const mg_app_init_info *info);
 MG_APP_API void mg_app_close(void);
+MG_APP_API void mg_app_show(bool value);
+MG_APP_API void mg_app_minimize(void);
+MG_APP_API void mg_app_maximize(void);
+MG_APP_API void mg_app_restore(void);
+MG_APP_API bool mg_app_maximized(void);
+
 MG_APP_API float mg_app_time(void);
 MG_APP_API float mg_app_delta_time(void);
+
 MG_APP_API int32_t mg_app_width(void);
 MG_APP_API int32_t mg_app_height(void);
 
+MG_APP_API void mg_app_set_cursor(mg_cursor cursor);
+
 MG_APP_API bool mg_app_key_down(mg_key key);
 MG_APP_API bool mg_app_key_pressed(mg_key key);
+
 MG_APP_API bool mg_app_mouse_down(mg_mouse_button button);
+MG_APP_API bool mg_app_mouse_pressed(mg_mouse_button button);
+MG_APP_API bool mg_app_mouse_released(mg_mouse_button button);
 MG_APP_API bool mg_app_mouse_clicked(mg_mouse_button button);
+MG_APP_API bool mg_app_mouse_double_clicked(mg_mouse_button button);
+
 MG_APP_API int8_t mg_app_mouse_scroll_delta(void);
 MG_APP_API int32_t mg_app_mouse_x(void);
 MG_APP_API int32_t mg_app_mouse_y(void);
+
+MG_APP_API uint32_t mg_app_dpi(void);
+MG_APP_API float mg_app_dpi_scale(void);
+
+MG_APP_API void mg_app_set_caption_area(int32_t x, int32_t y, int32_t width, int32_t height);
 
 MG_APP_API void *mg_app_handle(void);
 
@@ -271,6 +315,22 @@ int main(void) { \
 
 #include <string.h>
 
+#ifndef MG_CLICK_TIME_THRESHOLD
+    #define MG_CLICK_TIME_THRESHOLD 0.5f
+#endif
+
+#ifndef MG_CLICK_MOVE_THRESHOLD
+    #define MG_CLICK_MOVE_THRESHOLD 4
+#endif
+
+#ifndef MG_DOUBLE_CLICK_TIME_THRESHOLD
+    #define MG_DOUBLE_CLICK_TIME_THRESHOLD 0.4f
+#endif
+
+#ifndef MG_DOUBLE_CLICK_MOVE_THRESHOLD
+    #define MG_DOUBLE_CLICK_MOVE_THRESHOLD 6
+#endif
+
 typedef struct
 {
     struct
@@ -281,11 +341,22 @@ typedef struct
     keyboard;
     struct
     {
+        float down_time[4];
+        float last_click_time[4];
+        int16_t down_x[4];
+        int16_t down_y[4];
+        int16_t last_click_x[4];
+        int16_t last_click_y[4];
+
         int16_t x;
         int16_t y;
         int8_t delta;
+
         bool buttons[4];
-        bool buttons_pressed[4];   
+        bool buttons_pressed[4];
+        bool buttons_released[4];
+        bool buttons_clicked[4];
+        bool buttons_double_clicked[4];
     }
     mouse;
 }
@@ -300,18 +371,61 @@ static inline void mg_app_input_process_key(mg_key key, bool pressed)
     input_state.keyboard.keys[key] = pressed;
 }
 
-static inline void mg_app_input_process_mouse_button(mg_mouse_button button, bool pressed)
+static inline void mg_app_input_process_mouse_button(mg_mouse_button button, bool pressed, float time_now)
 {
     if (pressed && !input_state.mouse.buttons[button])
+    {
         input_state.mouse.buttons_pressed[button] = true;
+        input_state.mouse.down_time[button] = time_now;
+        input_state.mouse.down_x[button] = input_state.mouse.x;
+        input_state.mouse.down_y[button] = input_state.mouse.y;
+    }
+
+    if (!pressed && input_state.mouse.buttons[button])
+    {
+        input_state.mouse.buttons_released[button] = true;
+
+        float held = time_now - input_state.mouse.down_time[button];
+        int16_t dx = input_state.mouse.x - input_state.mouse.down_x[button];
+        int16_t dy = input_state.mouse.y - input_state.mouse.down_y[button];
+        int32_t move_sq = (int32_t)dx * dx + (int32_t)dy * dy;
+
+        if (held <= MG_CLICK_TIME_THRESHOLD &&
+            move_sq <= (MG_CLICK_MOVE_THRESHOLD * MG_CLICK_MOVE_THRESHOLD))
+        {
+            input_state.mouse.buttons_clicked[button] = true;
+
+            float since_last = time_now - input_state.mouse.last_click_time[button];
+            int16_t ldx = input_state.mouse.x - input_state.mouse.last_click_x[button];
+            int16_t ldy = input_state.mouse.y - input_state.mouse.last_click_y[button];
+            int32_t last_move_sq = (int32_t)ldx * ldx + (int32_t)ldy * ldy;
+
+            if (since_last <= MG_DOUBLE_CLICK_TIME_THRESHOLD &&
+                last_move_sq <= (MG_DOUBLE_CLICK_MOVE_THRESHOLD * MG_DOUBLE_CLICK_MOVE_THRESHOLD))
+            {
+                input_state.mouse.buttons_double_clicked[button] = true;
+                input_state.mouse.last_click_time[button] = -1000.0f;
+            }
+            else
+            {
+                input_state.mouse.last_click_time[button] = time_now;
+                input_state.mouse.last_click_x[button] = input_state.mouse.x;
+                input_state.mouse.last_click_y[button] = input_state.mouse.y;
+            }
+        }
+    }
+
     input_state.mouse.buttons[button] = pressed;
 }
 
-static inline void mg_app_input_reset(void)
+static inline void mg_app_input_frame(void)
 {
     input_state.mouse.delta = 0;
     memset(input_state.keyboard.keys_pressed, 0, sizeof(input_state.keyboard.keys_pressed));
     memset(input_state.mouse.buttons_pressed, 0, sizeof(input_state.mouse.buttons_pressed));
+    memset(input_state.mouse.buttons_released, 0, sizeof(input_state.mouse.buttons_released));
+    memset(input_state.mouse.buttons_clicked, 0, sizeof(input_state.mouse.buttons_clicked));
+    memset(input_state.mouse.buttons_double_clicked, 0, sizeof(input_state.mouse.buttons_double_clicked));
 }
 
 bool mg_app_key_down(mg_key key)
@@ -329,9 +443,24 @@ bool mg_app_mouse_down(mg_mouse_button button)
     return input_state.mouse.buttons[button];
 }
 
-bool mg_app_mouse_clicked(mg_mouse_button button)
+bool mg_app_mouse_pressed(mg_mouse_button button)
 {
     return input_state.mouse.buttons_pressed[button];
+}
+
+bool mg_app_mouse_released(mg_mouse_button button)
+{
+    return input_state.mouse.buttons_released[button];
+}
+
+bool mg_app_mouse_clicked(mg_mouse_button button)
+{
+    return input_state.mouse.buttons_clicked[button];
+}
+
+bool mg_app_mouse_double_clicked(mg_mouse_button button)
+{
+    return input_state.mouse.buttons_double_clicked[button];
 }
 
 int8_t mg_app_mouse_scroll_delta(void)
@@ -398,7 +527,7 @@ static void mg_em_frame(void *user_data)
     if (platform.info->events.update)
         platform.info->events.update();
 
-    mg_app_input_reset();
+    mg_app_input_frame();
 }
 
 int32_t mg_app_run(const mg_app_init_info *info)
@@ -432,6 +561,11 @@ void mg_app_close(void)
 
     if (platform.info && platform.info->events.end)
         platform.info->events.end();
+}
+
+void mg_app_set_cursor(mg_cursor cursor)
+{
+    // TODO (box): Implement this
 }
 
 float mg_app_time(void)
@@ -470,9 +604,17 @@ typedef struct mg_win32_platform
     HWND hwnd;
     HINSTANCE instace;
     int32_t window_width, window_height;
+    uint32_t dpi;
+    float dpi_scale;
 
     void (*on_event_call)(const mg_app_event *event);
     float time, delta_time;
+
+    HCURSOR cursors[MG_CURSOR_MAX];
+    mg_cursor current_cursor;
+
+    WNDPROC original_proc;
+    int32_t caption_x, caption_y, caption_width, caption_height;
 }
 mg_win32_platform;
 
@@ -522,6 +664,26 @@ static LRESULT CALLBACK mg_win32_process_message(HWND hwnd, uint32_t msg, WPARAM
         {
             bool pressed = (msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN);
             mg_key key = (mg_key)w_param;
+
+            bool extended = (l_param & (1 << 24)) != 0;
+
+            switch (key)
+            {
+                case MG_KEY_CONTROL:
+                    key = extended ? MG_KEY_RCONTROL : MG_KEY_LCONTROL;
+                    break;
+                case MG_KEY_ALT:
+                    key = extended ? MG_KEY_RALT : MG_KEY_LALT;
+                    break;
+                case MG_KEY_SHIFT:
+                {
+                    uint32_t scancode = (l_param >> 16) & 0xFF;
+                    uint32_t vk = MapVirtualKey(scancode, MAPVK_VSC_TO_VK_EX);
+                    key = (vk == VK_RSHIFT) ? MG_KEY_RSHIFT : MG_KEY_LSHIFT;
+                    break;
+                }
+            }
+
             mg_app_input_process_key(key, pressed);
             mg_app_call_event(&(mg_app_event){
                 .key = key,
@@ -587,15 +749,95 @@ static LRESULT CALLBACK mg_win32_process_message(HWND hwnd, uint32_t msg, WPARAM
                     break;
             }
 
-            mg_app_input_process_mouse_button(mouse_button, pressed);
+            mg_app_input_process_mouse_button(mouse_button, pressed, platform.time);
             mg_app_call_event(&(mg_app_event){
                 .mouse_button = mouse_button,
                 .type = pressed ? MG_APP_EVENT_MOUSE_DOWN : MG_APP_EVENT_MOUSE_UP
             });
             break;
         }
+        case WM_SETCURSOR:
+        {
+            if (LOWORD(l_param) == HTCLIENT)
+            {
+                SetCursor(platform.cursors[platform.current_cursor]);
+                return TRUE;
+            }
+            break;
+        }
+        case WM_DPICHANGED:
+        {
+            platform.dpi = HIWORD(w_param);
+            platform.dpi_scale = (float)platform.dpi / 96.0f;
+            RECT *suggested = (RECT*)l_param;
+            SetWindowPos(hwnd, NULL,
+                suggested->left, suggested->top,
+                suggested->right - suggested->left,
+                suggested->bottom - suggested->top,
+                SWP_NOZORDER | SWP_NOACTIVATE);
+            break;
+        }
     }
     return DefWindowProcA(hwnd, msg, w_param, l_param);
+}
+
+static LRESULT CALLBACK mg_win32_no_titlebar_proc(HWND hwnd, UINT msg, WPARAM w_param, LPARAM l_param)
+{
+    switch (msg)
+    {
+        case WM_NCCALCSIZE:
+        {
+            if (!w_param) break;
+            NCCALCSIZE_PARAMS *params = (NCCALCSIZE_PARAMS *)l_param;
+            RECT *r = params->rgrc;
+            int32_t bx = GetSystemMetrics(SM_CXFRAME);
+            int32_t by = GetSystemMetrics(SM_CYFRAME);
+            r->right -= bx;
+            r->left += bx;
+            r->bottom -= by;
+            r->top += IsZoomed(hwnd) ? by : 0;
+            return WVR_ALIGNTOP | WVR_ALIGNLEFT;
+        }
+        case WM_NCHITTEST:
+        {
+            POINTS mp = MAKEPOINTS(l_param);
+            POINT  sp = { mp.x, mp.y };
+            RECT   wr;
+            GetWindowRect(hwnd, &wr);
+            const int bw = 8;
+            int rx = sp.x - wr.left;
+            int ry = sp.y - wr.top;
+            int w  = wr.right  - wr.left;
+            int h  = wr.bottom - wr.top;
+
+            if (ry >= h - bw) return (rx <= bw) ? HTBOTTOMLEFT : (rx >= w - bw) ? HTBOTTOMRIGHT : HTBOTTOM;
+            if (ry <= bw) return (rx <= bw) ? HTTOPLEFT : (rx >= w - bw) ? HTTOPRIGHT    : HTTOP;
+            if (rx <= bw) return HTLEFT;
+            if (rx >= w - bw) return HTRIGHT;
+
+            if (rx >= platform.caption_x && rx < platform.caption_x + platform.caption_width &&
+                ry >= platform.caption_y && ry < platform.caption_y + platform.caption_height)
+                return HTCAPTION;
+            break;
+        }
+        case WM_NCMOUSEMOVE:
+        {
+            POINT pt = { GET_X_LPARAM(l_param), GET_Y_LPARAM(l_param) };
+            ScreenToClient(platform.hwnd, &pt);
+            input_state.mouse.x = (int16_t)pt.x;
+            input_state.mouse.y = (int16_t)pt.y;
+            mg_app_call_event(&(mg_app_event){
+                .mouse_x = pt.x,
+                .mouse_y = pt.y,
+                .type = MG_APP_EVENT_MOUSE_MOVE
+            });
+            break;
+        }
+
+        case WM_NCACTIVATE:
+            break;
+    }
+    return CallWindowProc(platform.original_proc, hwnd, msg, w_param, l_param);
 }
 
 int32_t mg_app_run(const mg_app_init_info *info)
@@ -607,11 +849,28 @@ int32_t mg_app_run(const mg_app_init_info *info)
 
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE);
 
+    const LPCSTR win32_cursor_map[MG_CURSOR_MAX] = {
+        [MG_CURSOR_ARROW]       = (LPCSTR)IDC_ARROW,
+        [MG_CURSOR_IBEAM]       = (LPCSTR)IDC_IBEAM,
+        [MG_CURSOR_CROSSHAIR]   = (LPCSTR)IDC_CROSS,
+        [MG_CURSOR_HAND]        = (LPCSTR)IDC_HAND,
+        [MG_CURSOR_RESIZE_NS]   = (LPCSTR)IDC_SIZENS,
+        [MG_CURSOR_RESIZE_EW]   = (LPCSTR)IDC_SIZEWE,
+        [MG_CURSOR_RESIZE_NESW] = (LPCSTR)IDC_SIZENESW,
+        [MG_CURSOR_RESIZE_NWSE] = (LPCSTR)IDC_SIZENWSE,
+        [MG_CURSOR_RESIZE_ALL]  = (LPCSTR)IDC_SIZEALL,
+        [MG_CURSOR_NOT_ALLOWED] = (LPCSTR)IDC_NO,
+        [MG_CURSOR_HIDDEN]      = NULL,
+    };
+
+    for (uint8_t i = 0; i < MG_CURSOR_MAX; i++)
+        platform.cursors[i] = win32_cursor_map[i] ? LoadCursorA(NULL, win32_cursor_map[i]) : NULL;
+
     WNDCLASSA wc = {0};
     wc.lpfnWndProc = mg_win32_process_message;
     wc.hInstance = platform.instace;
     wc.lpszClassName = CLASS_NAME;
-    wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+    wc.hCursor = platform.cursors[MG_CURSOR_ARROW];
 
     if (!RegisterClassA(&wc))
     {
@@ -640,7 +899,26 @@ int32_t mg_app_run(const mg_app_init_info *info)
         return 1;
     }
 
-    ShowWindow(platform.hwnd, SW_SHOW);
+    platform.dpi = GetDpiForWindow(platform.hwnd);
+    platform.dpi_scale = (float)platform.dpi / 96.0f;
+
+    if (info->flags & MG_APP_FLAG_NO_TITLEBAR)
+    {
+        LONG_PTR style = GetWindowLongPtr(platform.hwnd, GWL_STYLE);
+        style |= WS_THICKFRAME | WS_CAPTION;
+        SetWindowLongPtr(platform.hwnd, GWL_STYLE, style);
+
+        RECT wr;
+        GetWindowRect(platform.hwnd, &wr);
+        int w = wr.right - wr.left;
+        int h = wr.bottom - wr.top;
+
+        platform.original_proc = (WNDPROC)GetWindowLongPtr(platform.hwnd, GWLP_WNDPROC);
+        SetWindowLongPtr(platform.hwnd, GWLP_WNDPROC, (LONG_PTR)mg_win32_no_titlebar_proc);
+        SetWindowPos(platform.hwnd, NULL, 0, 0, w, h, SWP_FRAMECHANGED | SWP_NOMOVE);
+    }
+
+    ShowWindow(platform.hwnd, info->flags & MG_APP_FLAG_HIDDEN ? SW_HIDE : SW_SHOW);
     UpdateWindow(platform.hwnd);
 
     platform.on_event_call = info->events.event;
@@ -660,13 +938,7 @@ int32_t mg_app_run(const mg_app_init_info *info)
                 continue;
             }
             TranslateMessage(&msg);
-            DispatchMessageW(&msg);
-        }
-
-        if (IsIconic(platform.hwnd))
-        {
-            Sleep(10);
-            continue;
+            DispatchMessageA(&msg);
         }
 
         LARGE_INTEGER now_time;
@@ -675,10 +947,21 @@ int32_t mg_app_run(const mg_app_init_info *info)
         platform.delta_time = new_time - platform.time;
         platform.time = new_time;
 
+        mg_app_set_cursor(MG_CURSOR_ARROW);
+
         if (info->events.update)
             info->events.update();
 
-        mg_app_input_reset();
+        POINT pt;
+        GetCursorPos(&pt);
+        HWND hovered = WindowFromPoint(pt);
+        if (hovered == platform.hwnd)
+        {
+            LRESULT ht = SendMessage(platform.hwnd, WM_NCHITTEST, 0, MAKELPARAM(pt.x, pt.y));
+            SendMessage(platform.hwnd, WM_SETCURSOR, (WPARAM)platform.hwnd, MAKELPARAM(ht, WM_MOUSEMOVE));
+        }
+
+        mg_app_input_frame();
     }
 
     if (info->events.end)
@@ -692,6 +975,36 @@ int32_t mg_app_run(const mg_app_init_info *info)
 void mg_app_close(void)
 {
     PostMessage(platform.hwnd, WM_CLOSE, 0, 0);
+}
+
+void mg_app_show(bool value)
+{
+    ShowWindow(platform.hwnd, value);
+}
+
+void mg_app_minimize(void)
+{
+    ShowWindow(platform.hwnd, SW_MINIMIZE);
+}
+
+void mg_app_maximize(void)
+{
+    ShowWindow(platform.hwnd, SW_MAXIMIZE);
+}
+
+void mg_app_restore(void)
+{
+    ShowWindow(platform.hwnd, SW_RESTORE);
+}
+
+bool mg_app_maximized(void)
+{
+    return IsZoomed(platform.hwnd);
+}
+
+void mg_app_set_cursor(mg_cursor cursor)
+{
+    platform.current_cursor = cursor;
 }
 
 float mg_app_time(void)
@@ -714,6 +1027,24 @@ int32_t mg_app_height(void)
     return platform.window_height;
 }
 
+uint32_t mg_app_dpi(void)
+{
+    return platform.dpi;
+}
+
+float mg_app_dpi_scale(void)
+{
+    return platform.dpi_scale;
+}
+
+void mg_app_set_caption_area(int32_t x, int32_t y, int32_t width, int32_t height)
+{
+    platform.caption_x = x;
+    platform.caption_y = y;
+    platform.caption_width = width;
+    platform.caption_height = height;
+}
+
 void *mg_app_handle(void)
 {
     return (void*)&platform;
@@ -722,21 +1053,37 @@ void *mg_app_handle(void)
 #elif defined(__linux__)
  
 #include <X11/Xlib.h>
+#include <X11/Xatom.h>
+#include <X11/Xresource.h>
 #include <X11/Xutil.h>
 #include <X11/keysym.h>
+#include <X11/cursorfont.h>
 #include <time.h>
 #include <stdio.h>
+#include <stdlib.h>
  
 typedef struct mg_xlib_platform
 {
     Window window;
     Display *display;
-    int screen;
     Atom wm_delete_window;
+    Cursor cursors[MG_CURSOR_MAX];
+    Cursor current_cursor;
     void (*on_event_call)(const mg_app_event *event);
+    int screen;
     int32_t window_width, window_height;
     float time, delta_time;
+    uint32_t dpi;
+    float dpi_scale;
     bool running;
+    bool no_titlebar;
+
+    int32_t caption_x, caption_y, caption_width, caption_height;
+
+    struct
+    {
+        Atom wm_state, max_horz, max_vert, moveresize, motif_hints;
+    } atoms;
 }
 mg_xlib_platform;
  
@@ -850,7 +1197,128 @@ static mg_key mg_xlib_translate_key(KeySym sym)
         default: return MG_KEY_MAX;
     }
 }
- 
+
+typedef struct
+{
+    unsigned long flags;
+    unsigned long functions;
+    unsigned long decorations;
+    long input_mode;
+    unsigned long status;
+}
+mg_motif_wm_hints;
+
+#define MG_MWM_HINTS_DECORATIONS (1L << 1)
+
+static void mg_xlib_set_borderless(Display *display, Window window, Atom motif_hints_atom, bool borderless)
+{
+    mg_motif_wm_hints hints = {0};
+    hints.flags = MG_MWM_HINTS_DECORATIONS;
+    hints.decorations = borderless ? 0 : 1;
+
+    XChangeProperty(
+        display, window,
+        motif_hints_atom, motif_hints_atom,
+        32, PropModeReplace,
+        (unsigned char *)&hints,
+        sizeof(mg_motif_wm_hints) / sizeof(long));
+}
+
+enum
+{
+    MG_NET_WM_MOVERESIZE_SIZE_TOPLEFT = 0,
+    MG_NET_WM_MOVERESIZE_SIZE_TOP = 1,
+    MG_NET_WM_MOVERESIZE_SIZE_TOPRIGHT = 2,
+    MG_NET_WM_MOVERESIZE_SIZE_RIGHT = 3,
+    MG_NET_WM_MOVERESIZE_SIZE_BOTTOMRIGHT = 4,
+    MG_NET_WM_MOVERESIZE_SIZE_BOTTOM = 5,
+    MG_NET_WM_MOVERESIZE_SIZE_BOTTOMLEFT = 6,
+    MG_NET_WM_MOVERESIZE_SIZE_LEFT = 7,
+    MG_NET_WM_MOVERESIZE_MOVE = 8
+};
+
+static void mg_xlib_send_moveresize(int32_t root_x, int32_t root_y, int32_t direction)
+{
+    XUngrabPointer(platform.display, CurrentTime);
+    XFlush(platform.display);
+
+    XEvent e = {0};
+    e.xclient.type = ClientMessage;
+    e.xclient.window = platform.window;
+    e.xclient.message_type = platform.atoms.moveresize;
+    e.xclient.format = 32;
+    e.xclient.data.l[0] = root_x;
+    e.xclient.data.l[1] = root_y;
+    e.xclient.data.l[2] = direction;
+    e.xclient.data.l[3] = Button1;
+    e.xclient.data.l[4] = 1;
+
+    XSendEvent(
+        platform.display,
+        DefaultRootWindow(platform.display),
+        False,
+        SubstructureRedirectMask | SubstructureNotifyMask,
+        &e);
+
+    XFlush(platform.display);
+}
+
+static int32_t mg_xlib_hittest(int32_t x, int32_t y)
+{
+    const int32_t bw = 8;
+    int32_t w = platform.window_width;
+    int32_t h = platform.window_height;
+
+    bool left   = x <= bw;
+    bool right  = x >= w - bw;
+    bool top    = y <= bw;
+    bool bottom = y >= h - bw;
+
+    if (top && left)     return MG_NET_WM_MOVERESIZE_SIZE_TOPLEFT;
+    if (top && right)    return MG_NET_WM_MOVERESIZE_SIZE_TOPRIGHT;
+    if (bottom && left)  return MG_NET_WM_MOVERESIZE_SIZE_BOTTOMLEFT;
+    if (bottom && right) return MG_NET_WM_MOVERESIZE_SIZE_BOTTOMRIGHT;
+    if (top)              return MG_NET_WM_MOVERESIZE_SIZE_TOP;
+    if (bottom)           return MG_NET_WM_MOVERESIZE_SIZE_BOTTOM;
+    if (left)             return MG_NET_WM_MOVERESIZE_SIZE_LEFT;
+    if (right)            return MG_NET_WM_MOVERESIZE_SIZE_RIGHT;
+
+    if (x >= platform.caption_x && x < platform.caption_x + platform.caption_width &&
+        y >= platform.caption_y && y < platform.caption_y + platform.caption_height)
+        return MG_NET_WM_MOVERESIZE_MOVE;
+
+    return -1;
+}
+
+static uint32_t mg_xlib_query_dpi(Display *display, int screen)
+{
+    char *rms = XResourceManagerString(display);
+    if (rms)
+    {
+        XrmDatabase db = XrmGetStringDatabase(rms);
+        if (db)
+        {
+            XrmValue value;
+            char *type = NULL;
+            if (XrmGetResource(db, "Xft.dpi", "Xft.Dpi", &type, &value) && value.addr)
+            {
+                uint32_t dpi = (uint32_t)atoi(value.addr);
+                XrmDestroyDatabase(db);
+                if (dpi > 0)
+                    return dpi;
+            }
+            XrmDestroyDatabase(db);
+        }
+    }
+
+    int width_px  = DisplayWidth(display, screen);
+    int width_mm  = DisplayWidthMM(display, screen);
+    if (width_mm > 0)
+        return (uint32_t)(width_px * 25.4f / (float)width_mm + 0.5f);
+
+    return 96;
+}
+
 int32_t mg_app_run(const mg_app_init_info *info)
 {
     platform.display = XOpenDisplay(NULL);
@@ -871,13 +1339,14 @@ int32_t mg_app_run(const mg_app_init_info *info)
     Window root = RootWindow(platform.display, platform.screen);
  
     XSetWindowAttributes swa = {0};
-    swa.background_pixel = BlackPixel(platform.display, platform.screen);
+    swa.background_pixmap = None;
+    swa.bit_gravity = NorthWestGravity;
     swa.event_mask =
         StructureNotifyMask | ExposureMask |
         KeyPressMask | KeyReleaseMask |
         ButtonPressMask | ButtonReleaseMask |
         PointerMotionMask;
- 
+
     platform.window = XCreateWindow(
         platform.display,
         root,
@@ -887,7 +1356,7 @@ int32_t mg_app_run(const mg_app_init_info *info)
         DefaultDepth(platform.display, platform.screen),
         InputOutput,
         DefaultVisual(platform.display, platform.screen),
-        CWBackPixel | CWEventMask,
+        CWBackPixmap | CWBitGravity | CWEventMask,
         &swa
     );
  
@@ -903,15 +1372,56 @@ int32_t mg_app_run(const mg_app_init_info *info)
  
     platform.wm_delete_window = XInternAtom(platform.display, "WM_DELETE_WINDOW", False);
     XSetWMProtocols(platform.display, platform.window, &platform.wm_delete_window, 1);
+
+    platform.atoms.motif_hints = XInternAtom(platform.display, "_MOTIF_WM_HINTS", False);
+    platform.atoms.moveresize  = XInternAtom(platform.display, "_NET_WM_MOVERESIZE", False);
+
+    platform.no_titlebar = (info->flags & MG_APP_FLAG_NO_TITLEBAR) != 0;
+    if (platform.no_titlebar)
+        mg_xlib_set_borderless(platform.display, platform.window, platform.atoms.motif_hints, true);
  
     XMapWindow(platform.display, platform.window);
     XFlush(platform.display);
- 
+
+    // creating the hidden cursor
+    {
+        const Pixmap cursor_pixmap    = XCreatePixmap(platform.display, platform.window, 1, 1, 1);
+        GC gfx_ctx = XCreateGC(platform.display, cursor_pixmap, 0, NULL);
+        XDrawPoint(platform.display, cursor_pixmap, gfx_ctx, 0, 0);
+        XFreeGC(platform.display, gfx_ctx);
+
+        XColor color;
+        color.flags = DoRed | DoGreen | DoBlue;
+        color.red = color.blue = color.green = 0;
+        platform.cursors[MG_CURSOR_HIDDEN] = XCreatePixmapCursor(platform.display, cursor_pixmap, cursor_pixmap, &color, &color, 0, 0);
+
+        XFreePixmap(platform.display, cursor_pixmap);
+    }
+
+    platform.cursors[MG_CURSOR_ARROW] = XCreateFontCursor(platform.display, XC_left_ptr);
+    platform.cursors[MG_CURSOR_IBEAM] = XCreateFontCursor(platform.display, XC_xterm);
+    platform.cursors[MG_CURSOR_CROSSHAIR] = XCreateFontCursor(platform.display, XC_crosshair);
+    platform.cursors[MG_CURSOR_HAND] = XCreateFontCursor(platform.display, XC_hand2);
+    platform.cursors[MG_CURSOR_RESIZE_ALL] = XCreateFontCursor(platform.display, XC_fleur);
+    platform.cursors[MG_CURSOR_RESIZE_NS] = XCreateFontCursor(platform.display, XC_sb_v_double_arrow);
+    platform.cursors[MG_CURSOR_RESIZE_EW] = XCreateFontCursor(platform.display, XC_sb_h_double_arrow);
+    platform.cursors[MG_CURSOR_RESIZE_NESW] = XCreateFontCursor(platform.display, XC_fleur);
+    platform.cursors[MG_CURSOR_RESIZE_NWSE] = XCreateFontCursor(platform.display, XC_fleur);
+    platform.cursors[MG_CURSOR_NOT_ALLOWED] = XCreateFontCursor(platform.display, XC_pirate);
+    XDefineCursor(platform.display, platform.window, platform.cursors[MG_CURSOR_ARROW]);
+
     platform.on_event_call = info->events.event;
     platform.running = true;
  
     platform.time = mg_xlib_get_time();
     platform.delta_time = 0.0f;
+
+    platform.dpi = mg_xlib_query_dpi(platform.display, platform.screen);
+    platform.dpi_scale = (float)platform.dpi / 96.0f;
+
+    platform.atoms.wm_state = XInternAtom(platform.display, "_NET_WM_STATE", False);
+    platform.atoms.max_horz = XInternAtom(platform.display, "_NET_WM_STATE_MAXIMIZED_HORZ", False);
+    platform.atoms.max_vert = XInternAtom(platform.display, "_NET_WM_STATE_MAXIMIZED_VERT", False);
  
     if (info->events.start)
         info->events.start();
@@ -928,16 +1438,36 @@ int32_t mg_app_run(const mg_app_init_info *info)
                 case ConfigureNotify:
                 {
                     XConfigureEvent *ce = &xev.xconfigure;
+
+                    while (XPending(platform.display))
+                    {
+                        XEvent next;
+                        XPeekEvent(platform.display, &next);
+                        if (next.type != ConfigureNotify || next.xconfigure.window != ce->window)
+                            break;
+                        XNextEvent(platform.display, &xev);
+                        ce = &xev.xconfigure;
+                    }
+
                     if (ce->width  != platform.window_width ||
                         ce->height != platform.window_height)
                     {
                         platform.window_width  = ce->width;
                         platform.window_height = ce->height;
                         mg_app_call_event(&(mg_app_event){
-                            .window_width  = platform.window_width,
+                            .window_width = platform.window_width,
                             .window_height = platform.window_height,
-                            .type          = MG_APP_EVENT_RESIZE
+                            .type = MG_APP_EVENT_RESIZE
                         });
+
+                        float resize_time = mg_xlib_get_time();
+                        platform.delta_time = resize_time - platform.time;
+                        platform.time = resize_time;
+
+                        if (info->events.update)
+                            info->events.update();
+
+                        mg_app_input_frame();
                     }
                 }
                 break;
@@ -951,6 +1481,22 @@ int32_t mg_app_run(const mg_app_init_info *info)
                     bool pressed = (xev.type == KeyPress);
 
                     mg_app_input_process_key(key, pressed);
+
+                    switch (key)
+                    {
+                        case MG_KEY_LCONTROL:
+                        case MG_KEY_RCONTROL:
+                            mg_app_input_process_key(MG_KEY_CONTROL, pressed);
+                            break;
+                        case MG_KEY_LSHIFT:
+                        case MG_KEY_RSHIFT:
+                            mg_app_input_process_key(MG_KEY_SHIFT, pressed);
+                            break;
+                        case MG_KEY_LALT:
+                        case MG_KEY_RALT:
+                            mg_app_input_process_key(MG_KEY_ALT, pressed);
+                            break;
+                    }
 
                     mg_app_call_event(&(mg_app_event){
                         .key  = key,
@@ -989,6 +1535,16 @@ int32_t mg_app_run(const mg_app_init_info *info)
                         break;
                     }
 
+                    if (platform.no_titlebar && pressed && xev.xbutton.button == Button1)
+                    {
+                        int32_t direction = mg_xlib_hittest(xev.xbutton.x, xev.xbutton.y);
+                        if (direction != -1)
+                        {
+                            mg_xlib_send_moveresize(xev.xbutton.x_root, xev.xbutton.y_root, direction);
+                            break;
+                        }
+                    }
+
                     mg_mouse_button mb = MG_MOUSE_BUTTON_MAX;
                     switch (xev.xbutton.button)
                     {
@@ -999,7 +1555,7 @@ int32_t mg_app_run(const mg_app_init_info *info)
 
                     if (mb != MG_MOUSE_BUTTON_MAX)
                     {
-                        mg_app_input_process_mouse_button(mb, pressed);
+                        mg_app_input_process_mouse_button(mb, pressed, platform.time);
                         mg_app_call_event(&(mg_app_event){
                             .mouse_button = mb,
                             .type         = pressed ? MG_APP_EVENT_MOUSE_DOWN : MG_APP_EVENT_MOUSE_UP
@@ -1033,11 +1589,13 @@ int32_t mg_app_run(const mg_app_init_info *info)
         float new_time = mg_xlib_get_time();
         platform.delta_time = new_time - platform.time;
         platform.time = new_time;
+
+        mg_app_set_cursor(MG_CURSOR_ARROW);
  
         if (info->events.update)
             info->events.update();
 
-        mg_app_input_reset();
+        mg_app_input_frame();
     }
  
     if (info->events.end)
@@ -1051,6 +1609,14 @@ int32_t mg_app_run(const mg_app_init_info *info)
 void mg_app_close(void)
 {
     platform.running = false;
+}
+
+void mg_app_set_cursor(mg_cursor cursor)
+{
+    if (platform.current_cursor == cursor)
+        return;
+    platform.current_cursor = cursor;
+    XDefineCursor(platform.display, platform.window, platform.cursors[cursor]);
 }
  
 float mg_app_time(void)
@@ -1076,6 +1642,124 @@ int32_t mg_app_height(void)
 void *mg_app_handle(void)
 {
     return (void*)&platform;
+}
+
+void mg_app_show(bool value)
+{
+    if (value)
+        XMapWindow(platform.display, platform.window);
+    else
+        XUnmapWindow(platform.display, platform.window);
+}
+
+void mg_app_minimize(void)
+{
+    XIconifyWindow(platform.display, platform.window, platform.screen);
+    XFlush(platform.display);
+}
+
+void mg_app_maximize(void)
+{
+    XEvent e = {0};
+    e.xclient.type = ClientMessage;
+    e.xclient.window = platform.window;
+    e.xclient.message_type = platform.atoms.wm_state;
+    e.xclient.format = 32;
+    e.xclient.data.l[0] = 1; // _NET_WM_STATE_ADD
+    e.xclient.data.l[1] = platform.atoms.max_horz;
+    e.xclient.data.l[2] = platform.atoms.max_vert;
+    e.xclient.data.l[3] = 1;
+    e.xclient.data.l[4] = 0;
+
+    XSendEvent(
+        platform.display,
+        DefaultRootWindow(platform.display),
+        False,
+        SubstructureRedirectMask | SubstructureNotifyMask,
+        &e);
+
+    XFlush(platform.display);
+}
+
+void mg_app_restore(void)
+{
+    XEvent e = {0};
+    e.xclient.type = ClientMessage;
+    e.xclient.window = platform.window;
+    e.xclient.message_type = platform.atoms.wm_state;
+    e.xclient.format = 32;
+    e.xclient.data.l[0] = 0; // _NET_WM_STATE_REMOVE
+    e.xclient.data.l[1] = platform.atoms.max_horz;
+    e.xclient.data.l[2] = platform.atoms.max_vert;
+    e.xclient.data.l[3] = 1;
+    e.xclient.data.l[4] = 0;
+
+    XSendEvent(
+        platform.display,
+        DefaultRootWindow(platform.display),
+        False,
+        SubstructureRedirectMask | SubstructureNotifyMask,
+        &e);
+
+    XFlush(platform.display);
+}
+
+bool mg_app_maximized(void)
+{
+    Atom actual_type;
+    int actual_format;
+    unsigned long nitems, bytes_after;
+    unsigned char *data = NULL;
+
+    if (XGetWindowProperty(platform.display, platform.window,
+        platform.atoms.wm_state,
+        0, 1024,
+        False,
+        XA_ATOM,
+        &actual_type,
+        &actual_format,
+        &nitems,
+        &bytes_after,
+        &data) == Success)
+    {
+        platform.atoms.max_horz = XInternAtom(platform.display, "_NET_WM_STATE_MAXIMIZED_HORZ", False);
+        platform.atoms.max_vert = XInternAtom(platform.display, "_NET_WM_STATE_MAXIMIZED_VERT", False);
+
+        int horz = 0, vert = 0;
+
+        Atom *atoms = (Atom*)data;
+        for (unsigned long i = 0; i < nitems; i++)
+        {
+            if (atoms[i] == platform.atoms.max_horz)
+                horz = 1;
+            if (atoms[i] == platform.atoms.max_vert)
+                vert = 1;
+        }
+
+        if (data)
+            XFree(data);
+
+        if (horz && vert)
+            return true;
+    }
+}
+
+uint32_t mg_app_dpi(void)
+{
+    return platform.dpi;
+}
+
+float mg_app_dpi_scale(void)
+{
+    return platform.dpi_scale;
+}
+
+void mg_app_set_caption_area(int32_t x, int32_t y, int32_t width, int32_t height)
+{
+    platform.caption_x = x;
+    platform.caption_y = y;
+    platform.caption_width = width;
+    platform.caption_height = height;
 }
  
 #endif // Platform
