@@ -293,6 +293,13 @@ MG_APP_API void mg_app_set_caption_area(int32_t x, int32_t y, int32_t width, int
 
 MG_APP_API void *mg_app_handle(void);
 
+#ifdef __cplusplus
+} // extern "C"
+
+inline int32_t mg_app_run(const mg_app_init_info &info) { return mg_app_run(&info); }
+
+#endif
+
 #define MG_DEFINE_APP(name) \
 int main(void) { \
     extern void mg_app_on_start(void); \
@@ -1765,7 +1772,3 @@ void mg_app_set_caption_area(int32_t x, int32_t y, int32_t width, int32_t height
 #endif // Platform
 
 #endif // MGAPP_IMPL
-
-#ifdef __cplusplus
-}
-#endif
