@@ -516,11 +516,12 @@ static EM_BOOL mg_em_resize_callback(int event_type, const EmscriptenUiEvent *ui
     platform.window_width  = (int32_t)w;
     platform.window_height = (int32_t)h;
 
-    mg_app_call_event(&(mg_app_event){
+    mg_app_event event = {
         .window_width  = platform.window_width,
         .window_height = platform.window_height,
         .type          = MG_APP_EVENT_RESIZE
-    });
+    };
+    mg_app_call_event(&event);
 
     return EM_TRUE;
 }
@@ -657,11 +658,12 @@ static LRESULT CALLBACK mg_win32_process_message(HWND hwnd, uint32_t msg, WPARAM
             GetClientRect(hwnd, &r);
             platform.window_width  = r.right - r.left;
             platform.window_height = r.bottom - r.top;
-            mg_app_call_event(&(mg_app_event){
+            mg_app_event event = {
                 .window_width = platform.window_width,
                 .window_height = platform.window_height,
                 .type = MG_APP_EVENT_RESIZE
-            });
+            };
+            mg_app_call_event(&event);
             break;
         }
         case WM_KEYDOWN:
@@ -692,29 +694,34 @@ static LRESULT CALLBACK mg_win32_process_message(HWND hwnd, uint32_t msg, WPARAM
             }
 
             mg_app_input_process_key(key, pressed);
-            mg_app_call_event(&(mg_app_event){
+            mg_app_event event = {
                 .key = key,
-                .type = pressed ? MG_APP_EVENT_KEY_DOWN : MG_APP_EVENT_KEY_UP
-            });
+                .type = (mg_app_event_type)(pressed ? MG_APP_EVENT_KEY_DOWN : MG_APP_EVENT_KEY_UP)
+            };
+            mg_app_call_event(&event);
             break;
         }
         case WM_CHAR:
-            mg_app_call_event(&(mg_app_event){
+        {
+            mg_app_event event = {
                 .ch = (char)w_param,
                 .type = MG_APP_EVENT_CHAR
-            });
+            };
+            mg_app_call_event(&event);
         break;
+        }
         case WM_MOUSEMOVE:
         {
             int32_t x = GET_X_LPARAM(l_param);
             int32_t y = GET_Y_LPARAM(l_param);
             input_state.mouse.x = x;
             input_state.mouse.y = y;
-            mg_app_call_event(&(mg_app_event){
+            mg_app_event event = {
                 .mouse_x = x,
                 .mouse_y = y,
                 .type = MG_APP_EVENT_MOUSE_MOVE
-            });
+            };
+            mg_app_call_event(&event);
             break;
         }
         case WM_MOUSEWHEEL:
@@ -723,11 +730,12 @@ static LRESULT CALLBACK mg_win32_process_message(HWND hwnd, uint32_t msg, WPARAM
             if (delta != 0)
             {
                 delta = (delta < 0) ? -1 : 1;
-                input_state.mouse.delta = (uint8_t)delta;
-                mg_app_call_event(&(mg_app_event){
-                    .scroll_delta = (uint8_t)delta,
+                input_state.mouse.delta = (int8_t)delta;
+                mg_app_event event = {
+                    .scroll_delta = (int8_t)delta,
                     .type = MG_APP_EVENT_MOUSE_SCROLL
-                });
+                };
+                mg_app_call_event(&event);
             }
             break;
         }
@@ -757,10 +765,11 @@ static LRESULT CALLBACK mg_win32_process_message(HWND hwnd, uint32_t msg, WPARAM
             }
 
             mg_app_input_process_mouse_button(mouse_button, pressed, platform.time);
-            mg_app_call_event(&(mg_app_event){
+            mg_app_event event = {
                 .mouse_button = mouse_button,
-                .type = pressed ? MG_APP_EVENT_MOUSE_DOWN : MG_APP_EVENT_MOUSE_UP
-            });
+                .type = (mg_app_event_type)(pressed ? MG_APP_EVENT_MOUSE_DOWN : MG_APP_EVENT_MOUSE_UP)
+            };
+            mg_app_call_event(&event);
             break;
         }
         case WM_SETCURSOR:
@@ -833,11 +842,12 @@ static LRESULT CALLBACK mg_win32_no_titlebar_proc(HWND hwnd, UINT msg, WPARAM w_
             ScreenToClient(platform.hwnd, &pt);
             input_state.mouse.x = (int16_t)pt.x;
             input_state.mouse.y = (int16_t)pt.y;
-            mg_app_call_event(&(mg_app_event){
+            mg_app_event event = {
                 .mouse_x = pt.x,
                 .mouse_y = pt.y,
                 .type = MG_APP_EVENT_MOUSE_MOVE
-            });
+            };
+            mg_app_call_event(&event);
             break;
         }
 
@@ -1461,18 +1471,16 @@ int32_t mg_app_run(const mg_app_init_info *info)
                     {
                         platform.window_width  = ce->width;
                         platform.window_height = ce->height;
-                        mg_app_call_event(&(mg_app_event){
+                        mg_app_event event = {
                             .window_width = platform.window_width,
                             .window_height = platform.window_height,
                             .type = MG_APP_EVENT_RESIZE
-                        });
+                        };
+                        mg_app_call_event(&event);
 
                         float resize_time = mg_xlib_get_time();
                         platform.delta_time = resize_time - platform.time;
                         platform.time = resize_time;
-
-                        if (info->events.update)
-                            info->events.update();
 
                         mg_app_input_frame();
                     }
@@ -1505,20 +1513,23 @@ int32_t mg_app_run(const mg_app_init_info *info)
                             break;
                     }
 
-                    mg_app_call_event(&(mg_app_event){
+                    mg_app_event event = {
                         .key  = key,
-                        .type = pressed ? MG_APP_EVENT_KEY_DOWN : MG_APP_EVENT_KEY_UP
-                    });
+                        .type = (mg_app_event_type)(pressed ? MG_APP_EVENT_KEY_DOWN : MG_APP_EVENT_KEY_UP)
+                    };
+                    mg_app_call_event(&event);
 
                     if (pressed)
                     {
                         char buf[4] = {0};
                         int len = XLookupString(&xev.xkey, buf, sizeof(buf), NULL, NULL);
-                        if (len == 1 && (unsigned char)buf[0] >= 32)
-                            mg_app_call_event(&(mg_app_event){
+                        if (len == 1 && (unsigned char)buf[0] >= 32) {
+                            mg_app_event event = {
                                 .ch   = buf[0],
                                 .type = MG_APP_EVENT_CHAR
-                            });
+                            };
+                            mg_app_call_event(&event);
+                        }
                     }
                 }
                 break;
@@ -1534,10 +1545,11 @@ int32_t mg_app_run(const mg_app_init_info *info)
                         {
                             int8_t delta = (xev.xbutton.button == Button4) ? 1 : -1;
                             input_state.mouse.delta = delta;
-                            mg_app_call_event(&(mg_app_event){
+                            mg_app_event event = {
                                 .scroll_delta = delta,
                                 .type         = MG_APP_EVENT_MOUSE_SCROLL
-                            });
+                            };
+                            mg_app_call_event(&event);
                         }
                         break;
                     }
@@ -1563,10 +1575,11 @@ int32_t mg_app_run(const mg_app_init_info *info)
                     if (mb != MG_MOUSE_BUTTON_MAX)
                     {
                         mg_app_input_process_mouse_button(mb, pressed, platform.time);
-                        mg_app_call_event(&(mg_app_event){
+                        mg_app_event event = {
                             .mouse_button = mb,
-                            .type         = pressed ? MG_APP_EVENT_MOUSE_DOWN : MG_APP_EVENT_MOUSE_UP
-                        });
+                            .type         = (mg_app_event_type)(pressed ? MG_APP_EVENT_MOUSE_DOWN : MG_APP_EVENT_MOUSE_UP)
+                        };
+                        mg_app_call_event(&event);
                     }
                 }
                 break;
@@ -1575,11 +1588,12 @@ int32_t mg_app_run(const mg_app_init_info *info)
                 {
                     input_state.mouse.x = xev.xmotion.x;
                     input_state.mouse.y = xev.xmotion.y;
-                    mg_app_call_event(&(mg_app_event){
+                    mg_app_event event = {
                         .mouse_x = xev.xmotion.x,
                         .mouse_y = xev.xmotion.y,
                         .type    = MG_APP_EVENT_MOUSE_MOVE
-                    });
+                    };
+                    mg_app_call_event(&event);
                 }
                 break;
  
@@ -1749,6 +1763,7 @@ bool mg_app_maximized(void)
         if (horz && vert)
             return true;
     }
+    return false;
 }
 
 uint32_t mg_app_dpi(void)
