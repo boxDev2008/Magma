@@ -433,10 +433,17 @@ extern "C" {
     }
     mgfx_init_info;
     
+    typedef uint8_t mgfx_result;
+    enum
+    {
+        MGFX_RESULT_SUCCESS,
+        MGFX_RESULT_FAILURE
+    };
+    
     MGFX_API void mgfx_init (const mgfx_init_info *init_info);
     MGFX_API void mgfx_shutdown (void);
     
-    MGFX_API bool mgfx_begin (void);
+    MGFX_API mgfx_result mgfx_begin (void);
     MGFX_API void mgfx_end (void);
     
     MGFX_API void mgfx_viewport (int32_t x, int32_t y, uint32_t width, uint32_t height);
@@ -1087,7 +1094,7 @@ mgfx_d3d11_context;
 
 typedef void (*mgfx_init_fn)(const mgfx_init_info *init_info);
 typedef void (*mgfx_shutdown_fn)(void);
-typedef bool (*mgfx_begin_fn)(void);
+typedef mgfx_result (*mgfx_begin_fn)(void);
 typedef void (*mgfx_end_fn)(void);
 typedef void (*mgfx_present_frame_fn)(void);
 
@@ -3139,7 +3146,7 @@ static void mgfx_vk_shutdown(void)
     vkDestroyInstance(ctx.vk.instance, NULL);
 }
 
-static bool mgfx_vk_begin(void)
+static mgfx_result mgfx_vk_begin(void)
 {
     if (ctx.vk.rebuild_swapchain)
     {
@@ -3153,7 +3160,7 @@ static bool mgfx_vk_begin(void)
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
     {
         ctx.vk.rebuild_swapchain = true;
-        return false;
+        return MGFX_RESULT_FAILURE;
     }
     
     vkResetFences(ctx.vk.device.handle, 1, &ctx.vk.sync_objects.fence);
@@ -3167,7 +3174,7 @@ static bool mgfx_vk_begin(void)
     ctx.vk.inside_pass = false;
     ctx.vk.descriptor_cache.dirty = false;
 
-    return true;
+    return MGFX_RESULT_SUCCESS;
 }
 
 static void mgfx_vk_end(void)
@@ -4218,14 +4225,14 @@ static void mgfx_gl_shutdown(void)
     _mgfx_gl_unload_platform();
 }
 
-static bool mgfx_gl_begin(void)
+static mgfx_result mgfx_gl_begin(void)
 {
     glEnable(GL_SCISSOR_TEST);
     glBindVertexArray(ctx.gl.vao);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, 0);
     glBindFramebuffer(GL_FRAMEBUFFER, ctx.gl.swapchain.framebuffer);
-    return true;
+    return MGFX_RESULT_SUCCESS;
 }
 
 static void mgfx_gl_end(void)
@@ -4588,14 +4595,14 @@ static void mgfx_d3d11_resize_backbuffer(void)
     MGFX_D3D11_CALL(backbuffer, Release);
 }
 
-static bool mgfx_d3d11_begin(void)
+static mgfx_result mgfx_d3d11_begin(void)
 {
     if (ctx.d3d11.pending_resize)
     {
         ctx.d3d11.pending_resize = false;
         mgfx_d3d11_resize_backbuffer();
     }
-    return true;
+    return MGFX_RESULT_SUCCESS;
 }
 
 static void mgfx_d3d11_end(void)
@@ -5208,7 +5215,7 @@ void mgfx_shutdown(void)
     ctx.shutdown();
 }
 
-bool mgfx_begin(void)
+mgfx_result mgfx_begin(void)
 {
     return ctx.begin();
 }

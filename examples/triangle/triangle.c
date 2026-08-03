@@ -49,7 +49,7 @@ void mg_app_on_end(void)
 
 void mg_app_on_update(void)
 {
-    if (!mgfx_begin())
+    if (mgfx_begin() != MGFX_RESULT_SUCCESS)
         return;
 
     mgfx_bind_pass(&(mgfx_pass_info){.clear = {0.05f, 0.05f, 0.05f, 1.0f}});
