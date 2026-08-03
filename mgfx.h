@@ -436,7 +436,7 @@ extern "C" {
     MGFX_API void mgfx_init (const mgfx_init_info *init_info);
     MGFX_API void mgfx_shutdown (void);
     
-    MGFX_API void mgfx_begin (void);
+    MGFX_API bool mgfx_begin (void);
     MGFX_API void mgfx_end (void);
     
     MGFX_API void mgfx_viewport (int32_t x, int32_t y, uint32_t width, uint32_t height);
@@ -1087,7 +1087,7 @@ mgfx_d3d11_context;
 
 typedef void (*mgfx_init_fn)(const mgfx_init_info *init_info);
 typedef void (*mgfx_shutdown_fn)(void);
-typedef void (*mgfx_begin_fn)(void);
+typedef bool (*mgfx_begin_fn)(void);
 typedef void (*mgfx_end_fn)(void);
 typedef void (*mgfx_present_frame_fn)(void);
 
@@ -1909,7 +1909,6 @@ static void mgfx_vk_resize(uint32_t width, uint32_t height)
 {
     ctx.vk.width = width;
     ctx.vk.height = height;
-    ctx.vk.rebuild_swapchain = true;
     mgfx_vk_recycle();
 }
 
@@ -3140,19 +3139,22 @@ static void mgfx_vk_shutdown(void)
     vkDestroyInstance(ctx.vk.instance, NULL);
 }
 
-static void mgfx_vk_begin(void)
+static bool mgfx_vk_begin(void)
 {
     if (ctx.vk.rebuild_swapchain)
     {
-        ctx.vk.rebuild_swapchain = false;
         vkDeviceWaitIdle(ctx.vk.device.handle);
         mgfx_vk_create_or_recreate_swapchain();
+        ctx.vk.rebuild_swapchain = false;
     }
     
     vkWaitForFences(ctx.vk.device.handle, 1, &ctx.vk.sync_objects.fence, VK_TRUE, UINT64_MAX);
     VkResult result = vkAcquireNextImageKHR(ctx.vk.device.handle, ctx.vk.swapchain.handle, UINT64_MAX, ctx.vk.sync_objects.image_available_semaphore, VK_NULL_HANDLE, &ctx.vk.swapchain.image_index);
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
+    {
         ctx.vk.rebuild_swapchain = true;
+        return false;
+    }
     
     vkResetFences(ctx.vk.device.handle, 1, &ctx.vk.sync_objects.fence);
     vkResetCommandBuffer(ctx.vk.command_buffer, 0);
@@ -3164,6 +3166,8 @@ static void mgfx_vk_begin(void)
     ctx.vk.scratch_buffer.offset = 0;
     ctx.vk.inside_pass = false;
     ctx.vk.descriptor_cache.dirty = false;
+
+    return true;
 }
 
 static void mgfx_vk_end(void)
@@ -4214,13 +4218,14 @@ static void mgfx_gl_shutdown(void)
     _mgfx_gl_unload_platform();
 }
 
-static void mgfx_gl_begin(void)
+static bool mgfx_gl_begin(void)
 {
     glEnable(GL_SCISSOR_TEST);
     glBindVertexArray(ctx.gl.vao);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, 0);
     glBindFramebuffer(GL_FRAMEBUFFER, ctx.gl.swapchain.framebuffer);
+    return true;
 }
 
 static void mgfx_gl_end(void)
@@ -4526,18 +4531,19 @@ static void mgfx_d3d11_init(const mgfx_init_info *init_info)
         .Windowed = TRUE
     };
     
-    D3D11CreateDeviceAndSwapChain(NULL,
-                                    D3D_DRIVER_TYPE_HARDWARE,
-                                    NULL,
-                                    0,
-                                    NULL,
-                                    0,
-                                    D3D11_SDK_VERSION,
-                                    &sd,
-                                    &ctx.d3d11.swapchain,
-                                    &ctx.d3d11.device,
-                                    NULL,
-                                    &ctx.d3d11.immediate_context);
+    D3D11CreateDeviceAndSwapChain(
+        NULL,
+        D3D_DRIVER_TYPE_HARDWARE,
+        NULL,
+        0,
+        NULL,
+        0,
+        D3D11_SDK_VERSION,
+        &sd,
+        &ctx.d3d11.swapchain,
+        &ctx.d3d11.device,
+        NULL,
+        &ctx.d3d11.immediate_context);
     
     ID3D11Texture2D *backbuffer;
     MGFX_D3D11_CALL(ctx.d3d11.swapchain, GetBuffer, 0, MGFX_IID(IID_ID3D11Texture2D), (void**)&backbuffer);
@@ -4582,13 +4588,14 @@ static void mgfx_d3d11_resize_backbuffer(void)
     MGFX_D3D11_CALL(backbuffer, Release);
 }
 
-static void mgfx_d3d11_begin(void)
+static bool mgfx_d3d11_begin(void)
 {
     if (ctx.d3d11.pending_resize)
     {
         ctx.d3d11.pending_resize = false;
         mgfx_d3d11_resize_backbuffer();
     }
+    return true;
 }
 
 static void mgfx_d3d11_end(void)
@@ -5104,8 +5111,7 @@ static void mgfx_d3d11_bind_pipeline(mgfx_d3d11_pipeline *pipeline)
     if (pipeline->type == MGFX_D3D11_PIPELINE_TYPE_COMPUTE)
     {
         MGFX_D3D11_CALL(context, CSSetShader, pipeline->compute_shader, NULL, 0);
-        MGFX_D3D11_CALL(context, CSSetConstantBuffers, 0, MGFX_MAX_BINDABLE_UNIFORMS,
-                        pipeline->constant_buffers);
+        MGFX_D3D11_CALL(context, CSSetConstantBuffers, 0, MGFX_MAX_BINDABLE_UNIFORMS, pipeline->constant_buffers);
         return;
     }
     
@@ -5160,6 +5166,8 @@ ctx.dispatch                 = mgfx_##backend##_dispatch; \
 
 void mgfx_init(const mgfx_init_info *init_info)
 {
+    MGFX_ASSERT(init_info->handle, "A platform handle must be provided to init_info.");
+
     mgfx_renderer_type type = init_info->type;
     
     switch (type)
@@ -5200,9 +5208,9 @@ void mgfx_shutdown(void)
     ctx.shutdown();
 }
 
-void mgfx_begin(void)
+bool mgfx_begin(void)
 {
-    ctx.begin();
+    return ctx.begin();
 }
 
 void mgfx_end(void)
