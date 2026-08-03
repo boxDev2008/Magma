@@ -31,6 +31,10 @@
 #define MGFX_MAX_BINDABLE_STORAGE_BUFFERS 4
 #endif
 
+#ifndef MGFX_MAX_COLOR_ATTACHMENTS
+#define MGFX_MAX_COLOR_ATTACHMENTS 8
+#endif
+
 #ifndef MGFX_MAX_VERTEX_ATTRIBUTES
 #define MGFX_MAX_VERTEX_ATTRIBUTES 8
 #endif
@@ -224,7 +228,7 @@ extern "C" {
     
     typedef struct
     {
-        mgfx_image color_image;
+        mgfx_image color_images[MGFX_MAX_COLOR_ATTACHMENTS];
         mgfx_image depth_stencil_image;
         mgfx_color clear;
     }
@@ -399,7 +403,7 @@ extern "C" {
         mgfx_front_face front_face;
         mgfx_color_blend color_blend;
         mgfx_depth_stencil_state depth_stencil;
-        mgfx_format color_format;
+        mgfx_format color_formats[MGFX_MAX_COLOR_ATTACHMENTS];
     }
     mgfx_pipeline_create_info;
     
@@ -680,7 +684,8 @@ typedef struct
     
     struct
     {
-        mgfx_vk_image *color_image;
+        mgfx_vk_image *color_images[MGFX_MAX_COLOR_ATTACHMENTS];
+        uint32_t color_image_count;
         mgfx_vk_image *depth_image;
     }
     current_pass;
@@ -1019,13 +1024,15 @@ mgfx_gl_context;
 #include <d3dcompiler.h>
 
 #if defined(__cplusplus)
+#define MGFX_D3D11_CALL0(obj, method) (obj)->method()
 #define MGFX_D3D11_CALL(obj, method, ...) (obj)->method(__VA_ARGS__)
 #define MGFX_IID(x) (x)
 #else
+#define MGFX_D3D11_CALL0(obj, method) (obj)->lpVtbl->method((obj))
 #define MGFX_D3D11_CALL(obj, method, ...) (obj)->lpVtbl->method((obj), __VA_ARGS__)
 #define MGFX_IID(x) (&(x))
 #endif
-#define MGFX_D3D11_SAFE_RELEASE(obj) if (obj) { MGFX_D3D11_CALL(obj, Release); (obj) = NULL; }
+#define MGFX_D3D11_SAFE_RELEASE(obj) if (obj) { MGFX_D3D11_CALL0(obj, Release); (obj) = NULL; }
 
 #pragma comment (lib, "dxgi")
 #pragma comment (lib, "d3d11")
@@ -1204,7 +1211,7 @@ static inline uint32_t mgfx_stride_align(uint32_t size, uint32_t alignment)
 static inline bool mgfx_valid_pass(const mgfx_pass_info *pass)
 {
     MGFX_ASSERT(pass != NULL, "Pass reference in mgfx_bind_pass cannot be null.");
-    return pass->color_image || pass->depth_stencil_image;
+    return pass->color_images[0] || pass->depth_stencil_image;
 }
 
 static inline uint8_t mgfx_format_bpp(mgfx_format format)
@@ -2476,27 +2483,54 @@ static void mgfx_vk_fill_graphics_pipeline(mgfx_vk_pipeline *pipeline, const mgf
         depth_stencil.depthCompareOp = mgfx_vk_get_compare_op(create_info->depth_stencil.depth_compare_op);
     }
     
-    VkPipelineColorBlendAttachmentState color_blend_attachment = {
-        .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,
-        .blendEnable = create_info->color_blend.blend_enabled
-    };
-
-    if (create_info->color_blend.blend_enabled)
+    VkFormat color_formats[MGFX_MAX_COLOR_ATTACHMENTS];
+    VkPipelineColorBlendAttachmentState color_blend_attachments[MGFX_MAX_COLOR_ATTACHMENTS];
+    uint32_t color_attachment_count = 0;
+    
+    for (; color_attachment_count < MGFX_MAX_COLOR_ATTACHMENTS && create_info->color_formats[color_attachment_count]; color_attachment_count++)
     {
-        color_blend_attachment.srcColorBlendFactor = mgfx_vk_get_blend_factor(create_info->color_blend.src_color_blend_factor);
-        color_blend_attachment.dstColorBlendFactor = mgfx_vk_get_blend_factor(create_info->color_blend.dst_color_blend_factor);
-        color_blend_attachment.colorBlendOp        = mgfx_vk_get_blend_op(create_info->color_blend.color_blend_op);
-        color_blend_attachment.srcAlphaBlendFactor = mgfx_vk_get_blend_factor(create_info->color_blend.src_alpha_blend_factor);
-        color_blend_attachment.dstAlphaBlendFactor = mgfx_vk_get_blend_factor(create_info->color_blend.dst_alpha_blend_factor);
-        color_blend_attachment.alphaBlendOp        = mgfx_vk_get_blend_op(create_info->color_blend.alpha_blend_op);
+        color_formats[color_attachment_count] = mgfx_vk_get_format(create_info->color_formats[color_attachment_count]);
+        
+        VkPipelineColorBlendAttachmentState *attachment = &color_blend_attachments[color_attachment_count];
+        attachment->colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+        attachment->blendEnable = create_info->color_blend.blend_enabled;
+        
+        if (create_info->color_blend.blend_enabled)
+        {
+            attachment->srcColorBlendFactor = mgfx_vk_get_blend_factor(create_info->color_blend.src_color_blend_factor);
+            attachment->dstColorBlendFactor = mgfx_vk_get_blend_factor(create_info->color_blend.dst_color_blend_factor);
+            attachment->colorBlendOp        = mgfx_vk_get_blend_op(create_info->color_blend.color_blend_op);
+            attachment->srcAlphaBlendFactor = mgfx_vk_get_blend_factor(create_info->color_blend.src_alpha_blend_factor);
+            attachment->dstAlphaBlendFactor = mgfx_vk_get_blend_factor(create_info->color_blend.dst_alpha_blend_factor);
+            attachment->alphaBlendOp        = mgfx_vk_get_blend_op(create_info->color_blend.alpha_blend_op);
+        }
+    }
+    
+    if (color_attachment_count == 0)
+    {
+        color_formats[0] = VK_FORMAT_B8G8R8A8_UNORM;
+        color_blend_attachments[0] = (VkPipelineColorBlendAttachmentState){
+            .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,
+            .blendEnable = create_info->color_blend.blend_enabled
+        };
+        if (create_info->color_blend.blend_enabled)
+        {
+            color_blend_attachments[0].srcColorBlendFactor = mgfx_vk_get_blend_factor(create_info->color_blend.src_color_blend_factor);
+            color_blend_attachments[0].dstColorBlendFactor = mgfx_vk_get_blend_factor(create_info->color_blend.dst_color_blend_factor);
+            color_blend_attachments[0].colorBlendOp        = mgfx_vk_get_blend_op(create_info->color_blend.color_blend_op);
+            color_blend_attachments[0].srcAlphaBlendFactor = mgfx_vk_get_blend_factor(create_info->color_blend.src_alpha_blend_factor);
+            color_blend_attachments[0].dstAlphaBlendFactor = mgfx_vk_get_blend_factor(create_info->color_blend.dst_alpha_blend_factor);
+            color_blend_attachments[0].alphaBlendOp        = mgfx_vk_get_blend_op(create_info->color_blend.alpha_blend_op);
+        }
+        color_attachment_count = 1;
     }
     
     VkPipelineColorBlendStateCreateInfo color_blending = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
         .logicOpEnable = VK_FALSE,
         .logicOp = VK_LOGIC_OP_COPY,
-        .attachmentCount = 1,
-        .pAttachments = &color_blend_attachment
+        .attachmentCount = color_attachment_count,
+        .pAttachments = color_blend_attachments
     };
     
     const VkDescriptorSetLayout set_layouts[] = {
@@ -2513,11 +2547,10 @@ static void mgfx_vk_fill_graphics_pipeline(mgfx_vk_pipeline *pipeline, const mgf
     VkResult result = vkCreatePipelineLayout(ctx.vk.device.handle, &pipeline_layout_info, NULL, &pipeline->pipeline_layout);
     MGFX_ASSERT(result == VK_SUCCESS, "Failed to create vulkan graphics pipeline layout.");
     
-    VkFormat color_format = create_info->color_format ? mgfx_vk_get_format(create_info->color_format) : VK_FORMAT_B8G8R8A8_UNORM;
     VkPipelineRenderingCreateInfo rendering_create_info = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
-        .colorAttachmentCount = 1,
-        .pColorAttachmentFormats = &color_format,
+        .colorAttachmentCount = color_attachment_count,
+        .pColorAttachmentFormats = color_formats,
         .depthAttachmentFormat = mgfx_vk_get_format(create_info->depth_stencil.format)
     };
 
@@ -2698,99 +2731,123 @@ static void mgfx_vk_transition_image_layout(VkCommandBuffer cmd, VkImage image, 
 static void mgfx_vk_bind_pass(const mgfx_pass_info *pass)
 {
     VkCommandBuffer cmd = ctx.vk.command_buffer;
-    
+
     if (ctx.vk.inside_pass)
     {
         vkCmdEndRendering(cmd);
-        
-        if (ctx.vk.current_pass.color_image)
-        {
-            mgfx_vk_transition_image_layout(cmd, ctx.vk.current_pass.color_image->image, ctx.vk.current_pass.color_image->format, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1);
-        }
-        
+
+        for (uint32_t i = 0; i < ctx.vk.current_pass.color_image_count; i++)
+            mgfx_vk_transition_image_layout(cmd, ctx.vk.current_pass.color_images[i]->image, ctx.vk.current_pass.color_images[i]->format, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1);
+
         if (ctx.vk.current_pass.depth_image)
-        {
             mgfx_vk_transition_image_layout(cmd, ctx.vk.current_pass.depth_image->image, ctx.vk.current_pass.depth_image->format, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1);
-        }
     }
     else
-    {
         ctx.vk.inside_pass = true;
-    }
-    
-    VkRenderingAttachmentInfo color_attachment = {
-        .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-        .clearValue.color.float32[0] = pass->clear.r,
-        .clearValue.color.float32[1] = pass->clear.g,
-        .clearValue.color.float32[2] = pass->clear.b,
-        .clearValue.color.float32[3] = pass->clear.a,
-        .loadOp  = VK_ATTACHMENT_LOAD_OP_CLEAR,
-        .storeOp = VK_ATTACHMENT_STORE_OP_STORE
-    };
 
+    VkRenderingAttachmentInfo color_attachments[MGFX_MAX_COLOR_ATTACHMENTS];
     uint32_t actual_width  = ctx.vk.width;
     uint32_t actual_height = ctx.vk.height;
-    
-    if (pass->color_image)
-    {
-        mgfx_vk_image *color_image = (mgfx_vk_image*)pass->color_image;
-        
-        mgfx_vk_transition_image_layout(cmd, color_image->image, color_image->format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1);
-        
-        color_attachment.imageView   = color_image->view;
-        color_attachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        
-        actual_width  = color_image->width;
-        actual_height = color_image->height;
-        
-        ctx.vk.current_pass.color_image = color_image;
-    }
-    else
+    uint32_t color_count = 0;
+
+    if (!mgfx_valid_pass(pass))
     {
         mgfx_vk_transition_image_layout(cmd, ctx.vk.swapchain.images[ctx.vk.swapchain.image_index], VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1);
-        
-        color_attachment.imageView = ctx.vk.swapchain.image_views[ctx.vk.swapchain.image_index];
-        color_attachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        
-        ctx.vk.current_pass.color_image = NULL;
+
+        color_attachments[0] = (VkRenderingAttachmentInfo){
+            .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+            .imageView   = ctx.vk.swapchain.image_views[ctx.vk.swapchain.image_index],
+            .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+            .loadOp  = VK_ATTACHMENT_LOAD_OP_CLEAR,
+            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+            .clearValue.color.float32 = { pass->clear.r, pass->clear.g, pass->clear.b, pass->clear.a }
+        };
+
+        ctx.vk.current_pass.color_image_count = 0;
+        ctx.vk.current_pass.depth_image = NULL;
+
+        VkRenderingInfo rendering_info = {
+            .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+            .renderArea = { .offset = {0, 0}, .extent = {actual_width, actual_height} },
+            .layerCount = 1,
+            .colorAttachmentCount = 1,
+            .pColorAttachments = color_attachments,
+            .pDepthAttachment = NULL,
+        };
+
+        vkCmdBeginRendering(cmd, &rendering_info);
+        mgfx_vk_command_buffer_set_viewport(cmd, 0, 0, actual_width, actual_height);
+        mgfx_vk_command_buffer_set_scissor(cmd, 0, 0, actual_width, actual_height);
+        return;
     }
-    
+
+    for (; color_count < MGFX_MAX_COLOR_ATTACHMENTS && pass->color_images[color_count]; color_count++)
+    {
+        mgfx_vk_image *color_image = (mgfx_vk_image*)pass->color_images[color_count];
+
+        mgfx_vk_transition_image_layout(cmd, color_image->image, color_image->format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1);
+
+        color_attachments[color_count] = (VkRenderingAttachmentInfo){
+            .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+            .imageView   = color_image->view,
+            .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+            .loadOp  = VK_ATTACHMENT_LOAD_OP_CLEAR,
+            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+            .clearValue.color.float32 = { pass->clear.r, pass->clear.g, pass->clear.b, pass->clear.a }
+        };
+
+        if (color_count == 0)
+        {
+            actual_width  = color_image->width;
+            actual_height = color_image->height;
+        }
+        else
+            MGFX_ASSERT(color_image->width == actual_width && color_image->height == actual_height, "Mismatched color attachment sizes");
+
+        ctx.vk.current_pass.color_images[color_count] = color_image;
+    }
+    ctx.vk.current_pass.color_image_count = color_count;
+
     VkRenderingAttachmentInfo depth_attachment = {
         .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO
     };
     VkRenderingAttachmentInfo *depth_attachment_ptr = NULL;
-    
-    if (pass->depth_stencil_image)
+
+    mgfx_vk_image *depth_image = (mgfx_vk_image*)pass->depth_stencil_image;
+    if (depth_image)
     {
-        mgfx_vk_image *depth_image = (mgfx_vk_image*)pass->depth_stencil_image;
-        
         mgfx_vk_transition_image_layout(cmd, depth_image->image, depth_image->format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, 1);
-        
+
         depth_attachment.imageView = depth_image->view;
         depth_attachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
         depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
         depth_attachment.clearValue.depthStencil = (VkClearDepthStencilValue){1.0f, 0};
-        
+
         depth_attachment_ptr = &depth_attachment;
         ctx.vk.current_pass.depth_image = depth_image;
+
+        if (color_count == 0)
+        {
+            actual_width  = depth_image->width;
+            actual_height = depth_image->height;
+        }
+        else
+            MGFX_ASSERT(depth_image->width == actual_width && depth_image->height == actual_height, "Depth attachment size mismatch");
     }
     else ctx.vk.current_pass.depth_image = NULL;
 
     VkRenderingInfo rendering_info = {
         .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
-        .renderArea = {
-            .offset = {0, 0},
-            .extent = {actual_width, actual_height}
-        },
+        .renderArea = { .offset = {0, 0}, .extent = {actual_width, actual_height} },
         .layerCount = 1,
-        .colorAttachmentCount = 1,
-        .pColorAttachments = &color_attachment,
+        .colorAttachmentCount = color_count,
+        .pColorAttachments = color_attachments,
         .pDepthAttachment = depth_attachment_ptr,
     };
-    
+
     vkCmdBeginRendering(cmd, &rendering_info);
-    
+
     mgfx_vk_command_buffer_set_viewport(cmd, 0, 0, actual_width, actual_height);
     mgfx_vk_command_buffer_set_scissor(cmd, 0, 0, actual_width, actual_height);
 }
@@ -3168,7 +3225,7 @@ static mgfx_result mgfx_vk_begin(void)
     
     mgfx_vk_begin_command_buffer(ctx.vk.command_buffer);
     
-    ctx.vk.current_pass.color_image = NULL;
+    ctx.vk.current_pass.color_image_count = 0;
     ctx.vk.current_pass.depth_image = NULL;
     ctx.vk.scratch_buffer.offset = 0;
     ctx.vk.inside_pass = false;
@@ -3388,7 +3445,8 @@ _MGFX_XMACRO(glCullFace,                void,   (GLenum mode)) \
 _MGFX_XMACRO(glBindBufferBase,          void,   (GLenum target, GLuint index, GLuint buffer)) \
 _MGFX_XMACRO(glDispatchCompute,         void,   (GLuint num_groups_x, GLuint num_groups_y, GLuint num_groups_z)) \
 _MGFX_XMACRO(glDrawElementsBaseVertex,          void, (GLenum mode, GLsizei count, GLenum type, const void* indices, GLint basevertex)) \
-_MGFX_XMACRO(glDrawElementsInstancedBaseVertex, void, (GLenum mode, GLsizei count, GLenum type, const void* indices, GLsizei instancecount, GLint basevertex))
+_MGFX_XMACRO(glDrawElementsInstancedBaseVertex, void, (GLenum mode, GLsizei count, GLenum type, const void* indices, GLsizei instancecount, GLint basevertex)) \
+_MGFX_XMACRO(glDrawBuffers,             void,   (GLsizei n, const GLenum* bufs))
 
 #define _MGFX_XMACRO(name, ret, args) typedef ret (GL_APIENTRY* PFN_ ## name) args;
 _MGFX_GL_FUNCS
@@ -4069,23 +4127,57 @@ static void mgfx_gl_bind_pass(const mgfx_pass_info *pass)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         return;
     }
-    
-    mgfx_gl_image *color = (mgfx_gl_image*)pass->color_image;
-    mgfx_gl_image *depth = (mgfx_gl_image*)pass->depth_stencil_image;
-    
+
     glBindFramebuffer(GL_FRAMEBUFFER, ctx.gl.scratch_framebuffer);
-    
-    if (color) glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, color->texture_target, color->texture_id, 0);
-    if (depth) glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, depth->texture_target, depth->texture_id, 0);
-    
-    uint32_t width = color ? color->width  : depth->width;
-    uint32_t height = color ? color->height : depth->height;
-    
+    GLenum draw_buffers[MGFX_MAX_COLOR_ATTACHMENTS];
+    uint32_t width = 0, height = 0;
+    uint32_t color_count = 0;
+    for (; color_count < MGFX_MAX_COLOR_ATTACHMENTS && pass->color_images[color_count]; color_count++)
+    {
+        mgfx_gl_image *img = (mgfx_gl_image*)pass->color_images[color_count];
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + color_count, img->texture_target, img->texture_id, 0);
+        draw_buffers[color_count] = GL_COLOR_ATTACHMENT0 + color_count;
+
+        if (color_count == 0)
+        {
+            width = img->width;
+            height = img->height;
+        }
+        else
+        {
+            MGFX_ASSERT(img->width == width && img->height == height, "Mismatched color attachment sizes");
+        }
+    }
+    for (uint32_t i = color_count; i < MGFX_MAX_COLOR_ATTACHMENTS; i++)
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, 0, 0);
+    if (color_count > 0)
+        glDrawBuffers(color_count, draw_buffers);
+    else
+        glDrawBuffers(0, NULL);
+
+    mgfx_gl_image *depth = (mgfx_gl_image*)pass->depth_stencil_image;
+    if (depth)
+    {
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, depth->texture_target, depth->texture_id, 0);
+        if (color_count == 0)
+        {
+            width = depth->width;
+            height = depth->height;
+        }
+        else
+        {
+            MGFX_ASSERT(depth->width == width && depth->height == height, "Depth attachment size mismatch");
+        }
+    }
+    else
+    {
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, 0, 0);
+    }
+
     glViewport(0, 0, width, height);
     glScissor(0, 0, width, height);
     glClearColor(pass->clear.r, pass->clear.g, pass->clear.b, pass->clear.a);
-    
-    GLbitfield clear_mask = GL_COLOR_BUFFER_BIT;
+    GLbitfield clear_mask = color_count > 0 ? GL_COLOR_BUFFER_BIT : 0;
     if (depth) clear_mask |= GL_DEPTH_BUFFER_BIT;
     glClear(clear_mask);
 }
@@ -4555,7 +4647,7 @@ static void mgfx_d3d11_init(const mgfx_init_info *init_info)
     ID3D11Texture2D *backbuffer;
     MGFX_D3D11_CALL(ctx.d3d11.swapchain, GetBuffer, 0, MGFX_IID(IID_ID3D11Texture2D), (void**)&backbuffer);
     MGFX_D3D11_CALL(ctx.d3d11.device, CreateRenderTargetView, (ID3D11Resource*)backbuffer, NULL, &ctx.d3d11.target_view);
-    MGFX_D3D11_CALL(backbuffer, Release);
+    MGFX_D3D11_CALL0(backbuffer, Release);
     
     ctx.d3d11.width = init_info->width;
     ctx.d3d11.height = init_info->height;
@@ -4564,17 +4656,17 @@ static void mgfx_d3d11_init(const mgfx_init_info *init_info)
 
 static void mgfx_d3d11_shutdown(void)
 {
-    MGFX_D3D11_CALL(ctx.d3d11.immediate_context, ClearState);
-    MGFX_D3D11_CALL(ctx.d3d11.target_view, Release);
-    MGFX_D3D11_CALL(ctx.d3d11.swapchain, Release);
-    MGFX_D3D11_CALL(ctx.d3d11.immediate_context, Release);
-    MGFX_D3D11_CALL(ctx.d3d11.device, Release);
+    MGFX_D3D11_CALL0(ctx.d3d11.immediate_context, ClearState);
+    MGFX_D3D11_CALL0(ctx.d3d11.target_view, Release);
+    MGFX_D3D11_CALL0(ctx.d3d11.swapchain, Release);
+    MGFX_D3D11_CALL0(ctx.d3d11.immediate_context, Release);
+    MGFX_D3D11_CALL0(ctx.d3d11.device, Release);
 }
 
 static void mgfx_d3d11_resize_backbuffer(void)
 {
-    MGFX_D3D11_CALL(ctx.d3d11.immediate_context, ClearState);
-    MGFX_D3D11_CALL(ctx.d3d11.immediate_context, Flush);
+    MGFX_D3D11_CALL0(ctx.d3d11.immediate_context, ClearState);
+    MGFX_D3D11_CALL0(ctx.d3d11.immediate_context, Flush);
     
     MGFX_D3D11_SAFE_RELEASE(ctx.d3d11.target_view);
     
@@ -4592,7 +4684,7 @@ static void mgfx_d3d11_resize_backbuffer(void)
     
     hr = MGFX_D3D11_CALL(ctx.d3d11.device, CreateRenderTargetView, (ID3D11Resource*)backbuffer, NULL, &ctx.d3d11.target_view);
     
-    MGFX_D3D11_CALL(backbuffer, Release);
+    MGFX_D3D11_CALL0(backbuffer, Release);
 }
 
 static mgfx_result mgfx_d3d11_begin(void)
@@ -4924,20 +5016,49 @@ static void mgfx_d3d11_bind_pass(const mgfx_pass_info *pass)
         mgfx_d3d11_begin_clear_render_target(ctx.d3d11.target_view, pass->clear, ctx.d3d11.width, ctx.d3d11.height);
         return;
     }
-    
-    mgfx_d3d11_image *color = (mgfx_d3d11_image*)pass->color_image;
-    mgfx_d3d11_image *depth = (mgfx_d3d11_image*)pass->depth_stencil_image;
-    
-    MGFX_D3D11_CALL(ctx.d3d11.immediate_context, OMSetRenderTargets, color ? 1 : 0, color ? &color->rtv : NULL, depth ? depth->dsv : NULL);
-    
-    if (color)
-        mgfx_d3d11_begin_clear_render_target(color->rtv, pass->clear, color->width, color->height);
-    else
+
+    ID3D11RenderTargetView *rtvs[MGFX_MAX_COLOR_ATTACHMENTS];
+    uint32_t color_count = 0;
+    uint32_t width = 0, height = 0;
+
+    for (; color_count < MGFX_MAX_COLOR_ATTACHMENTS && pass->color_images[color_count]; color_count++)
     {
-        mgfx_d3d11_viewport(0, 0, depth->width, depth->height);
-        mgfx_d3d11_scissor(0, 0, depth->width, depth->height);
+        mgfx_d3d11_image *img = (mgfx_d3d11_image*)pass->color_images[color_count];
+        rtvs[color_count] = img->rtv;
+
+        if (color_count == 0)
+        {
+            width = img->width;
+            height = img->height;
+        }
+        else MGFX_ASSERT(img->width == width && img->height == height, "Mismatched color attachment sizes");
     }
-    
+
+    mgfx_d3d11_image *depth = (mgfx_d3d11_image*)pass->depth_stencil_image;
+    if (depth)
+    {
+        if (color_count == 0)
+        {
+            width = depth->width;
+            height = depth->height;
+        }
+        else MGFX_ASSERT(depth->width == width && depth->height == height, "Depth attachment size mismatch");
+    }
+
+    MGFX_D3D11_CALL(ctx.d3d11.immediate_context, OMSetRenderTargets, color_count, rtvs, depth ? depth->dsv : NULL);
+    mgfx_d3d11_viewport(0, 0, width, height);
+    mgfx_d3d11_scissor(0, 0, width, height);
+
+    const float clear_color[4] = {
+        pass->clear.r,
+        pass->clear.g,
+        pass->clear.b,
+        pass->clear.a
+    };
+
+    for (uint32_t i = 0; i < color_count; i++)
+        MGFX_D3D11_CALL(ctx.d3d11.immediate_context, ClearRenderTargetView, rtvs[i], clear_color);
+
     if (depth)
         MGFX_D3D11_CALL(ctx.d3d11.immediate_context, ClearDepthStencilView, depth->dsv, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 }
@@ -4957,9 +5078,9 @@ static mgfx_d3d11_pipeline *mgfx_d3d11_create_pipeline(const mgfx_pipeline_creat
                     "main", "cs_5_0", 0, 0, &cs_blob, &error_blob
                     );
         
-        MGFX_D3D11_CALL(ctx.d3d11.device, CreateComputeShader, MGFX_D3D11_CALL(cs_blob, GetBufferPointer), MGFX_D3D11_CALL(cs_blob, GetBufferSize), NULL, &pipeline->compute_shader);
+        MGFX_D3D11_CALL(ctx.d3d11.device, CreateComputeShader, MGFX_D3D11_CALL0(cs_blob, GetBufferPointer), MGFX_D3D11_CALL0(cs_blob, GetBufferSize), NULL, &pipeline->compute_shader);
         
-        MGFX_D3D11_CALL(cs_blob, Release);
+        MGFX_D3D11_CALL0(cs_blob, Release);
         pipeline->type = MGFX_D3D11_PIPELINE_TYPE_COMPUTE;
         return pipeline;
     }
@@ -4980,12 +5101,12 @@ static mgfx_d3d11_pipeline *mgfx_d3d11_create_pipeline(const mgfx_pipeline_creat
     
     if (error_blob)
     {
-        fprintf(stderr, "%s\n", (char*)MGFX_D3D11_CALL(error_blob, GetBufferPointer));
-        MGFX_D3D11_CALL(error_blob, Release);
+        fprintf(stderr, "%s\n", (char*)MGFX_D3D11_CALL0(error_blob, GetBufferPointer));
+        MGFX_D3D11_CALL0(error_blob, Release);
     }
     
-    void *vs_buffer_ptr = MGFX_D3D11_CALL(vs_blob, GetBufferPointer);
-    size_t vs_buffer_size = MGFX_D3D11_CALL(vs_blob, GetBufferSize);
+    void *vs_buffer_ptr = MGFX_D3D11_CALL0(vs_blob, GetBufferPointer);
+    size_t vs_buffer_size = MGFX_D3D11_CALL0(vs_blob, GetBufferSize);
     MGFX_D3D11_CALL(ctx.d3d11.device, CreateVertexShader,
                     vs_buffer_ptr,
                     vs_buffer_size,
@@ -4994,8 +5115,8 @@ static mgfx_d3d11_pipeline *mgfx_d3d11_create_pipeline(const mgfx_pipeline_creat
                     );
     
     MGFX_D3D11_CALL(ctx.d3d11.device, CreatePixelShader,
-                    MGFX_D3D11_CALL(ps_blob, GetBufferPointer),
-                    MGFX_D3D11_CALL(ps_blob, GetBufferSize),
+                    MGFX_D3D11_CALL0(ps_blob, GetBufferPointer),
+                    MGFX_D3D11_CALL0(ps_blob, GetBufferSize),
                     NULL,
                     &pipeline->pixel_shader
                     );
@@ -5081,8 +5202,8 @@ static mgfx_d3d11_pipeline *mgfx_d3d11_create_pipeline(const mgfx_pipeline_creat
         MGFX_D3D11_CALL(ctx.d3d11.device, CreateBuffer, &buffer_desc, NULL, &pipeline->constant_buffers[binding]);
     }
     
-    MGFX_D3D11_CALL(vs_blob, Release);
-    MGFX_D3D11_CALL(ps_blob, Release);
+    MGFX_D3D11_CALL0(vs_blob, Release);
+    MGFX_D3D11_CALL0(ps_blob, Release);
     
     pipeline->type = MGFX_D3D11_PIPELINE_TYPE_GRAPHICS;
     
@@ -5093,20 +5214,20 @@ static void mgfx_d3d11_destroy_pipeline(mgfx_d3d11_pipeline *pipeline)
 {
     if (pipeline->type == MGFX_D3D11_PIPELINE_TYPE_COMPUTE)
     {
-        MGFX_D3D11_CALL(pipeline->compute_shader, Release);
+        MGFX_D3D11_CALL0(pipeline->compute_shader, Release);
         free(pipeline);
         return;
     }
     
-    MGFX_D3D11_CALL(pipeline->vertex_shader, Release);
-    MGFX_D3D11_CALL(pipeline->pixel_shader, Release);
-    MGFX_D3D11_CALL(pipeline->raster_state, Release);
-    MGFX_D3D11_CALL(pipeline->depth_stencil_state, Release);
-    MGFX_D3D11_CALL(pipeline->blend_state, Release);
+    MGFX_D3D11_CALL0(pipeline->vertex_shader, Release);
+    MGFX_D3D11_CALL0(pipeline->pixel_shader, Release);
+    MGFX_D3D11_CALL0(pipeline->raster_state, Release);
+    MGFX_D3D11_CALL0(pipeline->depth_stencil_state, Release);
+    MGFX_D3D11_CALL0(pipeline->blend_state, Release);
     if (pipeline->vertex_layout)
-        MGFX_D3D11_CALL(pipeline->vertex_layout, Release);
+        MGFX_D3D11_CALL0(pipeline->vertex_layout, Release);
     for (uint32_t i = 0; i < MGFX_MAX_BINDABLE_UNIFORMS && pipeline->constant_buffers[i]; i++)
-        MGFX_D3D11_CALL(pipeline->constant_buffers[i], Release);
+        MGFX_D3D11_CALL0(pipeline->constant_buffers[i], Release);
     free(pipeline);
 }
 
