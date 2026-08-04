@@ -377,7 +377,7 @@ public:
     )
     {
         out << std::format("static inline const mgfx_shader get_{}_shader(mgfx_shader_lang lang) {{\n", name);
-        out << "    mgfx_shader shader = {0};\n";
+        out << "    mgfx_shader shader = {{{0}}};\n";
         out << "    switch (lang) {\n";
 
         if (type == ShaderType::Compute)
