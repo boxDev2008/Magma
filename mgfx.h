@@ -157,9 +157,8 @@ extern "C" {
         MGFX_FORMAT_R32_SINT,
         MGFX_FORMAT_RGB32_SFLOAT,
         
-        MGFX_FORMAT_D16_UNORM_S8_UINT,
-        MGFX_FORMAT_D24_UNORM_S8_UINT,
-        MGFX_FORMAT_D32_SFLOAT_S8_UINT
+        MGFX_FORMAT_DEPTH,
+        MGFX_FORMAT_DEPTH_STENCIL
     };
     
     typedef uint32_t mgfx_image_type;
@@ -641,6 +640,13 @@ typedef struct
         VkQueue graphics_compute_queue;
     }
     device;
+
+    struct
+    {
+        VkFormat depth;
+        VkFormat depth_stencil;
+    }
+    depth_formats;
     
     struct
     {
@@ -773,6 +779,7 @@ typedef int  GLint;
 #define __gl_glcorearb_h_ 1
 
 #define GL_DEPTH_STENCIL_ATTACHMENT       0x821A
+#define GL_DEPTH_ATTACHMENT               0x8D00
 #define GL_COLOR_ATTACHMENT0              0x8CE0
 #define GL_VERTEX_SHADER                  0x8B31
 #define GL_DYNAMIC_DRAW                   0x88E8
@@ -877,7 +884,7 @@ typedef int  GLint;
 #define GL_DEPTH_STENCIL                  0x84F9
 #define GL_UNSIGNED_INT_24_8              0x84FA
 #define GL_DEPTH24_STENCIL8               0x88F0
-#define GL_DEPTH32F_STENCIL8              0x8CAD
+#define GL_DEPTH_COMPONENT24              0x81A6
 #define GL_UNIFORM_BUFFER                 0x8A11
 #define GL_CLAMP_TO_BORDER                0x812D
 #define GL_MIN                            0x8007
@@ -1239,10 +1246,6 @@ static inline uint8_t mgfx_format_bpp(mgfx_format format)
         case MGFX_FORMAT_RGB32_SFLOAT:       return 12;
         case MGFX_FORMAT_RGBA32_SFLOAT:      return 16;
         
-        case MGFX_FORMAT_D16_UNORM_S8_UINT:  return 3;
-        case MGFX_FORMAT_D24_UNORM_S8_UINT:  return 4;
-        case MGFX_FORMAT_D32_SFLOAT_S8_UINT: return 5;
-        
         default: return 4;
     }
 }
@@ -1364,9 +1367,8 @@ static inline VkFormat mgfx_vk_get_format(mgfx_format format)
         case MGFX_FORMAT_R32_UINT:            return VK_FORMAT_R32_UINT;
         case MGFX_FORMAT_R32_SINT:            return VK_FORMAT_R32_SINT;
         
-        case MGFX_FORMAT_D16_UNORM_S8_UINT:   return VK_FORMAT_D16_UNORM_S8_UINT;
-        case MGFX_FORMAT_D24_UNORM_S8_UINT:   return VK_FORMAT_D24_UNORM_S8_UINT;
-        case MGFX_FORMAT_D32_SFLOAT_S8_UINT:  return VK_FORMAT_D32_SFLOAT_S8_UINT;
+        case MGFX_FORMAT_DEPTH:         return ctx.vk.depth_formats.depth;
+        case MGFX_FORMAT_DEPTH_STENCIL: return ctx.vk.depth_formats.depth_stencil;
         
         default: return VK_FORMAT_UNDEFINED;
     }
@@ -1643,17 +1645,17 @@ static VkDescriptorSet mgfx_vk_commit_image_descriptor_cache(mgfx_vk_descriptor_
     for (uint32_t i = 0; i < key.binding_count; i++)
     {
         image_infos[i] = (VkDescriptorImageInfo){
-            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            .imageView   = key.bindings[i].image_view,
             .sampler     = key.bindings[i].sampler,
+            .imageView   = key.bindings[i].image_view,
+            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
         };
         writes[i] = (VkWriteDescriptorSet){
             .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
             .dstSet          = cache->sets[new_index],
             .dstBinding      = key.bindings[i].binding,
-            .descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
             .descriptorCount = 1,
-            .pImageInfo      = &image_infos[i],
+            .descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            .pImageInfo      = &image_infos[i]
         };
     }
     vkUpdateDescriptorSets(ctx.vk.device.handle, key.binding_count, writes, 0, NULL);
@@ -1793,9 +1795,6 @@ static VkFormat mgfx_vk_find_supported_format(const VkFormat *candidates, uint32
 
 static void mgfx_vk_create_or_recreate_swapchain(void)
 {
-    if (ctx.vk.swapchain.depth_format == VK_FORMAT_UNDEFINED)
-        ctx.vk.swapchain.depth_format = mgfx_vk_find_supported_format((VkFormat[]){VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT}, 3, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
-    
     VkSurfaceCapabilitiesKHR capabilities;
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(ctx.vk.physical_device.handle, ctx.vk.surface, &capabilities);
     
@@ -1847,9 +1846,11 @@ static void mgfx_vk_create_or_recreate_swapchain(void)
             .image = ctx.vk.swapchain.images[i],
             .viewType = VK_IMAGE_VIEW_TYPE_2D,
             .format = create_info.imageFormat,
-            .subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-            .subresourceRange.levelCount = 1,
-            .subresourceRange.layerCount = 1
+            .subresourceRange = {
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .levelCount = 1,
+                .layerCount = 1
+            }
         };
         
         result = vkCreateImageView(ctx.vk.device.handle, &view_info, NULL, &ctx.vk.swapchain.image_views[i]);
@@ -1857,18 +1858,20 @@ static void mgfx_vk_create_or_recreate_swapchain(void)
     }
     
     mgfx_vk_allocate_image(extent.width, extent.height, 1,
-                            VK_IMAGE_TYPE_2D, ctx.vk.swapchain.depth_format, VK_IMAGE_TILING_OPTIMAL,
+                            VK_IMAGE_TYPE_2D, ctx.vk.depth_formats.depth_stencil, VK_IMAGE_TILING_OPTIMAL,
                             VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                             &ctx.vk.swapchain.depth_image, &ctx.vk.swapchain.depth_image_memory);
-    
+
     VkImageViewCreateInfo depth_view_info = {
         .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
         .image = ctx.vk.swapchain.depth_image,
         .viewType = VK_IMAGE_VIEW_TYPE_2D,
-        .format = ctx.vk.swapchain.depth_format,
-        .subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
-        .subresourceRange.levelCount = 1,
-        .subresourceRange.layerCount = 1
+        .format = ctx.vk.depth_formats.depth_stencil,
+        .subresourceRange = {
+            .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
+            .levelCount = 1,
+            .layerCount = 1
+        }
     };
     
     result = vkCreateImageView(ctx.vk.device.handle, &depth_view_info, NULL, &ctx.vk.swapchain.depth_image_view);
@@ -1938,7 +1941,7 @@ static VkCommandBuffer mgfx_vk_create_command_buffer(void)
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
         .commandPool = ctx.vk.command_pool,
         .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-        .commandBufferCount = 1,
+        .commandBufferCount = 1
     };
     
     VkCommandBuffer command_buffer;
@@ -1953,8 +1956,8 @@ static VkCommandBuffer mgfx_vk_begin_single_time_commands(void)
 {
     VkCommandBufferAllocateInfo alloc_info = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
         .commandPool = ctx.vk.command_pool,
+        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
         .commandBufferCount = 1
     };
     
@@ -2011,10 +2014,10 @@ static void mgfx_vk_free_command_buffer(VkCommandBuffer buffer)
 static void mgfx_vk_command_buffer_set_viewport(VkCommandBuffer buffer, int32_t x, int32_t y, uint32_t width, uint32_t height)
 {
     VkViewport viewport = {
-        .width = (float)width,
-        .height = (float)height,
         .x = (float)x,
         .y = (float)y,
+        .width = (float)width,
+        .height = (float)height,
         .minDepth = 0.0f,
         .maxDepth = 1.0f
     };
@@ -2025,10 +2028,8 @@ static void mgfx_vk_command_buffer_set_viewport(VkCommandBuffer buffer, int32_t 
 static void mgfx_vk_command_buffer_set_scissor(VkCommandBuffer buffer, int32_t x, int32_t y, uint32_t width, uint32_t height)
 {
     VkRect2D scissor = {
-        .offset.x = x,
-        .offset.y = y,
-        .extent.width = width,
-        .extent.height = height
+        .offset = { .x = x, .y = y },
+        .extent = { .width = width, .height = height }
     };
     
     vkCmdSetScissor(buffer, 0, 1, &scissor);
@@ -2151,11 +2152,13 @@ static void mgfx_vk_transition_image_layout_temp(VkImage image, VkFormat format,
         .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
         .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
         .image = image,
-        .subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-        .subresourceRange.baseMipLevel = 0,
-        .subresourceRange.levelCount = 1,
-        .subresourceRange.baseArrayLayer = 0,
-        .subresourceRange.layerCount = 1
+        .subresourceRange = {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .baseMipLevel = 0,
+            .levelCount = 1,
+            .baseArrayLayer = 0,
+            .layerCount = 1
+        }
     };
     
     VkPipelineStageFlags source_stage;
@@ -2196,12 +2199,12 @@ static void mgfx_vk_copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_
         .bufferOffset = 0,
         .bufferRowLength = 0,
         .bufferImageHeight = 0,
-        
-        .imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-        .imageSubresource.mipLevel = 0,
-        .imageSubresource.baseArrayLayer = 0,
-        .imageSubresource.layerCount = 1,
-        
+        .imageSubresource = {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .mipLevel = 0,
+            .baseArrayLayer = 0,
+            .layerCount = 1
+        },
         .imageOffset = (VkOffset3D){0, 0, 0},
         .imageExtent = (VkExtent3D){
             width,
@@ -2278,14 +2281,15 @@ static mgfx_vk_image *mgfx_vk_create_image(const mgfx_image_create_info *create_
         .image = image->image,
         .viewType = mgfx_vk_get_image_view_type(create_info->type),
         .format = mgfx_vk_get_format(create_info->format),
-        .subresourceRange.aspectMask =
-            create_info->usage == MGFX_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT ?
-            VK_IMAGE_ASPECT_DEPTH_BIT :
-        VK_IMAGE_ASPECT_COLOR_BIT,
-        .subresourceRange.baseMipLevel = 0,
-        .subresourceRange.levelCount = 1,
-        .subresourceRange.baseArrayLayer = 0,
-        .subresourceRange.layerCount = 1
+        .subresourceRange = {
+            .aspectMask =
+                create_info->usage == MGFX_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT ?
+                VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT,
+            .baseMipLevel = 0,
+            .levelCount = 1,
+            .baseArrayLayer = 0,
+            .layerCount = 1
+        }
     };
     
     VkResult result = vkCreateImageView(ctx.vk.device.handle, &view_info, NULL, &image->view);
@@ -2459,16 +2463,16 @@ static void mgfx_vk_fill_graphics_pipeline(mgfx_vk_pipeline *pipeline, const mgf
         .depthClampEnable = VK_FALSE,
         .rasterizerDiscardEnable = VK_FALSE,
         .polygonMode = VK_POLYGON_MODE_FILL,
-        .lineWidth = 1.0f,
         .cullMode = mgfx_vk_get_cull_mode(create_info->cull_mode),
         .frontFace = mgfx_vk_get_front_face(create_info->front_face),
-        .depthBiasEnable = VK_FALSE
+        .depthBiasEnable = VK_FALSE,
+        .lineWidth = 1.0f
     };
     
     VkPipelineMultisampleStateCreateInfo multisampling = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
-        .sampleShadingEnable = VK_FALSE,
-        .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT
+        .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
+        .sampleShadingEnable = VK_FALSE
     };
     
     VkPipelineDepthStencilStateCreateInfo depth_stencil = {
@@ -2510,8 +2514,8 @@ static void mgfx_vk_fill_graphics_pipeline(mgfx_vk_pipeline *pipeline, const mgf
     {
         color_formats[0] = VK_FORMAT_B8G8R8A8_UNORM;
         color_blend_attachments[0] = (VkPipelineColorBlendAttachmentState){
-            .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,
-            .blendEnable = create_info->color_blend.blend_enabled
+            .blendEnable = create_info->color_blend.blend_enabled,
+            .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT
         };
         if (create_info->color_blend.blend_enabled)
         {
@@ -2540,8 +2544,8 @@ static void mgfx_vk_fill_graphics_pipeline(mgfx_vk_pipeline *pipeline, const mgf
 
     VkPipelineLayoutCreateInfo pipeline_layout_info = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-        .pSetLayouts = set_layouts,
-        .setLayoutCount = 2
+        .setLayoutCount = 2,
+        .pSetLayouts = set_layouts
     };
     
     VkResult result = vkCreatePipelineLayout(ctx.vk.device.handle, &pipeline_layout_info, NULL, &pipeline->pipeline_layout);
@@ -2760,7 +2764,7 @@ static void mgfx_vk_bind_pass(const mgfx_pass_info *pass)
             .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
             .loadOp  = VK_ATTACHMENT_LOAD_OP_CLEAR,
             .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-            .clearValue.color.float32 = { pass->clear.r, pass->clear.g, pass->clear.b, pass->clear.a }
+            .clearValue = { .color = { .float32 = { pass->clear.r, pass->clear.g, pass->clear.b, pass->clear.a } } }
         };
 
         ctx.vk.current_pass.color_image_count = 0;
@@ -2793,7 +2797,7 @@ static void mgfx_vk_bind_pass(const mgfx_pass_info *pass)
             .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
             .loadOp  = VK_ATTACHMENT_LOAD_OP_CLEAR,
             .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-            .clearValue.color.float32 = { pass->clear.r, pass->clear.g, pass->clear.b, pass->clear.a }
+            .clearValue = { .color = { .float32 = { pass->clear.r, pass->clear.g, pass->clear.b, pass->clear.a } } }
         };
 
         if (color_count == 0)
@@ -2884,11 +2888,11 @@ static void mgfx_vk_create_instance(void)
 {
     VkApplicationInfo app_info = {
         .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
-        .apiVersion = VK_API_VERSION_1_3,
         .pApplicationName = NULL,
         .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
         .pEngineName = "Magma",
         .engineVersion = VK_MAKE_VERSION(1, 0, 0),
+        .apiVersion = VK_API_VERSION_1_3
     };
 
     const char *instance_extensions[] = {
@@ -2992,8 +2996,8 @@ static void mgfx_vk_create_device(void)
     VkDeviceCreateInfo create_info = {
         .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
         .pNext = &dynamic_rendering,
-        .pQueueCreateInfos = &queue_create_info,
         .queueCreateInfoCount = 1,
+        .pQueueCreateInfos = &queue_create_info,
         .pEnabledFeatures = &device_features
     };
 
@@ -3053,9 +3057,9 @@ static void mgfx_vk_create_descriptor_pool(void)
     VkDescriptorPoolCreateInfo pool_info = {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
         .flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
+        .maxSets = MGFX_MAX_BINDABLE_UNIFORMS + MGFX_MAX_DESCRIPTOR_CACHE,
         .poolSizeCount = 2,
-        .pPoolSizes = pool_sizes,
-        .maxSets = MGFX_MAX_BINDABLE_UNIFORMS + MGFX_MAX_DESCRIPTOR_CACHE
+        .pPoolSizes = pool_sizes
     };
 
     VkResult result = vkCreateDescriptorPool(ctx.vk.device.handle, &pool_info, NULL, &ctx.vk.descriptor_pool);
@@ -3135,13 +3139,27 @@ static void mgfx_vk_create_scratch_buffer(void)
             .dstSet = ctx.vk.scratch_buffer.ub_set,
             .dstBinding = i,
             .dstArrayElement = 0,
-            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
             .descriptorCount = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
             .pBufferInfo = &buffer_infos[i]
         };
     }
     
     vkUpdateDescriptorSets(ctx.vk.device.handle, MGFX_MAX_BINDABLE_UNIFORMS, writes, 0, NULL);
+}
+
+static void mgfx_vk_resolve_depth_formats(void)
+{
+    ctx.vk.depth_formats.depth = mgfx_vk_find_supported_format(
+        (VkFormat[]){VK_FORMAT_D32_SFLOAT, VK_FORMAT_D16_UNORM},
+        2, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+
+    ctx.vk.depth_formats.depth_stencil = mgfx_vk_find_supported_format(
+        (VkFormat[]){VK_FORMAT_D24_UNORM_S8_UINT, VK_FORMAT_D32_SFLOAT_S8_UINT},
+        2, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+
+    MGFX_ASSERT(ctx.vk.depth_formats.depth != VK_FORMAT_UNDEFINED, "No supported depth format found.");
+    MGFX_ASSERT(ctx.vk.depth_formats.depth_stencil != VK_FORMAT_UNDEFINED, "No supported depth-stencil format found.");
 }
 
 static void mgfx_vk_init(const mgfx_init_info *init_info)
@@ -3153,6 +3171,7 @@ static void mgfx_vk_init(const mgfx_init_info *init_info)
     
     mgfx_vk_get_physical_device();
     mgfx_vk_create_device();
+    mgfx_vk_resolve_depth_formats();
     
     mgfx_vk_create_command_pool();
     ctx.vk.command_buffer = mgfx_vk_create_command_buffer();
@@ -3734,10 +3753,9 @@ static inline GLenum mgfx_gl_get_internal_format(mgfx_format format)
         
         case MGFX_FORMAT_R32_UINT:          return GL_R32UI;
         case MGFX_FORMAT_R32_SINT:          return GL_R32I;
-        
-        case MGFX_FORMAT_D16_UNORM_S8_UINT: return GL_DEPTH24_STENCIL8;
-        case MGFX_FORMAT_D24_UNORM_S8_UINT: return GL_DEPTH24_STENCIL8;
-        case MGFX_FORMAT_D32_SFLOAT_S8_UINT:return GL_DEPTH32F_STENCIL8;
+
+        case MGFX_FORMAT_DEPTH:             return GL_DEPTH_COMPONENT24;
+        case MGFX_FORMAT_DEPTH_STENCIL:     return GL_DEPTH24_STENCIL8;
     }
     return GL_RGBA8;
 }
@@ -3764,9 +3782,8 @@ static inline GLenum mgfx_gl_get_format(mgfx_format format)
         case MGFX_FORMAT_R32_UINT:          return GL_RED_INTEGER;
         case MGFX_FORMAT_R32_SINT:          return GL_RED_INTEGER;
         
-        case MGFX_FORMAT_D16_UNORM_S8_UINT:
-        case MGFX_FORMAT_D24_UNORM_S8_UINT:
-        case MGFX_FORMAT_D32_SFLOAT_S8_UINT: return GL_DEPTH_STENCIL;
+        case MGFX_FORMAT_DEPTH:             return GL_DEPTH_COMPONENT;
+        case MGFX_FORMAT_DEPTH_STENCIL:     return GL_DEPTH_STENCIL;
     }
     return GL_RGBA;
 }
@@ -3806,30 +3823,32 @@ static inline GLint mgfx_gl_get_address_mode(mgfx_sampler_address_mode address_m
 static mgfx_gl_image *mgfx_gl_create_image(const mgfx_image_create_info *create_info)
 {
     mgfx_gl_image *image = (mgfx_gl_image*)calloc(1, sizeof(mgfx_gl_image));
-    
+
     glGenTextures(1, &image->texture_id);
-    
+
     switch (create_info->type)
     {
         case MGFX_IMAGE_TYPE_2D: image->texture_target = GL_TEXTURE_2D; break;
         case MGFX_IMAGE_TYPE_3D: image->texture_target = GL_TEXTURE_3D; break;
         case MGFX_IMAGE_TYPE_CUBE: image->texture_target = GL_TEXTURE_CUBE_MAP; break;
     }
-    
+
     glBindTexture(image->texture_target, image->texture_id);
-    
+
     GLenum internal_format = mgfx_gl_get_internal_format(create_info->format);
     image->format = mgfx_gl_get_format(create_info->format);
-    
-    const GLuint usage = create_info->usage != MGFX_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT ? GL_UNSIGNED_BYTE : GL_UNSIGNED_INT_24_8;
+
+    const GLenum type =
+        create_info->format == MGFX_FORMAT_DEPTH_STENCIL ? GL_UNSIGNED_INT_24_8 :
+        create_info->format == MGFX_FORMAT_DEPTH ? GL_UNSIGNED_INT : GL_UNSIGNED_BYTE;
 
     if (image->texture_target == GL_TEXTURE_2D)
         glTexImage2D(GL_TEXTURE_2D, 0, internal_format,
-                        create_info->width, create_info->height, 0, image->format, usage, create_info->data);
+            create_info->width, create_info->height, 0, image->format, type, create_info->data);
     else if (image->texture_target == GL_TEXTURE_3D)
         glTexImage3D(GL_TEXTURE_3D, 0, internal_format,
-                        create_info->width, create_info->height, create_info->depth, 0, image->format, GL_UNSIGNED_BYTE, create_info->data);
-    
+            create_info->width, create_info->height, create_info->depth, 0, image->format, type, create_info->data);
+
     image->width = create_info->width;
     image->height = create_info->height;
     image->depth = create_info->depth;
@@ -4158,7 +4177,10 @@ static void mgfx_gl_bind_pass(const mgfx_pass_info *pass)
     mgfx_gl_image *depth = (mgfx_gl_image*)pass->depth_stencil_image;
     if (depth)
     {
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, depth->texture_target, depth->texture_id, 0);
+        GLenum attachment = (depth->format == GL_DEPTH_STENCIL)
+            ? GL_DEPTH_STENCIL_ATTACHMENT
+            : GL_DEPTH_ATTACHMENT;
+        glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, depth->texture_target, depth->texture_id, 0);
         if (color_count == 0)
         {
             width = depth->width;
@@ -4170,9 +4192,7 @@ static void mgfx_gl_bind_pass(const mgfx_pass_info *pass)
         }
     }
     else
-    {
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, 0, 0);
-    }
 
     glViewport(0, 0, width, height);
     glScissor(0, 0, width, height);
@@ -4423,11 +4443,10 @@ static DXGI_FORMAT mgfx_d3d11_get_format(mgfx_format format)
         case MGFX_FORMAT_RGB8_UNORM:
         case MGFX_FORMAT_RGB8_SRGB:
         case MGFX_FORMAT_RGB16_SFLOAT:
-        case MGFX_FORMAT_RGB32_SFLOAT:     return DXGI_FORMAT_UNKNOWN;
+        case MGFX_FORMAT_RGB32_SFLOAT:      return DXGI_FORMAT_UNKNOWN;
         
-        case MGFX_FORMAT_D16_UNORM_S8_UINT: return DXGI_FORMAT_R16_TYPELESS;
-        case MGFX_FORMAT_D24_UNORM_S8_UINT: return DXGI_FORMAT_R24G8_TYPELESS;
-        case MGFX_FORMAT_D32_SFLOAT_S8_UINT:return DXGI_FORMAT_R32G8X24_TYPELESS;
+        case MGFX_FORMAT_DEPTH:             return DXGI_FORMAT_R32_TYPELESS;
+        case MGFX_FORMAT_DEPTH_STENCIL:     return DXGI_FORMAT_R24G8_TYPELESS;
     }
     return DXGI_FORMAT_UNKNOWN;
 }
@@ -4499,9 +4518,8 @@ static DXGI_FORMAT mgfx_d3d11_get_dsv_format(mgfx_format format)
 {
     switch (format)
     {
-        case MGFX_FORMAT_D16_UNORM_S8_UINT: return DXGI_FORMAT_D16_UNORM;
-        case MGFX_FORMAT_D24_UNORM_S8_UINT: return DXGI_FORMAT_D24_UNORM_S8_UINT;
-        case MGFX_FORMAT_D32_SFLOAT_S8_UINT:return DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
+        case MGFX_FORMAT_DEPTH:         return DXGI_FORMAT_D32_FLOAT;
+        case MGFX_FORMAT_DEPTH_STENCIL: return DXGI_FORMAT_D24_UNORM_S8_UINT;
     }
     return DXGI_FORMAT_UNKNOWN;
 }
@@ -4510,9 +4528,8 @@ static DXGI_FORMAT mgfx_d3d11_get_srv_format(mgfx_format format)
 {
     switch (format)
     {
-        case MGFX_FORMAT_D16_UNORM_S8_UINT: return DXGI_FORMAT_R16_UNORM;
-        case MGFX_FORMAT_D24_UNORM_S8_UINT: return DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
-        case MGFX_FORMAT_D32_SFLOAT_S8_UINT:return DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS;
+        case MGFX_FORMAT_DEPTH:         return DXGI_FORMAT_R32_FLOAT;
+        case MGFX_FORMAT_DEPTH_STENCIL: return DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
     }
     return mgfx_d3d11_get_format(format);
 }
@@ -4619,35 +4636,51 @@ static void mgfx_d3d11_init(const mgfx_init_info *init_info)
     ctx.d3d11 = (mgfx_d3d11_context){ 0 };
     
     DXGI_SWAP_CHAIN_DESC sd = {
-        .BufferCount = 1,
-        .BufferDesc.Width = (UINT)init_info->width,
-        .BufferDesc.Height = (UINT)init_info->height,
-        .BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM,
+        .BufferDesc = {
+            .Width = (UINT)init_info->width,
+            .Height = (UINT)init_info->height,
+            .RefreshRate = { .Numerator = 60, .Denominator = 1 },
+            .Format = DXGI_FORMAT_B8G8R8A8_UNORM,
+        },
+        .SampleDesc = {
+            .Count = 1,
+            .Quality = 0,
+        },
         .BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
-        .SampleDesc.Count = 1,
-        .SampleDesc.Quality = 0,
+        .BufferCount = 1,
         .OutputWindow = (HWND)((mgfx_platform_handle*)init_info->handle)->win32.hwnd,
         .Windowed = TRUE
     };
-    
-    D3D11CreateDeviceAndSwapChain(
+
+    UINT flags = 0;
+#ifdef _DEBUG
+    flags |= D3D11_CREATE_DEVICE_DEBUG;
+#endif
+
+    D3D_FEATURE_LEVEL feature_level;
+    HRESULT hr = D3D11CreateDeviceAndSwapChain(
         NULL,
         D3D_DRIVER_TYPE_HARDWARE,
         NULL,
-        0,
+        flags,
         NULL,
         0,
         D3D11_SDK_VERSION,
         &sd,
         &ctx.d3d11.swapchain,
         &ctx.d3d11.device,
-        NULL,
+        &feature_level,
         &ctx.d3d11.immediate_context);
-    
+
+    MGFX_ASSERT(SUCCEEDED(hr) && ctx.d3d11.swapchain && ctx.d3d11.device, "D3D11CreateDeviceAndSwapChain failed.");
+
     ID3D11Texture2D *backbuffer;
-    MGFX_D3D11_CALL(ctx.d3d11.swapchain, GetBuffer, 0, MGFX_IID(IID_ID3D11Texture2D), (void**)&backbuffer);
-    MGFX_D3D11_CALL(ctx.d3d11.device, CreateRenderTargetView, (ID3D11Resource*)backbuffer, NULL, &ctx.d3d11.target_view);
+    hr = MGFX_D3D11_CALL(ctx.d3d11.swapchain, GetBuffer, 0, MGFX_IID(IID_ID3D11Texture2D), (void**)&backbuffer);
+    MGFX_ASSERT(SUCCEEDED(hr) && backbuffer, "Failed to get D3D11 swapchain backbuffer.");
+
+    hr = MGFX_D3D11_CALL(ctx.d3d11.device, CreateRenderTargetView, (ID3D11Resource*)backbuffer, NULL, &ctx.d3d11.target_view);
     MGFX_D3D11_CALL0(backbuffer, Release);
+    MGFX_ASSERT(SUCCEEDED(hr), "Failed to create D3D11 render target view.");
     
     ctx.d3d11.width = init_info->width;
     ctx.d3d11.height = init_info->height;
@@ -4717,12 +4750,12 @@ static void mgfx_d3d11_vsync(bool vsync)
 static void mgfx_d3d11_viewport(int32_t x, int32_t y, uint32_t width, uint32_t height)
 {
     D3D11_VIEWPORT vp = {
+        .TopLeftX = (FLOAT)x,
+        .TopLeftY = (FLOAT)y,
         .Width = (FLOAT)width,
         .Height = (FLOAT)height,
         .MinDepth = 0.0f,
-        .MaxDepth = 1.0f,
-        .TopLeftX = (FLOAT)x,
-        .TopLeftY = (FLOAT)y
+        .MaxDepth = 1.0f
     };
 
     MGFX_D3D11_CALL(ctx.d3d11.immediate_context, RSSetViewports, 1, &vp);
@@ -4869,7 +4902,7 @@ static mgfx_d3d11_image *mgfx_d3d11_create_image(const mgfx_image_create_info *c
             .MipLevels = 1,
             .ArraySize = 1,
             .Format = format,
-            .SampleDesc.Count = 1,
+            .SampleDesc = { .Count = 1 },
             .BindFlags = D3D11_BIND_SHADER_RESOURCE
         };
         
@@ -5134,8 +5167,8 @@ static mgfx_d3d11_pipeline *mgfx_d3d11_create_pipeline(const mgfx_pipeline_creat
                 .SemanticName = "TEXCOORD",
                 .SemanticIndex = attribute_count,
                 .Format = mgfx_d3d11_get_vertex_format(format),
-                .AlignedByteOffset = stride,
                 .InputSlot = 0,
+                .AlignedByteOffset = stride,
                 .InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA,
                 .InstanceDataStepRate = 0
             };
@@ -5173,8 +5206,10 @@ static mgfx_d3d11_pipeline *mgfx_d3d11_create_pipeline(const mgfx_pipeline_creat
     MGFX_D3D11_CALL(ctx.d3d11.device, CreateDepthStencilState, &depth_stencil_state_desc, &pipeline->depth_stencil_state);
     
     D3D11_BLEND_DESC blendDesc = {
-        .RenderTarget[0].BlendEnable = create_info->color_blend.blend_enabled,
-        .RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL
+        .RenderTarget = {{
+            .BlendEnable = create_info->color_blend.blend_enabled,
+            .RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL
+        }}
     };
 
     if (create_info->color_blend.blend_enabled)
@@ -5193,8 +5228,8 @@ static mgfx_d3d11_pipeline *mgfx_d3d11_create_pipeline(const mgfx_pipeline_creat
     for (uint32_t i = 0; i < MGFX_MAX_BINDABLE_UNIFORMS && create_info->shader.uniform_blocks[i].size; i++)
     {
         D3D11_BUFFER_DESC buffer_desc = {
-            .Usage = D3D11_USAGE_DYNAMIC,
             .ByteWidth = mgfx_stride_align(create_info->shader.uniform_blocks[i].size, 16),
+            .Usage = D3D11_USAGE_DYNAMIC,
             .BindFlags = D3D11_BIND_CONSTANT_BUFFER,
             .CPUAccessFlags = D3D11_CPU_ACCESS_WRITE
         };
