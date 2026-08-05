@@ -159,20 +159,20 @@ static inline mg_mat4 mg_mat4_identity(void)
 static inline mg_mat4 mg_mat4_mul(mg_mat4 a, mg_mat4 b)
 {
     mg_mat4 r = { 0 };
-    for (int i = 0; i < 4; i++)
-        for (int j = 0; j < 4; j++)
+    for (int col = 0; col < 4; col++)
+        for (int row = 0; row < 4; row++)
             for (int k = 0; k < 4; k++)
-                r.m[i*4+j] += a.m[i*4+k] * b.m[k*4+j];
+                r.m[col*4+row] += a.m[k*4+row] * b.m[col*4+k];
     return r;
 }
 
 static inline mg_vec4 mg_mat4_mul_vec4(mg_mat4 m, mg_vec4 v)
 {
     return (mg_vec4){
-        m.m[0]*v.x + m.m[1]*v.y + m.m[2]*v.z + m.m[3]*v.w,
-        m.m[4]*v.x + m.m[5]*v.y + m.m[6]*v.z + m.m[7]*v.w,
-        m.m[8]*v.x + m.m[9]*v.y + m.m[10]*v.z + m.m[11]*v.w,
-        m.m[12]*v.x + m.m[13]*v.y + m.m[14]*v.z + m.m[15]*v.w
+        m.m[0]*v.x + m.m[4]*v.y + m.m[8]*v.z  + m.m[12]*v.w,
+        m.m[1]*v.x + m.m[5]*v.y + m.m[9]*v.z  + m.m[13]*v.w,
+        m.m[2]*v.x + m.m[6]*v.y + m.m[10]*v.z + m.m[14]*v.w,
+        m.m[3]*v.x + m.m[7]*v.y + m.m[11]*v.z + m.m[15]*v.w
     };
 }
 
@@ -185,18 +185,18 @@ static inline mg_vec3 mg_mat4_mul_vec3(mg_mat4 m, mg_vec3 v, float w)
 static inline mg_mat4 mg_mat4_transpose(mg_mat4 m)
 {
     mg_mat4 r;
-    for (int i = 0; i < 4; i++)
-        for (int j = 0; j < 4; j++)
-            r.m[i*4+j] = m.m[j*4+i];
+    for (int col = 0; col < 4; col++)
+        for (int row = 0; row < 4; row++)
+            r.m[col*4+row] = m.m[row*4+col];
     return r;
 }
 
 static inline mg_mat4 mg_mat4_translate(mg_vec3 t)
 {
     mg_mat4 m  = mg_mat4_identity();
-    m.m[3]     = t.x;
-    m.m[7]     = t.y;
-    m.m[11]    = t.z;
+    m.m[12]    = t.x;
+    m.m[13]    = t.y;
+    m.m[14]    = t.z;
     return m;
 }
 
@@ -213,8 +213,8 @@ static inline mg_mat4 mg_mat4_rotate_x(float a)
 {
     mg_mat4 m  = mg_mat4_identity();
     m.m[5]     =  cosf(a);
-    m.m[6]     = -sinf(a);
-    m.m[9]     =  sinf(a);
+    m.m[9]     = -sinf(a);
+    m.m[6]     =  sinf(a);
     m.m[10]    =  cosf(a);
     return m;
 }
@@ -223,8 +223,8 @@ static inline mg_mat4 mg_mat4_rotate_y(float a)
 {
     mg_mat4 m  = mg_mat4_identity();
     m.m[0]     =  cosf(a);
-    m.m[2]     =  sinf(a);
-    m.m[8]     = -sinf(a);
+    m.m[8]     =  sinf(a);
+    m.m[2]     = -sinf(a);
     m.m[10]    =  cosf(a);
     return m;
 }
@@ -233,8 +233,8 @@ static inline mg_mat4 mg_mat4_rotate_z(float a)
 {
     mg_mat4 m  = mg_mat4_identity();
     m.m[0]     =  cosf(a);
-    m.m[1]     = -sinf(a);
-    m.m[4]     =  sinf(a);
+    m.m[4]     = -sinf(a);
+    m.m[1]     =  sinf(a);
     m.m[5]     =  cosf(a);
     return m;
 }
@@ -245,9 +245,9 @@ static inline mg_mat4 mg_mat4_from_quat(mg_vec4 q)
     float xx   = q.x*q.x, yy = q.y*q.y, zz = q.z*q.z;
     float xy   = q.x*q.y, xz = q.x*q.z, yz = q.y*q.z;
     float wx   = q.w*q.x, wy = q.w*q.y, wz = q.w*q.z;
-    m.m[0]     = 1-2*(yy+zz); m.m[1]  = 2*(xy-wz);   m.m[2]  = 2*(xz+wy);
-    m.m[4]     = 2*(xy+wz);   m.m[5]  = 1-2*(xx+zz); m.m[6]  = 2*(yz-wx);
-    m.m[8]     = 2*(xz-wy);   m.m[9]  = 2*(yz+wx);   m.m[10] = 1-2*(xx+yy);
+    m.m[0]  = 1-2*(yy+zz); m.m[4]  = 2*(xy-wz);   m.m[8]  = 2*(xz+wy);
+    m.m[1]  = 2*(xy+wz);   m.m[5]  = 1-2*(xx+zz); m.m[9]  = 2*(yz-wx);
+    m.m[2]  = 2*(xz-wy);   m.m[6]  = 2*(yz+wx);   m.m[10] = 1-2*(xx+yy);
     return m;
 }
 
@@ -257,9 +257,9 @@ static inline mg_mat4 mg_mat4_look_at(mg_vec3 eye, mg_vec3 center, mg_vec3 up)
     mg_vec3 r  = mg_vec3_norm(mg_vec3_cross(f, up));
     mg_vec3 u  = mg_vec3_cross(r, f);
     mg_mat4 m  = mg_mat4_identity();
-    m.m[0]     =  r.x; m.m[1]  =  r.y; m.m[2]  =  r.z; m.m[3]  = -mg_vec3_dot(r, eye);
-    m.m[4]     =  u.x; m.m[5]  =  u.y; m.m[6]  =  u.z; m.m[7]  = -mg_vec3_dot(u, eye);
-    m.m[8]     = -f.x; m.m[9]  = -f.y; m.m[10] = -f.z; m.m[11] =  mg_vec3_dot(f, eye);
+    m.m[0] =  r.x; m.m[4] =  r.y; m.m[8]  =  r.z; m.m[12] = -mg_vec3_dot(r, eye);
+    m.m[1] =  u.x; m.m[5] =  u.y; m.m[9]  =  u.z; m.m[13] = -mg_vec3_dot(u, eye);
+    m.m[2] = -f.x; m.m[6] = -f.y; m.m[10] = -f.z; m.m[14] =  mg_vec3_dot(f, eye);
     return m;
 }
 
@@ -267,33 +267,33 @@ static inline mg_mat4 mg_mat4_perspective(float fov_y, float aspect, float z_nea
 {
     float t    = 1.0f / tanf(fov_y * 0.5f);
     mg_mat4 m = { 0 };
-    m.m[0] = t / aspect;
-    m.m[5] = t;
+    m.m[0]  = t / aspect;
+    m.m[5]  = t;
     m.m[10] = -(z_far + z_near) / (z_far - z_near);
-    m.m[11] = -(2.0f * z_far * z_near) / (z_far - z_near);
-    m.m[14] = -1.0f;
+    m.m[14] = -(2.0f * z_far * z_near) / (z_far - z_near);
+    m.m[11] = -1.0f;
     return m;
 }
 
 static inline mg_mat4 mg_mat4_ortho(float left, float right, float bottom, float top, float z_near, float z_far)
 {
     mg_mat4 m = { 0 };
-    m.m[0] =  2.0f / (right - left);
-    m.m[5] =  2.0f / (top - bottom);
+    m.m[0]  =  2.0f / (right - left);
+    m.m[5]  =  2.0f / (top - bottom);
     m.m[10] = -2.0f / (z_far - z_near);
-    m.m[3] = -(right + left) / (right - left);
-    m.m[7] = -(top + bottom) / (top - bottom);
-    m.m[11] = -(z_far + z_near) / (z_far - z_near);
+    m.m[12] = -(right + left) / (right - left);
+    m.m[13] = -(top + bottom) / (top - bottom);
+    m.m[14] = -(z_far + z_near) / (z_far - z_near);
     m.m[15] =  1.0f;
     return m;
 }
 
 static inline mg_mat4 mg_mat4_inverse(mg_mat4 m)
 {
-    float a = m.m[0],  b = m.m[1],  c = m.m[2],  d = m.m[3];
-    float e = m.m[4],  f = m.m[5],  g = m.m[6],  h = m.m[7];
-    float i = m.m[8],  j = m.m[9],  k = m.m[10], l = m.m[11];
-    float p = m.m[12], q = m.m[13], r = m.m[14], s = m.m[15];
+    float a = m.m[0],  e = m.m[4],  i = m.m[8],  p = m.m[12];
+    float b = m.m[1],  f = m.m[5],  j = m.m[9],  q = m.m[13];
+    float c = m.m[2],  g = m.m[6],  k = m.m[10], r = m.m[14];
+    float d = m.m[3],  h = m.m[7],  l = m.m[11], s = m.m[15];
 
     float t[6];
     mg_mat4 o;
@@ -302,33 +302,38 @@ static inline mg_mat4 mg_mat4_inverse(mg_mat4 m)
     t[0] = k*s - r*l; t[1] = j*s - q*l; t[2] = j*r - q*k;
     t[3] = i*s - p*l; t[4] = i*r - p*k; t[5] = i*q - p*j;
 
-    o.m[0]  =  (f*t[0] - g*t[1] + h*t[2]);
-    o.m[4]  = -(e*t[0] - g*t[3] + h*t[4]);
-    o.m[8]  =  (e*t[1] - f*t[3] + h*t[5]);
-    o.m[12] = -(e*t[2] - f*t[4] + g*t[5]);
+    float c00 =  (f*t[0] - g*t[1] + h*t[2]);
+    float c01 = -(e*t[0] - g*t[3] + h*t[4]);
+    float c02 =  (e*t[1] - f*t[3] + h*t[5]);
+    float c03 = -(e*t[2] - f*t[4] + g*t[5]);
 
-    o.m[1]  = -(b*t[0] - c*t[1] + d*t[2]);
-    o.m[5]  =  (a*t[0] - c*t[3] + d*t[4]);
-    o.m[9]  = -(a*t[1] - b*t[3] + d*t[5]);
-    o.m[13] =  (a*t[2] - b*t[4] + c*t[5]);
+    float c10 = -(b*t[0] - c*t[1] + d*t[2]);
+    float c11 =  (a*t[0] - c*t[3] + d*t[4]);
+    float c12 = -(a*t[1] - b*t[3] + d*t[5]);
+    float c13 =  (a*t[2] - b*t[4] + c*t[5]);
 
     t[0] = g*s - r*h; t[1] = f*s - q*h; t[2] = f*r - q*g;
     t[3] = e*s - p*h; t[4] = e*r - p*g; t[5] = e*q - p*f;
 
-    o.m[2]  =  (b*t[0] - c*t[1] + d*t[2]);
-    o.m[6]  = -(a*t[0] - c*t[3] + d*t[4]);
-    o.m[10] =  (a*t[1] - b*t[3] + d*t[5]);
-    o.m[14] = -(a*t[2] - b*t[4] + c*t[5]);
+    float c20 =  (b*t[0] - c*t[1] + d*t[2]);
+    float c21 = -(a*t[0] - c*t[3] + d*t[4]);
+    float c22 =  (a*t[1] - b*t[3] + d*t[5]);
+    float c23 = -(a*t[2] - b*t[4] + c*t[5]);
 
     t[0] = g*l - k*h; t[1] = f*l - j*h; t[2] = f*k - j*g;
     t[3] = e*l - i*h; t[4] = e*k - i*g; t[5] = e*j - i*f;
 
-    o.m[3]  = -(b*t[0] - c*t[1] + d*t[2]);
-    o.m[7]  =  (a*t[0] - c*t[3] + d*t[4]);
-    o.m[11] = -(a*t[1] - b*t[3] + d*t[5]);
-    o.m[15] =  (a*t[2] - b*t[4] + c*t[5]);
+    float c30 = -(b*t[0] - c*t[1] + d*t[2]);
+    float c31 =  (a*t[0] - c*t[3] + d*t[4]);
+    float c32 = -(a*t[1] - b*t[3] + d*t[5]);
+    float c33 =  (a*t[2] - b*t[4] + c*t[5]);
 
-    det = 1.0f / (a*o.m[0] + b*o.m[4] + c*o.m[8] + d*o.m[12]);
+    o.m[0] = c00; o.m[4] = c01; o.m[8]  = c02; o.m[12] = c03;
+    o.m[1] = c10; o.m[5] = c11; o.m[9]  = c12; o.m[13] = c13;
+    o.m[2] = c20; o.m[6] = c21; o.m[10] = c22; o.m[14] = c23;
+    o.m[3] = c30; o.m[7] = c31; o.m[11] = c32; o.m[15] = c33;
+
+    det = 1.0f / (a*c00 + b*c01 + c*c02 + d*c03);
     for (int x = 0; x < 16; x++) o.m[x] *= det;
 
     return o;
