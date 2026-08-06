@@ -623,6 +623,8 @@ typedef struct mg_win32_platform
 
     WNDPROC original_proc;
     int32_t caption_x, caption_y, caption_width, caption_height;
+
+    const mg_app_init_info *info;
 }
 mg_win32_platform;
 
@@ -793,6 +795,33 @@ static LRESULT CALLBACK mg_win32_process_message(HWND hwnd, uint32_t msg, WPARAM
                 SWP_NOZORDER | SWP_NOACTIVATE);
             break;
         }
+        case WM_ENTERSIZEMOVE:
+        {
+            SetTimer(hwnd, 1, USER_TIMER_MINIMUM, NULL);
+            break;
+        }
+        case WM_EXITSIZEMOVE:
+        {
+            KillTimer(hwnd, 1);
+            break;
+        }
+        case WM_TIMER:
+        {
+            if (w_param == 1)
+            {
+                LARGE_INTEGER now_time;
+                QueryPerformanceCounter(&now_time);
+                float new_time = (float)(now_time.QuadPart - start_time.QuadPart) * clock_frequency;
+                platform.delta_time = new_time - platform.time;
+                platform.time = new_time;
+
+                if (platform.info && platform.info->events.update)
+                    platform.info->events.update();
+
+                mg_app_input_frame();
+            }
+            break;
+        }
     }
     return DefWindowProcA(hwnd, msg, w_param, l_param);
 }
@@ -806,13 +835,13 @@ static LRESULT CALLBACK mg_win32_no_titlebar_proc(HWND hwnd, UINT msg, WPARAM w_
             if (!w_param) break;
             NCCALCSIZE_PARAMS *params = (NCCALCSIZE_PARAMS *)l_param;
             RECT *r = params->rgrc;
-            int32_t bx = GetSystemMetrics(SM_CXFRAME);
-            int32_t by = GetSystemMetrics(SM_CYFRAME);
-            r->right -= bx;
-            r->left += bx;
+            int32_t bx = GetSystemMetrics(SM_CXFRAME) + GetSystemMetrics(SM_CXPADDEDBORDER);
+            int32_t by = GetSystemMetrics(SM_CYFRAME) + GetSystemMetrics(SM_CXPADDEDBORDER);
+            r->left   += bx;
+            r->right  -= bx;
             r->bottom -= by;
-            r->top += IsZoomed(hwnd) ? by : 0;
-            return WVR_ALIGNTOP | WVR_ALIGNLEFT;
+            r->top    += IsZoomed(hwnd) ? by : 0;
+            return 0;
         }
         case WM_NCHITTEST:
         {
@@ -861,6 +890,7 @@ int32_t mg_app_run(const mg_app_init_info *info)
 {
     const char *CLASS_NAME = "MAGMA";
     platform.instace = GetModuleHandleA(NULL);
+    platform.info = info;
 
     mg_app_setup_clock();
 
