@@ -172,11 +172,9 @@ extern "C" {
     typedef uint32_t mgfx_image_usage;
     enum
     {
-        MGFX_IMAGE_USAGE_NONE = 0,
-        MGFX_IMAGE_USAGE_SAMPLED = 1 << 0,
-        MGFX_IMAGE_USAGE_STORAGE = 1 << 1,
-        MGFX_IMAGE_USAGE_COLOR_ATTACHMENT = 1 << 2,
-        MGFX_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT = 1 << 3
+        MGFX_IMAGE_USAGE_NONE,
+        MGFX_IMAGE_USAGE_COLOR_ATTACHMENT,
+        MGFX_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT
     };
     
     typedef uint32_t mgfx_sampler_filter;
@@ -538,7 +536,6 @@ typedef struct
     VkFormat format;
     uint32_t width, height, depth;
     bool shared_memory;
-    bool sampled;
 }
 mgfx_vk_image;
 
@@ -1557,13 +1554,9 @@ static inline VkBufferUsageFlags mgfx_vk_get_buffer_usage(mgfx_buffer_usage usag
 
 static inline VkImageUsageFlags mgfx_vk_get_image_usage(mgfx_image_usage usage)
 {
-    VkImageUsageFlags flags = 0;
-    if (usage & MGFX_IMAGE_USAGE_SAMPLED)
-        flags |= VK_IMAGE_USAGE_SAMPLED_BIT;
-    if (usage & MGFX_IMAGE_USAGE_COLOR_ATTACHMENT)
-        flags |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-    else if (usage & MGFX_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT)
-        flags |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    return usage == MGFX_IMAGE_USAGE_COLOR_ATTACHMENT ?
+        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT :
+        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
     return flags;
 }
 
@@ -2237,8 +2230,8 @@ static void mgfx_vk_update_image(mgfx_vk_image *image, size_t size, void *data)
     VkDeviceMemory staging_memory;
     
     mgfx_vk_allocate_buffer(image_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                            &staging_buffer, &staging_memory);
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        &staging_buffer, &staging_memory);
     
     void* _data;
     vkMapMemory(ctx.vk.device.handle, staging_memory, 0, image_size, 0, &_data);
@@ -2259,6 +2252,7 @@ static mgfx_vk_image *mgfx_vk_create_image(const mgfx_image_create_info *create_
     
     VkImageUsageFlags usage_flags =
         VK_IMAGE_USAGE_TRANSFER_DST_BIT |
+        VK_IMAGE_USAGE_SAMPLED_BIT |
         mgfx_vk_get_image_usage(create_info->usage);
     
     VkImageTiling tiling;
@@ -2285,7 +2279,7 @@ static mgfx_vk_image *mgfx_vk_create_image(const mgfx_image_create_info *create_
         .format = mgfx_vk_get_format(create_info->format),
         .subresourceRange = {
             .aspectMask =
-                (create_info->usage & MGFX_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT) ?
+                (create_info->usage == MGFX_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT) ?
                 VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT,
             .baseMipLevel = 0,
             .levelCount = 1,
@@ -2303,7 +2297,6 @@ static mgfx_vk_image *mgfx_vk_create_image(const mgfx_image_create_info *create_
     
     image->format = view_info.format;
     image->shared_memory = create_info->memory == MGFX_MEMORY_SHARED;
-    image->sampled = create_info->usage & MGFX_IMAGE_USAGE_SAMPLED;
     
     if (create_info->data)
         mgfx_vk_update_image(image, image->width * image->height * depth * mgfx_format_bpp(create_info->format), create_info->data);
@@ -2323,8 +2316,6 @@ static void mgfx_vk_destroy_image(mgfx_vk_image *image)
 static void mgfx_vk_bind_image(mgfx_vk_image *image, VkSampler sampler, uint32_t binding)
 {
     MGFX_ASSERT(binding < MGFX_MAX_BINDABLE_IMAGES, "Cannot access binding higher than MGFX_MAX_BINDABLE_IMAGES.");
-    MGFX_ASSERT(image->sampled, "Cannot bind a non-samplable image. Use MGFX_IMAGE_USAGE_SAMPLED.");
-
     mgfx_vk_descriptor_cache *cache = &ctx.vk.descriptor_cache;
     cache->bound_images[binding].image_view = image->view;
     cache->bound_images[binding].sampler = sampler;
@@ -2601,8 +2592,7 @@ static void mgfx_vk_fill_compute_pipeline(mgfx_vk_pipeline *pipeline, const mgfx
         .pSetLayouts = set_layouts
     };
     
-    VkResult result = vkCreatePipelineLayout(
-                                                ctx.vk.device.handle, &layout_info, NULL, &pipeline->pipeline_layout);
+    VkResult result = vkCreatePipelineLayout(ctx.vk.device.handle, &layout_info, NULL, &pipeline->pipeline_layout);
     MGFX_ASSERT(result == VK_SUCCESS, "Failed to create vulkan compute pipeline layout.");
     
     VkPipelineShaderStageCreateInfo stage = {
@@ -2618,8 +2608,7 @@ static void mgfx_vk_fill_compute_pipeline(mgfx_vk_pipeline *pipeline, const mgfx
         .layout = pipeline->pipeline_layout
     };
     
-    result = vkCreateComputePipelines(
-                                        ctx.vk.device.handle, VK_NULL_HANDLE, 1, &compute_info, NULL, &pipeline->pipeline);
+    result = vkCreateComputePipelines(ctx.vk.device.handle, VK_NULL_HANDLE, 1, &compute_info, NULL, &pipeline->pipeline);
     MGFX_ASSERT(result == VK_SUCCESS, "Failed to create vulkan compute pipeline.");
     
     vkDestroyShaderModule(ctx.vk.device.handle, compute_shader, NULL);
@@ -4905,7 +4894,8 @@ static mgfx_d3d11_image *mgfx_d3d11_create_image(const mgfx_image_create_info *c
             .MipLevels = 1,
             .ArraySize = 1,
             .Format = format,
-            .SampleDesc = { .Count = 1 }
+            .SampleDesc = { .Count = 1 },
+            .BindFlags = D3D11_BIND_SHADER_RESOURCE
         };
         
         if (create_info->memory == MGFX_MEMORY_SHARED)
@@ -4915,11 +4905,9 @@ static mgfx_d3d11_image *mgfx_d3d11_create_image(const mgfx_image_create_info *c
         }
         else texture_desc.Usage = D3D11_USAGE_DEFAULT;
         
-        if (create_info->usage & MGFX_IMAGE_USAGE_SAMPLED)
-            texture_desc.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
-        if (create_info->usage & MGFX_IMAGE_USAGE_COLOR_ATTACHMENT)
+        if (create_info->usage == MGFX_IMAGE_USAGE_COLOR_ATTACHMENT)
             texture_desc.BindFlags |= D3D11_BIND_RENDER_TARGET;
-        else if (create_info->usage & MGFX_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT)
+        else if (create_info->usage == MGFX_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT)
             texture_desc.BindFlags |= D3D11_BIND_DEPTH_STENCIL;
         
         MGFX_D3D11_CALL(ctx.d3d11.device, CreateTexture2D, &texture_desc, init_data_ptr, (ID3D11Texture2D**)&image->texture);
@@ -4932,14 +4920,13 @@ static mgfx_d3d11_image *mgfx_d3d11_create_image(const mgfx_image_create_info *c
             .Height = create_info->height,
             .Depth = create_info->depth,
             .MipLevels = 1,
-            .Format = format
+            .Format = format,
+            .BindFlags = D3D11_BIND_SHADER_RESOURCE
         };
 
-        if (create_info->usage & MGFX_IMAGE_USAGE_SAMPLED)
-            texture_desc.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
-        if (create_info->usage & MGFX_IMAGE_USAGE_COLOR_ATTACHMENT)
+        if (create_info->usage == MGFX_IMAGE_USAGE_COLOR_ATTACHMENT)
             texture_desc.BindFlags |= D3D11_BIND_RENDER_TARGET;
-        else if (create_info->usage & MGFX_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT)
+        else if (create_info->usage == MGFX_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT)
             texture_desc.BindFlags |= D3D11_BIND_DEPTH_STENCIL;
         
         if (create_info->memory == MGFX_MEMORY_SHARED)
@@ -4955,7 +4942,7 @@ static mgfx_d3d11_image *mgfx_d3d11_create_image(const mgfx_image_create_info *c
 
     MGFX_D3D11_CALL(ctx.d3d11.device, CreateShaderResourceView, (ID3D11Resource*)image->texture, &view_desc, &image->view);
     
-    if (create_info->usage & MGFX_IMAGE_USAGE_COLOR_ATTACHMENT)
+    if (create_info->usage == MGFX_IMAGE_USAGE_COLOR_ATTACHMENT)
     {
         D3D11_RENDER_TARGET_VIEW_DESC rtv_desc = { .Format = format };
 
@@ -4974,7 +4961,7 @@ static mgfx_d3d11_image *mgfx_d3d11_create_image(const mgfx_image_create_info *c
 
         MGFX_D3D11_CALL(ctx.d3d11.device, CreateRenderTargetView, image->texture, &rtv_desc, &image->rtv);
     }
-    else if (create_info->usage & MGFX_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT)
+    else if (create_info->usage == MGFX_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT)
     {
         D3D11_DEPTH_STENCIL_VIEW_DESC dsv_desc = {
             .Format = mgfx_d3d11_get_dsv_format(create_info->format),
