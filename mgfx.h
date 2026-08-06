@@ -111,11 +111,11 @@ extern "C" {
         MGFX_BUFFER_USAGE_VERTEX
     };
     
-    typedef uint32_t mgfx_access;
+    typedef uint32_t mgfx_memory;
     enum
     {
-        MGFX_ACCESS_GPU,
-        MGFX_ACCESS_CPU
+        MGFX_MEMORY_DEVICE,
+        MGFX_MEMORY_SHARED
     };
     
     typedef struct
@@ -123,7 +123,7 @@ extern "C" {
         void *data;
         size_t size;
         mgfx_buffer_usage usage;
-        mgfx_access access;
+        mgfx_memory memory;
     }
     mgfx_buffer_create_info;
     
@@ -172,9 +172,11 @@ extern "C" {
     typedef uint32_t mgfx_image_usage;
     enum
     {
-        MGFX_IMAGE_USAGE_NONE,
-        MGFX_IMAGE_USAGE_COLOR_ATTACHMENT,
-        MGFX_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT
+        MGFX_IMAGE_USAGE_NONE = 0,
+        MGFX_IMAGE_USAGE_SAMPLED = 1 << 0,
+        MGFX_IMAGE_USAGE_STORAGE = 1 << 1,
+        MGFX_IMAGE_USAGE_COLOR_ATTACHMENT = 1 << 2,
+        MGFX_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT = 1 << 3
     };
     
     typedef uint32_t mgfx_sampler_filter;
@@ -212,7 +214,7 @@ extern "C" {
         mgfx_format format;
         mgfx_image_type type;
         mgfx_image_usage usage;
-        mgfx_access access;
+        mgfx_memory memory;
         uint32_t width, height, depth;
     }
     mgfx_image_create_info;
@@ -506,12 +508,10 @@ inline mgfx_sampler mgfx_create_sampler(const mgfx_sampler_create_info &create_i
 #include <string.h>
 
 #define MGFX_ASSERT(x, msg) \
-    do { \
-        if (!(x)) { \
-            fprintf(stderr, "[MGFX]: Assertion failed: %s\nFile: %s:%d\nMessage: %s\n", #x, __FILE__, __LINE__, msg); \
-            abort(); \
-        } \
-    } while (0)
+    if (!(x)) { \
+        fprintf(stderr, "[MGFX]: Assertion failed: %s\nFile: %s:%d\nMessage: %s\n", #x, __FILE__, __LINE__, msg); \
+        abort(); \
+    } 
 
 #if defined(MGFX_VULKAN)
 
@@ -537,7 +537,8 @@ typedef struct
     VkDeviceMemory memory;
     VkFormat format;
     uint32_t width, height, depth;
-    bool is_cpu;
+    bool shared_memory;
+    bool sampled;
 }
 mgfx_vk_image;
 
@@ -545,7 +546,7 @@ typedef struct
 {
     VkBuffer buffer;
     VkDeviceMemory memory;
-    bool is_cpu;
+    bool shared_memory;
 }
 mgfx_vk_buffer;
 
@@ -1056,14 +1057,14 @@ typedef struct
         ID3D11DepthStencilView  *dsv;
     };
     uint32_t width, height;
-    bool is_cpu;
+    bool shared_memory;
 }
 mgfx_d3d11_image;
 
 typedef struct
 {
     ID3D11Buffer *buffer;
-    bool is_cpu;
+    bool shared_memory;
 }
 mgfx_d3d11_buffer;
 
@@ -1556,12 +1557,14 @@ static inline VkBufferUsageFlags mgfx_vk_get_buffer_usage(mgfx_buffer_usage usag
 
 static inline VkImageUsageFlags mgfx_vk_get_image_usage(mgfx_image_usage usage)
 {
-    switch (usage)
-    {
-        case MGFX_IMAGE_USAGE_COLOR_ATTACHMENT:         return VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-        case MGFX_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT: return VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-        default:                                        return 0;
-    }
+    VkImageUsageFlags flags = 0;
+    if (usage & MGFX_IMAGE_USAGE_SAMPLED)
+        flags |= VK_IMAGE_USAGE_SAMPLED_BIT;
+    if (usage & MGFX_IMAGE_USAGE_COLOR_ATTACHMENT)
+        flags |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    else if (usage & MGFX_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT)
+        flags |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    return flags;
 }
 
 static inline VkIndexType mgfx_vk_get_index_type(mgfx_index_type index_type)
@@ -2064,7 +2067,7 @@ static void mgfx_vk_allocate_buffer(size_t size, VkBufferUsageFlags usage, VkMem
 
 static void mgfx_vk_update_buffer(mgfx_vk_buffer *buffer, size_t offset, size_t size, void *data)
 {
-    if (buffer->is_cpu)
+    if (buffer->shared_memory)
     {
         void *_data;
         vkMapMemory(ctx.vk.device.handle, buffer->memory, offset, size, 0, &_data);
@@ -2099,21 +2102,21 @@ static mgfx_vk_buffer *mgfx_vk_create_buffer(const mgfx_buffer_create_info *crea
 {
     mgfx_vk_buffer *buffer = (mgfx_vk_buffer*)calloc(1, sizeof(mgfx_vk_buffer));
     
-    if (create_info->access == MGFX_ACCESS_GPU)
+    if (create_info->memory == MGFX_MEMORY_DEVICE)
     {
         mgfx_vk_allocate_buffer(create_info->size,
-                                VK_BUFFER_USAGE_TRANSFER_DST_BIT | mgfx_vk_get_buffer_usage(create_info->usage),
-                                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                                &buffer->buffer, &buffer->memory);
+            VK_BUFFER_USAGE_TRANSFER_DST_BIT | mgfx_vk_get_buffer_usage(create_info->usage),
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+            &buffer->buffer, &buffer->memory);
     }
     else
     {
         mgfx_vk_allocate_buffer(create_info->size, mgfx_vk_get_buffer_usage(create_info->usage),
-                                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                                &buffer->buffer, &buffer->memory);
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            &buffer->buffer, &buffer->memory);
     }
     
-    buffer->is_cpu = create_info->access == MGFX_ACCESS_CPU;
+    buffer->shared_memory = create_info->memory == MGFX_MEMORY_SHARED;
     if (create_info->data)
         mgfx_vk_update_buffer(buffer, 0, create_info->size, create_info->data);
     
@@ -2221,7 +2224,7 @@ static void mgfx_vk_update_image(mgfx_vk_image *image, size_t size, void *data)
 {
     const VkDeviceSize image_size = size;
     
-    if (image->is_cpu)
+    if (image->shared_memory)
     {
         void *_data;
         vkMapMemory(ctx.vk.device.handle, image->memory, 0, image_size, 0, &_data);
@@ -2256,13 +2259,12 @@ static mgfx_vk_image *mgfx_vk_create_image(const mgfx_image_create_info *create_
     
     VkImageUsageFlags usage_flags =
         VK_IMAGE_USAGE_TRANSFER_DST_BIT |
-        VK_IMAGE_USAGE_SAMPLED_BIT |
         mgfx_vk_get_image_usage(create_info->usage);
     
     VkImageTiling tiling;
     VkMemoryPropertyFlags mem_props;
     
-    if (create_info->access == MGFX_ACCESS_CPU)
+    if (create_info->memory == MGFX_MEMORY_SHARED)
     {
         tiling = VK_IMAGE_TILING_LINEAR;
         mem_props = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
@@ -2283,7 +2285,7 @@ static mgfx_vk_image *mgfx_vk_create_image(const mgfx_image_create_info *create_
         .format = mgfx_vk_get_format(create_info->format),
         .subresourceRange = {
             .aspectMask =
-                create_info->usage == MGFX_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT ?
+                (create_info->usage & MGFX_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT) ?
                 VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT,
             .baseMipLevel = 0,
             .levelCount = 1,
@@ -2300,7 +2302,8 @@ static mgfx_vk_image *mgfx_vk_create_image(const mgfx_image_create_info *create_
     image->depth = depth;
     
     image->format = view_info.format;
-    image->is_cpu = create_info->access == MGFX_ACCESS_CPU;
+    image->shared_memory = create_info->memory == MGFX_MEMORY_SHARED;
+    image->sampled = create_info->usage & MGFX_IMAGE_USAGE_SAMPLED;
     
     if (create_info->data)
         mgfx_vk_update_image(image, image->width * image->height * depth * mgfx_format_bpp(create_info->format), create_info->data);
@@ -2319,9 +2322,9 @@ static void mgfx_vk_destroy_image(mgfx_vk_image *image)
 
 static void mgfx_vk_bind_image(mgfx_vk_image *image, VkSampler sampler, uint32_t binding)
 {
-    if (binding >= MGFX_MAX_BINDABLE_IMAGES)
-        return;
-    
+    MGFX_ASSERT(binding < MGFX_MAX_BINDABLE_IMAGES, "Cannot access binding higher than MGFX_MAX_BINDABLE_IMAGES.");
+    MGFX_ASSERT(image->sampled, "Cannot bind a non-samplable image. Use MGFX_IMAGE_USAGE_SAMPLED.");
+
     mgfx_vk_descriptor_cache *cache = &ctx.vk.descriptor_cache;
     cache->bound_images[binding].image_view = image->view;
     cache->bound_images[binding].sampler = sampler;
@@ -3656,7 +3659,7 @@ static inline GLenum mgfx_gl_get_buffer_target(mgfx_buffer_usage usage)
 
 static inline GLenum mgfx_gl_get_data_usage(mgfx_access access)
 {
-    if (access == MGFX_ACCESS_GPU)
+    if (access == MGFX_MEMORY_DEVICE)
         return GL_STATIC_DRAW;
     return GL_DYNAMIC_DRAW;
 }
@@ -3701,7 +3704,7 @@ static mgfx_gl_buffer *mgfx_gl_create_buffer(const mgfx_buffer_create_info *crea
 {
     mgfx_gl_buffer *buffer = (mgfx_gl_buffer*)calloc(1, sizeof(mgfx_gl_buffer));
     buffer->target = mgfx_gl_get_buffer_target(create_info->usage);
-    buffer->usage = mgfx_gl_get_data_usage(create_info->access);
+    buffer->usage = mgfx_gl_get_data_usage(create_info->memory);
     glGenBuffers(1, &buffer->id);
     glBindBuffer(buffer->target, buffer->id);
     glBufferData(buffer->target, create_info->size, create_info->data, buffer->usage);
@@ -4815,16 +4818,16 @@ static mgfx_d3d11_buffer *mgfx_d3d11_create_buffer(const mgfx_buffer_create_info
         .BindFlags = mgfx_d3d11_get_bind_flags(create_info->usage)
     };
 
-    if (create_info->access == MGFX_ACCESS_GPU)
+    if (create_info->memory == MGFX_MEMORY_DEVICE)
     {
         desc.Usage = D3D11_USAGE_DEFAULT;
-        buffer->is_cpu = false;
+        buffer->shared_memory = false;
     }
     else
     {
         desc.Usage = D3D11_USAGE_DYNAMIC;
         desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-        buffer->is_cpu = true;
+        buffer->shared_memory = true;
     }
 
     D3D11_SUBRESOURCE_DATA *init_data_ptr = NULL;
@@ -4842,7 +4845,7 @@ static mgfx_d3d11_buffer *mgfx_d3d11_create_buffer(const mgfx_buffer_create_info
 
 static void mgfx_d3d11_update_buffer(mgfx_d3d11_buffer *buffer, size_t offset, size_t size, void *data)
 {
-    if (buffer->is_cpu)
+    if (buffer->shared_memory)
     {
         D3D11_MAPPED_SUBRESOURCE mapped_resource;
         MGFX_D3D11_CALL(ctx.d3d11.immediate_context, Map, (ID3D11Resource*)buffer->buffer, 0,
@@ -4902,20 +4905,21 @@ static mgfx_d3d11_image *mgfx_d3d11_create_image(const mgfx_image_create_info *c
             .MipLevels = 1,
             .ArraySize = 1,
             .Format = format,
-            .SampleDesc = { .Count = 1 },
-            .BindFlags = D3D11_BIND_SHADER_RESOURCE
+            .SampleDesc = { .Count = 1 }
         };
         
-        if (create_info->access == MGFX_ACCESS_CPU)
+        if (create_info->memory == MGFX_MEMORY_SHARED)
         {
             texture_desc.Usage = D3D11_USAGE_DYNAMIC;
             texture_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
         }
         else texture_desc.Usage = D3D11_USAGE_DEFAULT;
         
-        if (create_info->usage == MGFX_IMAGE_USAGE_COLOR_ATTACHMENT)
+        if (create_info->usage & MGFX_IMAGE_USAGE_SAMPLED)
+            texture_desc.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
+        if (create_info->usage & MGFX_IMAGE_USAGE_COLOR_ATTACHMENT)
             texture_desc.BindFlags |= D3D11_BIND_RENDER_TARGET;
-        else if (create_info->usage == MGFX_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT)
+        else if (create_info->usage & MGFX_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT)
             texture_desc.BindFlags |= D3D11_BIND_DEPTH_STENCIL;
         
         MGFX_D3D11_CALL(ctx.d3d11.device, CreateTexture2D, &texture_desc, init_data_ptr, (ID3D11Texture2D**)&image->texture);
@@ -4928,11 +4932,17 @@ static mgfx_d3d11_image *mgfx_d3d11_create_image(const mgfx_image_create_info *c
             .Height = create_info->height,
             .Depth = create_info->depth,
             .MipLevels = 1,
-            .Format = format,
-            .BindFlags = D3D11_BIND_SHADER_RESOURCE,
+            .Format = format
         };
+
+        if (create_info->usage & MGFX_IMAGE_USAGE_SAMPLED)
+            texture_desc.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
+        if (create_info->usage & MGFX_IMAGE_USAGE_COLOR_ATTACHMENT)
+            texture_desc.BindFlags |= D3D11_BIND_RENDER_TARGET;
+        else if (create_info->usage & MGFX_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT)
+            texture_desc.BindFlags |= D3D11_BIND_DEPTH_STENCIL;
         
-        if (create_info->access == MGFX_ACCESS_CPU)
+        if (create_info->memory == MGFX_MEMORY_SHARED)
         {
             texture_desc.Usage = D3D11_USAGE_DYNAMIC;
             texture_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
@@ -4945,15 +4955,26 @@ static mgfx_d3d11_image *mgfx_d3d11_create_image(const mgfx_image_create_info *c
 
     MGFX_D3D11_CALL(ctx.d3d11.device, CreateShaderResourceView, (ID3D11Resource*)image->texture, &view_desc, &image->view);
     
-    if (create_info->usage == MGFX_IMAGE_USAGE_COLOR_ATTACHMENT)
+    if (create_info->usage & MGFX_IMAGE_USAGE_COLOR_ATTACHMENT)
     {
-        D3D11_RENDER_TARGET_VIEW_DESC rtv_desc = {
-            .Format = format,
-            .ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D
-        };
+        D3D11_RENDER_TARGET_VIEW_DESC rtv_desc = { .Format = format };
+
+        if (create_info->type == MGFX_IMAGE_TYPE_3D)
+        {
+            rtv_desc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE3D;
+            rtv_desc.Texture3D.MipSlice = 0;
+            rtv_desc.Texture3D.FirstWSlice = 0;
+            rtv_desc.Texture3D.WSize = create_info->depth ? create_info->depth : 1;
+        }
+        else
+        {
+            rtv_desc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+            rtv_desc.Texture2D.MipSlice = 0;
+        }
+
         MGFX_D3D11_CALL(ctx.d3d11.device, CreateRenderTargetView, image->texture, &rtv_desc, &image->rtv);
     }
-    else if (create_info->usage == MGFX_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT)
+    else if (create_info->usage & MGFX_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT)
     {
         D3D11_DEPTH_STENCIL_VIEW_DESC dsv_desc = {
             .Format = mgfx_d3d11_get_dsv_format(create_info->format),
@@ -4964,7 +4985,7 @@ static mgfx_d3d11_image *mgfx_d3d11_create_image(const mgfx_image_create_info *c
     
     image->width = create_info->width;
     image->height = create_info->height;
-    image->is_cpu = create_info->access == MGFX_ACCESS_CPU;
+    image->shared_memory = create_info->memory == MGFX_MEMORY_SHARED;
     
     return image;
 }
@@ -4979,7 +5000,7 @@ static void mgfx_d3d11_destroy_image(mgfx_d3d11_image *image)
 
 static void mgfx_d3d11_update_image(mgfx_d3d11_image *image, size_t size, void *data)
 {
-    if (image->is_cpu)
+    if (image->shared_memory)
     {
         D3D11_MAPPED_SUBRESOURCE mapped = { 0 };
         MGFX_D3D11_CALL(ctx.d3d11.immediate_context, Map,
