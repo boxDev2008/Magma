@@ -291,7 +291,8 @@ MG_APP_API float mg_app_dpi_scale(void);
 
 MG_APP_API void mg_app_set_caption_area(int32_t x, int32_t y, int32_t width, int32_t height);
 
-MG_APP_API void *mg_app_handle(void);
+MG_APP_API void *mg_app_primary_handle(void);
+MG_APP_API void *mg_app_secondary_handle(void);
 
 #ifdef __cplusplus
 } // extern "C"
@@ -596,9 +597,9 @@ int32_t mg_app_height(void)
     return platform.window_height;
 }
 
-void *mg_app_handle(void)
+void *mg_app_primary_handle(void)
 {
-    return (void*)&platform;
+    return NULL;
 }
 
 #elif defined(_WIN32)
@@ -610,7 +611,7 @@ void *mg_app_handle(void)
 typedef struct mg_win32_platform
 {
     HWND hwnd;
-    HINSTANCE instace;
+    HINSTANCE hinstace;
     int32_t window_width, window_height;
     uint32_t dpi;
     float dpi_scale;
@@ -889,7 +890,7 @@ static LRESULT CALLBACK mg_win32_no_titlebar_proc(HWND hwnd, UINT msg, WPARAM w_
 int32_t mg_app_run(const mg_app_init_info *info)
 {
     const char *CLASS_NAME = "MAGMA";
-    platform.instace = GetModuleHandleA(NULL);
+    platform.hinstace = GetModuleHandleA(NULL);
     platform.info = info;
 
     mg_app_setup_clock();
@@ -915,7 +916,7 @@ int32_t mg_app_run(const mg_app_init_info *info)
 
     WNDCLASSA wc = {0};
     wc.lpfnWndProc = mg_win32_process_message;
-    wc.hInstance = platform.instace;
+    wc.hInstance = platform.hinstace;
     wc.lpszClassName = CLASS_NAME;
     wc.hCursor = platform.cursors[MG_CURSOR_ARROW];
 
@@ -936,7 +937,7 @@ int32_t mg_app_run(const mg_app_init_info *info)
         CW_USEDEFAULT, CW_USEDEFAULT,
         width, height,
         NULL, NULL,
-        platform.instace,
+        platform.hinstace,
         NULL
     );
 
@@ -1015,7 +1016,7 @@ int32_t mg_app_run(const mg_app_init_info *info)
         info->events.end();
 
     DestroyWindow(platform.hwnd);
-    UnregisterClassA(CLASS_NAME, platform.instace);
+    UnregisterClassA(CLASS_NAME, platform.hinstace);
     return 0;
 }
 
@@ -1092,9 +1093,14 @@ void mg_app_set_caption_area(int32_t x, int32_t y, int32_t width, int32_t height
     platform.caption_height = height;
 }
 
-void *mg_app_handle(void)
+void *mg_app_primary_handle(void)
 {
-    return (void*)&platform;
+    return (void*)platform.hwnd;
+}
+
+void *mg_app_secondary_handle(void)
+{
+    return (void*)platform.hinstace;
 }
 
 #elif defined(__linux__)
@@ -1690,9 +1696,14 @@ int32_t mg_app_height(void)
     return platform.window_height;
 }
  
-void *mg_app_handle(void)
+void *mg_app_primary_handle(void)
 {
-    return (void*)&platform;
+    return (void*)platform.window;
+}
+
+void *mg_app_secondary_handle(void)
+{
+    return (void*)platform.display;
 }
 
 void mg_app_show(bool value)

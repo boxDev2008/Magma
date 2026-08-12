@@ -408,28 +408,10 @@ extern "C" {
     
     typedef void *mgfx_pipeline;
     
-    typedef union
-    {
-        struct
-        {
-            void *hwnd;
-            void *instance;
-        }
-        win32;
-        
-        struct
-        {
-            void *window;
-            void *display;
-        }
-        xlib;
-    }
-    mgfx_platform_handle;
-    typedef void* mgfx_platform_handle_ptr;
-    
     typedef struct
     {
-        mgfx_platform_handle_ptr handle;
+        void *primary_handle;
+        void *secondary_handle;
         mgfx_renderer_type type;
         int32_t width, height;
         bool vsync;
@@ -2852,11 +2834,11 @@ static void mgfx_vk_bind_pass(const mgfx_pass_info *pass)
 #define VK_USE_PLATFORM_WIN32_KHR
 #define MGFX_VULKAN_SURFACE_EXTENSION_NAME VK_KHR_WIN32_SURFACE_EXTENSION_NAME
 #include <vulkan/vulkan_win32.h>
-void mgfx_vk_create_surface(mgfx_platform_handle *handle)
+void mgfx_vk_create_surface(void *hwnd, void *hinstance)
 {
     VkWin32SurfaceCreateInfoKHR create_info = {VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR};
-    create_info.hwnd = (HWND)handle->win32.hwnd;
-    create_info.hinstance = (HINSTANCE)handle->win32.instance;
+    create_info.hwnd = (HWND)hwnd;
+    create_info.hinstance = (HINSTANCE)hinstance;
     
     VkResult result = vkCreateWin32SurfaceKHR(ctx.vk.instance, &create_info, NULL, &ctx.vk.surface);
     MGFX_ASSERT(result == VK_SUCCESS, "Failed to create vulkan surface.");
@@ -2865,11 +2847,11 @@ void mgfx_vk_create_surface(mgfx_platform_handle *handle)
 #include <vulkan/vulkan_xlib.h>
 #define VK_USE_PLATFORM_XLIB_KHR
 #define MGFX_VULKAN_SURFACE_EXTENSION_NAME VK_KHR_XLIB_SURFACE_EXTENSION_NAME
-void mgfx_vk_create_surface(mgfx_platform_handle *handle)
+void mgfx_vk_create_surface(void *window, void *display)
 {
     VkXlibSurfaceCreateInfoKHR create_info = {VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR};
-    create_info.dpy = (Display*)handle->xlib.display;
-    create_info.window = (Window)handle->xlib.window;
+    create_info.dpy = (Display*)display;
+    create_info.window = (Window)window;
     
     VkResult result = vkCreateXlibSurfaceKHR(ctx.vk.instance, &create_info, NULL, &ctx.vk.surface);
     MGFX_ASSERT(result == VK_SUCCESS, "Failed to create vulkan surface.");
@@ -3159,7 +3141,7 @@ static void mgfx_vk_init(const mgfx_init_info *init_info)
     ctx.vk = (mgfx_vk_context){ 0 };
     
     mgfx_vk_create_instance();
-    mgfx_vk_create_surface((mgfx_platform_handle*)init_info->handle);
+    mgfx_vk_create_surface(init_info->primary_handle, init_info->secondary_handle);
     
     mgfx_vk_get_physical_device();
     mgfx_vk_create_device();
@@ -3502,9 +3484,9 @@ static void _mgfx_gl_unload_opengl(void)
 typedef BOOL (WINAPI *PFNWGLSWAPINTERVALEXTPROC)(int);
 static PFNWGLSWAPINTERVALEXTPROC wglSwapIntervalEXT = NULL;
 
-static void _mgfx_gl_load_platform(mgfx_platform_handle *handle)
+static void _mgfx_gl_load_platform(void *hwnd, void *hinstance)
 {
-    ctx.gl.wgl.hwnd = (HWND)handle->win32.hwnd;
+    ctx.gl.wgl.hwnd = (HWND)hwnd;
     ctx.gl.wgl.hdc = GetDC(ctx.gl.wgl.hwnd);
 
     PIXELFORMATDESCRIPTOR pfd = {
@@ -3573,9 +3555,9 @@ static void _mgfx_gl_unload_opengl(void)
 
 static PFNEGLSWAPINTERVALPROC _mgfx_eglSwapInterval = NULL;
 
-static void _mgfx_gl_load_platform(mgfx_platform_handle *handle)
+static void _mgfx_gl_load_platform(void *window, void *display)
 {
-    ctx.gl.egl.display = eglGetDisplay((EGLNativeDisplayType)handle->xlib.display);
+    ctx.gl.egl.display = eglGetDisplay((EGLNativeDisplayType)display);
     eglInitialize(ctx.gl.egl.display, NULL, NULL);
     eglBindAPI(EGL_OPENGL_API);
     
@@ -3602,7 +3584,7 @@ static void _mgfx_gl_load_platform(mgfx_platform_handle *handle)
     };
     
     ctx.gl.egl.context = eglCreateContext(ctx.gl.egl.display, config, EGL_NO_CONTEXT, context_attribs);
-    ctx.gl.egl.surface = eglCreateWindowSurface(ctx.gl.egl.display, config, (EGLNativeWindowType)handle->xlib.window, NULL);
+    ctx.gl.egl.surface = eglCreateWindowSurface(ctx.gl.egl.display, config, (EGLNativeWindowType)window, NULL);
     eglMakeCurrent(ctx.gl.egl.display, ctx.gl.egl.surface, ctx.gl.egl.surface, ctx.gl.egl.context);
     
     _mgfx_eglSwapInterval = (PFNEGLSWAPINTERVALPROC)eglGetProcAddress("eglSwapInterval");
@@ -3646,9 +3628,9 @@ static inline GLenum mgfx_gl_get_buffer_target(mgfx_buffer_usage usage)
     return GL_ARRAY_BUFFER;
 }
 
-static inline GLenum mgfx_gl_get_data_usage(mgfx_access access)
+static inline GLenum mgfx_gl_get_data_usage(mgfx_memory memory)
 {
-    if (access == MGFX_MEMORY_DEVICE)
+    if (memory == MGFX_MEMORY_DEVICE)
         return GL_STATIC_DRAW;
     return GL_DYNAMIC_DRAW;
 }
@@ -4297,7 +4279,7 @@ static void mgfx_gl_init(const mgfx_init_info *init_info)
 {
     ctx.gl = (mgfx_gl_context){ 0 };
     
-    _mgfx_gl_load_platform((mgfx_platform_handle*)init_info->handle);
+    _mgfx_gl_load_platform(init_info->primary_handle, init_info->secondary_handle);
 #if !defined(__EMSCRIPTEN__)
     _mgfx_gl_load_opengl();
 #endif
@@ -4640,7 +4622,7 @@ static void mgfx_d3d11_init(const mgfx_init_info *init_info)
         },
         .BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
         .BufferCount = 1,
-        .OutputWindow = (HWND)((mgfx_platform_handle*)init_info->handle)->win32.hwnd,
+        .OutputWindow = (HWND)init_info->primary_handle,
         .Windowed = TRUE
     };
 
@@ -5337,8 +5319,6 @@ ctx.dispatch                 = mgfx_##backend##_dispatch; \
 
 void mgfx_init(const mgfx_init_info *init_info)
 {
-    MGFX_ASSERT(init_info->handle, "A platform handle must be provided to init_info.");
-
     mgfx_renderer_type type = init_info->type;
     
     switch (type)
