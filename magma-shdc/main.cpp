@@ -267,6 +267,8 @@ public:
         options.version = 450;
         options.vulkan_semantics = false;
         options.es = false;
+        options.vertex.flip_vert_y = true;
+        options.vertex.fixup_clipspace = true;
         set_entry_point(compiler);
         compiler.set_common_options(options);
         return compiler.compile();
@@ -279,6 +281,8 @@ public:
         options.version = 300;
         options.vulkan_semantics = false;
         options.es = true;
+        options.vertex.flip_vert_y = true;
+        options.vertex.fixup_clipspace = true;
         set_entry_point(compiler);
         compiler.set_common_options(options);
         return compiler.compile();
@@ -291,7 +295,6 @@ public:
         spirv_cross::CompilerGLSL::Options glsl_options;
         glsl_options.emit_line_directives = false;
         glsl_options.vertex.flip_vert_y = true;
-        glsl_options.vertex.fixup_clipspace = true;
         set_entry_point(compiler);
         compiler.set_common_options(glsl_options);
 

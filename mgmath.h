@@ -268,9 +268,9 @@ static inline mg_mat4 mg_mat4_perspective(float fov_y, float aspect, float z_nea
     float t    = 1.0f / tanf(fov_y * 0.5f);
     mg_mat4 m = { 0 };
     m.m[0]  = t / aspect;
-    m.m[5]  = t;
-    m.m[10] = -(z_far + z_near) / (z_far - z_near);
-    m.m[14] = -(2.0f * z_far * z_near) / (z_far - z_near);
+    m.m[5]  = -t;
+    m.m[10] = z_far / (z_near - z_far);
+    m.m[14] = (z_near * z_far) / (z_near - z_far);
     m.m[11] = -1.0f;
     return m;
 }
@@ -279,11 +279,11 @@ static inline mg_mat4 mg_mat4_ortho(float left, float right, float bottom, float
 {
     mg_mat4 m = { 0 };
     m.m[0]  =  2.0f / (right - left);
-    m.m[5]  =  2.0f / (top - bottom);
-    m.m[10] = -2.0f / (z_far - z_near);
+    m.m[5]  = -2.0f / (top - bottom);
+    m.m[10] = -1.0f / (z_far - z_near);
     m.m[12] = -(right + left) / (right - left);
     m.m[13] = -(top + bottom) / (top - bottom);
-    m.m[14] = -(z_far + z_near) / (z_far - z_near);
+    m.m[14] = -z_near / (z_far - z_near);
     m.m[15] =  1.0f;
     return m;
 }
