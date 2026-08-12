@@ -897,17 +897,17 @@ int32_t mg_app_run(const mg_app_init_info *info)
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE);
 
     const LPCSTR win32_cursor_map[MG_CURSOR_MAX] = {
-        [MG_CURSOR_ARROW]       = (LPCSTR)IDC_ARROW,
-        [MG_CURSOR_IBEAM]       = (LPCSTR)IDC_IBEAM,
-        [MG_CURSOR_CROSSHAIR]   = (LPCSTR)IDC_CROSS,
-        [MG_CURSOR_HAND]        = (LPCSTR)IDC_HAND,
-        [MG_CURSOR_RESIZE_NS]   = (LPCSTR)IDC_SIZENS,
-        [MG_CURSOR_RESIZE_EW]   = (LPCSTR)IDC_SIZEWE,
-        [MG_CURSOR_RESIZE_NESW] = (LPCSTR)IDC_SIZENESW,
-        [MG_CURSOR_RESIZE_NWSE] = (LPCSTR)IDC_SIZENWSE,
-        [MG_CURSOR_RESIZE_ALL]  = (LPCSTR)IDC_SIZEALL,
-        [MG_CURSOR_NOT_ALLOWED] = (LPCSTR)IDC_NO,
-        [MG_CURSOR_HIDDEN]      = NULL,
+        (LPCSTR)IDC_ARROW,
+        (LPCSTR)IDC_IBEAM,
+        (LPCSTR)IDC_CROSS,
+        (LPCSTR)IDC_HAND,
+        (LPCSTR)IDC_SIZENS,
+        (LPCSTR)IDC_SIZEWE,
+        (LPCSTR)IDC_SIZENESW,
+        (LPCSTR)IDC_SIZENWSE,
+        (LPCSTR)IDC_SIZEALL,
+        (LPCSTR)IDC_NO,
+        NULL
     };
 
     for (uint8_t i = 0; i < MG_CURSOR_MAX; i++)

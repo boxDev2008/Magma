@@ -217,11 +217,10 @@ See the [`examples/`](examples/) directory for full working samples.
 
 ### Windows
 
-Requires [Visual Studio 2022](https://visualstudio.microsoft.com/vs/) with MSVC and the Windows SDK.
+Requires [Visual Studio 2022](https://visualstudio.microsoft.com/vs/) with MSVC, the Windows SDK and Clang.
 
 ```bat
-premake5 vs2022
-MSBuild Magma.sln
+./build-magma-shdc.bat
 ```
 
 ### Linux
@@ -230,12 +229,10 @@ MSBuild Magma.sln
 
 ```bash
 # Dependencies
-sudo pacman -Sy base-devel premake vulkan-devel libegl xorg-server
-yay -S spirv-cross   # or: paru -S spirv-cross
+sudo pacman -Sy clang base-devel spirv-cross vulkan-devel libegl xorg-server
 
-# Generate & build
-premake5 gmake
-make
+# Build
+./build-magma-shdc.sh
 ```
 
 ---
