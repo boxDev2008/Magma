@@ -83,7 +83,8 @@ static mgfx_buffer vb;
 void mg_app_on_start(void)
 {
     mgfx_init(&(mgfx_init_info){
-        .handle = mg_app_handle(),
+        .primary_handle = mg_app_primary_handle(),
+        .secondary_handle = mg_app_secondary_handle(),
         .width  = mg_app_width(),
         .height = mg_app_height(),
         .vsync  = true
@@ -161,11 +162,12 @@ mg_mat4 mvp  = mg_mat4_mul(proj, view);
 
 Magma ships its own shader cross-compiler built on [SPIRV-Cross](https://github.com/KhronosGroup/SPIRV-Cross) — similar in spirit to [sokol-shdc](https://github.com/floooh/sokol-tools). Write one GLSL source file with `@stage` annotations and compile it to a C header containing shader code for all target backends.
 
-**Supported output languages:** `glsl`, `glsles`, `hlsl`, `msl`, `spirv`
+**Supported output languages:** `glsl430`, `glsl300es`, `hlsl5`, `msl`, `spirv`
 
 ### Writing a shader
 
 ```glsl
+@name triangle
 @stage vertex
 
 in vec2 pos;
@@ -192,7 +194,7 @@ void main()
 ### Compiling
 
 ```bash
-magma-shdc --input triangle.glsl --output triangle.glsl.h --name triangle --lang hlsl,glsl,spirv
+magma-shdc --input triangle.glsl --output triangle.glsl.h --lang hlsl,glsl,spirv
 ```
 
 This produces `triangle.glsl.h` which you `#include` directly. At runtime, pass the correct variant to your pipeline using `mgfx_get_shader_lang()`:

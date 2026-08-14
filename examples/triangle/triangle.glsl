@@ -1,3 +1,5 @@
+@name triangle
+
 @stage vertex
 
 in vec2 pos;

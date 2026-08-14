@@ -90,9 +90,9 @@ extern "C" {
     typedef uint32_t mgfx_shader_lang;
     enum
     {
-        MGFX_SHADER_LANG_GLSL,
-        MGFX_SHADER_LANG_GLSLES,
-        MGFX_SHADER_LANG_HLSL,
+        MGFX_SHADER_LANG_GLSL430,
+        MGFX_SHADER_LANG_GLSL300ES,
+        MGFX_SHADER_LANG_HLSL5,
         MGFX_SHADER_LANG_SPIRV,
         MGFX_SHADER_LANG_MSL
     };
@@ -954,14 +954,6 @@ typedef struct
     GLenum index_type;
     GLenum primitive_topology;
     
-    struct
-    {
-        GLuint program;
-        GLuint framebuffer;
-        GLuint color_attachment;
-    }
-    swapchain;
-    
     mgfx_gl_pipeline *current_pipeline;
     
 #if defined(__EMSCRIPTEN__)
@@ -988,7 +980,7 @@ typedef struct
     }
     egl;
 #endif
-    
+
     int32_t width, height;
     bool vsync;
 }
@@ -1024,7 +1016,7 @@ mgfx_gl_context;
 #pragma comment (lib, "dxgi")
 #pragma comment (lib, "d3d11")
 #pragma comment (lib, "d3dcompiler")
-#pragma comment (lib, "dxguid.lib")
+#pragma comment (lib, "dxguid")
 
 typedef struct
 {
@@ -1078,7 +1070,7 @@ typedef struct
     IDXGISwapChain *swapchain;
     ID3D11DeviceContext *immediate_context;
     ID3D11RenderTargetView *target_view;
-    
+
     uint32_t width, height;
     bool vsync, pending_resize;
 }
@@ -1539,7 +1531,7 @@ static inline VkImageUsageFlags mgfx_vk_get_image_usage(mgfx_image_usage usage)
     return usage == MGFX_IMAGE_USAGE_COLOR_ATTACHMENT ?
         VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT :
         VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-    return flags;
+    return usage;
 }
 
 static inline VkIndexType mgfx_vk_get_index_type(mgfx_index_type index_type)
@@ -1989,17 +1981,22 @@ static void mgfx_vk_free_command_buffer(VkCommandBuffer buffer)
     vkFreeCommandBuffers(ctx.vk.device.handle, ctx.vk.command_pool, 1, &buffer);
 }
 
-static void mgfx_vk_command_buffer_set_viewport(VkCommandBuffer buffer, int32_t x, int32_t y, uint32_t width, uint32_t height)
+static void mgfx_vk_command_buffer_set_viewport(
+    VkCommandBuffer buffer,
+    int32_t x,
+    int32_t y,
+    uint32_t width,
+    uint32_t height)
 {
     VkViewport viewport = {
         .x = (float)x,
-        .y = (float)y,
+        .y = (float)(y + height),
         .width = (float)width,
-        .height = (float)height,
+        .height = -(float)height,
         .minDepth = 0.0f,
         .maxDepth = 1.0f
     };
-    
+
     vkCmdSetViewport(buffer, 0, 1, &viewport);
 }
 
@@ -3509,7 +3506,7 @@ static void _mgfx_gl_load_platform(void *hwnd, void *hinstance)
 
     const int attribs[] = {
         WGL_CONTEXT_MAJOR_VERSION_ARB, 4,
-        WGL_CONTEXT_MINOR_VERSION_ARB, 5,
+        WGL_CONTEXT_MINOR_VERSION_ARB, 3,
         WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
         0
     };
@@ -3578,7 +3575,7 @@ static void _mgfx_gl_load_platform(void *window, void *display)
     
     EGLint context_attribs[] = {
         EGL_CONTEXT_MAJOR_VERSION, 4,
-        EGL_CONTEXT_MINOR_VERSION, 5,
+        EGL_CONTEXT_MINOR_VERSION, 3,
         EGL_CONTEXT_OPENGL_PROFILE_MASK, EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT,
         EGL_NONE
     };
@@ -4109,11 +4106,21 @@ static void mgfx_gl_bind_pipeline(mgfx_gl_pipeline *pipeline)
     pipeline->depth_stencil.stencil_test_enabled ? glEnable(GL_STENCIL_TEST) : glDisable(GL_STENCIL_TEST);
 }
 
+static void mgfx_gl_viewport(int32_t x, int32_t y, uint32_t width, uint32_t height)
+{
+    glViewport(x, y, width, height);
+}
+
+static void mgfx_gl_scissor(int32_t x, int32_t y, uint32_t width, uint32_t height)
+{
+    glScissor(x, y, width, height);
+}
+
 static void mgfx_gl_bind_pass(const mgfx_pass_info *pass)
 {
     if (!mgfx_valid_pass(pass))
     {
-        glBindFramebuffer(GL_FRAMEBUFFER, ctx.gl.swapchain.framebuffer);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glViewport(0, 0, ctx.gl.width, ctx.gl.height);
         glScissor(0, 0, ctx.gl.width, ctx.gl.height);
         glClearColor(pass->clear.r, pass->clear.g, pass->clear.b, pass->clear.a);
@@ -4168,8 +4175,8 @@ static void mgfx_gl_bind_pass(const mgfx_pass_info *pass)
     else
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, 0, 0);
 
-    glViewport(0, 0, width, height);
-    glScissor(0, 0, width, height);
+    mgfx_gl_viewport(0, 0, width, height);
+    mgfx_gl_scissor(0, 0, width, height);
     glClearColor(pass->clear.r, pass->clear.g, pass->clear.b, pass->clear.a);
     GLbitfield clear_mask = color_count > 0 ? GL_COLOR_BUFFER_BIT : 0;
     if (depth) clear_mask |= GL_DEPTH_BUFFER_BIT;
@@ -4178,9 +4185,6 @@ static void mgfx_gl_bind_pass(const mgfx_pass_info *pass)
 
 static void mgfx_gl_resize(uint32_t width, uint32_t height)
 {
-    glBindTexture(GL_TEXTURE_2D, ctx.gl.swapchain.color_attachment);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
-    
     ctx.gl.width = width;
     ctx.gl.height = height;
 }
@@ -4191,90 +4195,6 @@ static void mgfx_gl_vsync(bool vsync)
     ctx.gl.vsync = vsync;
 }
 
-static void mgfx_gl_init_backbuffer(void)
-{
-    const char *vert_code =
-#if defined(__EMSCRIPTEN__)
-    "#version 300 es\n"
-        "precision mediump float;"
-#else
-    "#version 450 core\n"
-#endif
-    "const vec2 positions[4] = vec2[]("
-        "vec2(-1.0, -1.0),"
-        "vec2(1.0, -1.0),"
-        "vec2(-1.0, 1.0),"
-        "vec2(1.0, 1.0)"
-        ");"
-        "const vec2 tex_coords[4] = vec2[]("
-        "vec2(0.0, 0.0),"
-        "vec2(1.0, 0.0),"
-        "vec2(0.0, 1.0),"
-        "vec2(1.0, 1.0)"
-        ");"
-        "out vec2 tex_coord;"
-        "void main()"
-        "{"
-        "gl_Position = vec4(positions[gl_VertexID], 0.0, 1.0);"
-        "gl_Position.y = -gl_Position.y;"
-        "tex_coord = tex_coords[gl_VertexID];"
-        "}\0";
-    
-    const char *frag_code =
-#if defined(__EMSCRIPTEN__)
-    "#version 300 es\n"
-        "precision mediump float;"
-#else
-    "#version 450 core\n"
-#endif
-    "out vec4 out_color;"
-        "in vec2 tex_coord;"
-        "uniform sampler2D u_texture;"
-        "void main()"
-        "{"
-        "out_color = texture(u_texture, tex_coord);"
-        "}\0";
-    
-    uint32_t vertex = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertex, 1, &vert_code, NULL);
-    glCompileShader(vertex);
-    
-    uint32_t fragment = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragment, 1, &frag_code, NULL);
-    glCompileShader(fragment);
-    
-    ctx.gl.swapchain.program = glCreateProgram();
-    glAttachShader(ctx.gl.swapchain.program, vertex);
-    glAttachShader(ctx.gl.swapchain.program, fragment);
-    glLinkProgram(ctx.gl.swapchain.program);
-    
-    glDeleteShader(vertex);
-    glDeleteShader(fragment);
-    
-    glGenFramebuffers(1, &ctx.gl.swapchain.framebuffer);
-    glBindFramebuffer(GL_FRAMEBUFFER, ctx.gl.swapchain.framebuffer);
-    
-    glGenTextures(1, &ctx.gl.swapchain.color_attachment);
-    glBindTexture(GL_TEXTURE_2D, ctx.gl.swapchain.color_attachment);
-    
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ctx.gl.swapchain.color_attachment, 0);
-    
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-}
-
-static void mgfx_gl_destroy_backbuffer(void)
-{
-    glDeleteFramebuffers(1, &ctx.gl.swapchain.framebuffer);
-    glDeleteTextures(1, &ctx.gl.swapchain.color_attachment);
-    glDeleteProgram(ctx.gl.swapchain.program);
-}
-
 static void mgfx_gl_init(const mgfx_init_info *init_info)
 {
     ctx.gl = (mgfx_gl_context){ 0 };
@@ -4283,7 +4203,6 @@ static void mgfx_gl_init(const mgfx_init_info *init_info)
 #if !defined(__EMSCRIPTEN__)
     _mgfx_gl_load_opengl();
 #endif
-    mgfx_gl_init_backbuffer();
     
     mgfx_gl_resize(init_info->width, init_info->height);
     _mgfx_gl_set_swap_interval(init_info->vsync);
@@ -4297,6 +4216,8 @@ static void mgfx_gl_init(const mgfx_init_info *init_info)
         glBindBuffer(GL_UNIFORM_BUFFER, ctx.gl.uniform_buffers[i]);
         glBufferData(GL_UNIFORM_BUFFER, MGFX_MAX_UNIFORM_UPDATE_SIZE, NULL, GL_DYNAMIC_DRAW);
     }
+
+    glEnable(GL_SCISSOR_TEST);
 }
 
 static void mgfx_gl_shutdown(void)
@@ -4304,7 +4225,6 @@ static void mgfx_gl_shutdown(void)
     glDeleteBuffers(MGFX_MAX_BINDABLE_UNIFORMS, ctx.gl.uniform_buffers);
     glDeleteFramebuffers(1, &ctx.gl.scratch_framebuffer);
     glDeleteVertexArrays(1, &ctx.gl.vao);
-    mgfx_gl_destroy_backbuffer();
 #if !defined(__EMSCRIPTEN__)
     _mgfx_gl_unload_opengl();
 #endif
@@ -4313,37 +4233,13 @@ static void mgfx_gl_shutdown(void)
 
 static mgfx_result mgfx_gl_begin(void)
 {
-    glEnable(GL_SCISSOR_TEST);
     glBindVertexArray(ctx.gl.vao);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glBindFramebuffer(GL_FRAMEBUFFER, ctx.gl.swapchain.framebuffer);
     return MGFX_RESULT_SUCCESS;
 }
 
 static void mgfx_gl_end(void)
 {
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glDisable(GL_SCISSOR_TEST);
-    
-    glClear(GL_COLOR_BUFFER_BIT);
-    glUseProgram(ctx.gl.swapchain.program);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, ctx.gl.swapchain.color_attachment);
-    
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-    
     _mgfx_gl_swapbuffers();
-}
-
-static void mgfx_gl_viewport(int32_t x, int32_t y, uint32_t width, uint32_t height)
-{
-    glViewport(x, y, width, height);
-}
-
-static void mgfx_gl_scissor(int32_t x, int32_t y, uint32_t width, uint32_t height)
-{
-    glScissor(x, y, width, height);
 }
 
 static void mgfx_gl_draw(uint32_t vertex_count, uint32_t first_vertex)
@@ -4731,7 +4627,6 @@ static void mgfx_d3d11_viewport(int32_t x, int32_t y, uint32_t width, uint32_t h
         .MinDepth = 0.0f,
         .MaxDepth = 1.0f
     };
-
     MGFX_D3D11_CALL(ctx.d3d11.immediate_context, RSSetViewports, 1, &vp);
 }
 
@@ -4740,10 +4635,9 @@ static void mgfx_d3d11_scissor(int32_t x, int32_t y, uint32_t width, uint32_t he
     D3D11_RECT rect = {
         .left = x,
         .top = y,
-        .right = (LONG)(x + width),
-        .bottom = (LONG)(y + height)
+        .right = x + (LONG)width,
+        .bottom = y + (LONG)height
     };
-
     MGFX_D3D11_CALL(ctx.d3d11.immediate_context, RSSetScissorRects, 1, &rect);
 }
 
@@ -5069,6 +4963,7 @@ static void mgfx_d3d11_bind_pass(const mgfx_pass_info *pass)
     }
 
     MGFX_D3D11_CALL(ctx.d3d11.immediate_context, OMSetRenderTargets, color_count, rtvs, depth ? depth->dsv : NULL);
+    
     mgfx_d3d11_viewport(0, 0, width, height);
     mgfx_d3d11_scissor(0, 0, width, height);
 
@@ -5332,19 +5227,19 @@ void mgfx_init(const mgfx_init_info *init_info)
 #if defined(MGFX_OPENGL)
 #if !defined(__EMSCRIPTEN__)
         case MGFX_RENDERER_OPENGL:
-        ctx.shader_lang = MGFX_SHADER_LANG_GLSL;
+        ctx.shader_lang = MGFX_SHADER_LANG_GLSL430;
         MGFX_PIPELINE_BIND(gl);
         break;
 #else
         case MGFX_RENDERER_OPENGLES:
-        ctx.shader_lang = MGFX_SHADER_LANG_GLSLES;
+        ctx.shader_lang = MGFX_SHADER_LANG_GLSL300ES;
         MGFX_PIPELINE_BIND(gl);
         break;
 #endif
 #endif
 #if defined(MGFX_D3D11)
         case MGFX_RENDERER_D3D11:
-        ctx.shader_lang = MGFX_SHADER_LANG_HLSL;
+        ctx.shader_lang = MGFX_SHADER_LANG_HLSL5;
         MGFX_PIPELINE_BIND(d3d11);
         break;
 #endif

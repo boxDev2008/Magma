@@ -1,7 +1,7 @@
 #define MG_IMPL
 #include "mgapp.h"
 
-#define MGFX_D3D11
+#define MGFX_OPENGL
 #include "mgfx.h"
 
 #include "triangle.glsl.h"
@@ -14,7 +14,8 @@ static mgfx_buffer vb;
 void mg_app_on_start(void)
 {
     mgfx_init(&(mgfx_init_info){
-        .handle = mg_app_handle(),
+        .primary_handle = mg_app_primary_handle(),
+        .secondary_handle = mg_app_secondary_handle(),
         .width = mg_app_width(),
         .height = mg_app_height(),
         .vsync = true
@@ -22,10 +23,10 @@ void mg_app_on_start(void)
     vb = mgfx_create_buffer(&(mgfx_buffer_create_info){
         .usage = MGFX_BUFFER_USAGE_VERTEX,
         .data = (float[]){
-            0.0f, -0.5f, 1.0f, 0.5f, 0.5f,
-            0.5f, 0.5f, 0.5f, 1.0f, 0.5f,
-            -0.5f, 0.5f, 0.5f, 0.5f, 1.0f,
-            0.0f, -0.5f, 1.0f, 0.5f, 0.5f
+            0.0f, 0.5f, 1.0f, 0.5f, 0.5f,
+            0.5f, -0.5f, 0.5f, 1.0f, 0.5f,
+            -0.5f, -0.5f, 0.5f, 0.5f, 1.0f,
+            0.0f, 0.5f, 1.0f, 0.5f, 0.5f
         },
         .size = 20 * sizeof(float)
     });

@@ -7,6 +7,7 @@
 #include <string>
 #include <functional>
 #include <map>
+#include <set>
 
 #include <glslang/Public/ShaderLang.h>
 #include <glslang/SPIRV/GlslangToSpv.h>
@@ -20,13 +21,33 @@ enum class ShaderType { Graphics, Compute };
 
 enum
 {
-    GLSL = 1 << 1,
-    GLSLES = 1 << 2,
-    HLSL = 1 << 3,
+    GLSL430 = 1 << 1,
+    GLSL300ES = 1 << 2,
+    HLSL5 = 1 << 3,
     MSL = 1 << 4,
     SPIRV = 1 << 5
 };
 typedef uint32_t ShaderLangFlags;
+
+struct CompileOptions
+{
+    bool flip_vert_y = false;
+    bool fixup_clipspace = false;
+
+    bool set(const std::string &flag, std::string &error)
+    {
+        if (flag == "flip_vert_y")
+            flip_vert_y = true;
+        else if (flag == "fixup_clipspace")
+            fixup_clipspace = true;
+        else
+        {
+            error = "Unknown option '" + flag + "'";
+            return false;
+        }
+        return true;
+    }
+};
 
 struct ShaderStage
 {
@@ -39,6 +60,13 @@ struct ShaderProgram
 {
     std::map<EShLanguage, ShaderStage> stages;
     ShaderType type;
+    std::string name;
+
+    CompileOptions glsl_options;
+    CompileOptions glsles_options;
+    CompileOptions hlsl_options;
+    CompileOptions msl_options;
+    bool glsles_options_set = false;
 };
 
 struct ShaderResources
@@ -98,12 +126,41 @@ public:
                     return false;
                 }
             }
+            else if (line.find("@name") == 0)
+            {
+                if (!parse_name_directive(line, program))
+                    return false;
+            }
+            else if (line.find("@glsl_options") == 0)
+            {
+                if (!parse_options_directive(line, "@glsl_options", program.glsl_options))
+                    return false;
+            }
+            else if (line.find("@glsles_options") == 0)
+            {
+                if (!parse_options_directive(line, "@glsles_options", program.glsles_options))
+                    return false;
+                program.glsles_options_set = true;
+            }
+            else if (line.find("@hlsl_options") == 0)
+            {
+                if (!parse_options_directive(line, "@hlsl_options", program.hlsl_options))
+                    return false;
+            }
+            else if (line.find("@msl_options") == 0)
+            {
+                if (!parse_options_directive(line, "@msl_options", program.msl_options))
+                    return false;
+            }
             else if (current_stage != EShLangCount)
                 current_source << line << '\n';
         }
 
         if (current_stage != EShLangCount)
             save_stage(program, current_stage, current_source.str());
+
+        if (!program.glsles_options_set)
+            program.glsles_options = program.glsl_options;
 
         return validate_program(program);
     }
@@ -129,6 +186,51 @@ private:
         return EShLangCount;
     }
 
+    static bool parse_name_directive(const std::string &line, ShaderProgram &program)
+    {
+        std::istringstream iss(line);
+        std::string tag, name;
+        iss >> tag >> name;
+
+        if (name.empty())
+        {
+            std::cerr << "Error: '@name' directive requires a name, e.g. '@name mesh'\n";
+            return false;
+        }
+
+        program.name = name;
+        return true;
+    }
+
+    static bool parse_options_directive(const std::string &line, const std::string &tag, CompileOptions &options)
+    {
+        std::string rest = line.substr(tag.size());
+        std::replace(rest.begin(), rest.end(), ',', ' ');
+
+        std::istringstream iss(rest);
+        std::string flag;
+        bool any = false;
+
+        while (iss >> flag)
+        {
+            any = true;
+            std::string error;
+            if (!options.set(flag, error))
+            {
+                std::cerr << "Error: " << error << " in '" << tag << "' directive\n";
+                return false;
+            }
+        }
+
+        if (!any)
+        {
+            std::cerr << "Error: '" << tag << "' directive requires at least one flag\n";
+            return false;
+        }
+
+        return true;
+    }
+
     static void save_stage(ShaderProgram &program, EShLanguage stage, const std::string &source)
     {
         program.stages[stage] = { {}, source, stage };
@@ -136,6 +238,12 @@ private:
 
     static bool validate_program(const ShaderProgram &program)
     {
+        if (program.name.empty())
+        {
+            std::cerr << "Error: Shader is missing a '@name <name>' directive\n";
+            return false;
+        }
+
         if (program.type == ShaderType::Compute)
         {
             if (program.stages.size() != 1 || program.stages.find(EShLangCompute) == program.stages.end())
@@ -260,58 +368,64 @@ private:
 class CrossCompiler
 {
 public:
-    static std::string to_glsl(const std::vector<uint32_t> &spirv)
+    static std::string to_glsl430(const std::vector<uint32_t> &spirv, const CompileOptions &opts)
     {
         spirv_cross::CompilerGLSL compiler(spirv);
         spirv_cross::CompilerGLSL::Options options;
-        options.version = 450;
+        options.version = 430;
         options.vulkan_semantics = false;
         options.es = false;
-        options.vertex.flip_vert_y = true;
-        options.vertex.fixup_clipspace = true;
+        options.vertex.flip_vert_y = opts.flip_vert_y;
+        options.vertex.fixup_clipspace = opts.fixup_clipspace;
         set_entry_point(compiler);
         compiler.set_common_options(options);
+        compiler.add_header_line("#define MAGMA_GLSL 1");
         return compiler.compile();
     }
 
-    static std::string to_glsles(const std::vector<uint32_t> &spirv)
+    static std::string to_glsl300es(const std::vector<uint32_t> &spirv, const CompileOptions &opts)
     {
         spirv_cross::CompilerGLSL compiler(spirv);
         spirv_cross::CompilerGLSL::Options options;
         options.version = 300;
         options.vulkan_semantics = false;
         options.es = true;
-        options.vertex.flip_vert_y = true;
-        options.vertex.fixup_clipspace = true;
+        options.vertex.flip_vert_y = opts.flip_vert_y;
+        options.vertex.fixup_clipspace = opts.fixup_clipspace;
         set_entry_point(compiler);
         compiler.set_common_options(options);
+        compiler.add_header_line("#define MAGMA_GLSL 1");
         return compiler.compile();
     }
 
-    static std::string to_hlsl(const std::vector<uint32_t> &spirv)
+    static std::string to_hlsl5(const std::vector<uint32_t> &spirv, const CompileOptions &opts)
     {
         spirv_cross::CompilerHLSL compiler(spirv);
         
         spirv_cross::CompilerGLSL::Options glsl_options;
         glsl_options.emit_line_directives = false;
-        glsl_options.vertex.flip_vert_y = true;
+        glsl_options.vertex.flip_vert_y = opts.flip_vert_y;
+        glsl_options.vertex.fixup_clipspace = opts.fixup_clipspace;
         set_entry_point(compiler);
         compiler.set_common_options(glsl_options);
 
         spirv_cross::CompilerHLSL::Options hlsl_options;
         hlsl_options.shader_model = 50;
         compiler.set_hlsl_options(hlsl_options);
+        compiler.add_header_line("#define MAGMA_HLSL 1");
 
         return compiler.compile();
     }
 
-    static std::string to_msl(const std::vector<uint32_t> &spirv)
+    static std::string to_msl(const std::vector<uint32_t> &spirv, const CompileOptions &opts)
     {
         spirv_cross::CompilerMSL compiler(spirv);
 
         spirv_cross::CompilerGLSL::Options common_opts;
-        common_opts.vertex.flip_vert_y = true;
+        common_opts.vertex.flip_vert_y = opts.flip_vert_y;
+        common_opts.vertex.fixup_clipspace = opts.fixup_clipspace;
         compiler.set_common_options(common_opts);
+        compiler.add_header_line("#define MAGMA_MSL 1");
 
         spirv_cross::ShaderResources resources = compiler.get_shader_resources();
         for (const auto &ub : resources.uniform_buffers)
@@ -427,9 +541,9 @@ private:
         };
 
         if (lang_flags & SPIRV)  write_case("spirv", "MGFX_SHADER_LANG_SPIRV");
-        if (lang_flags & HLSL)   write_case("hlsl", "MGFX_SHADER_LANG_HLSL");
-        if (lang_flags & GLSL)   write_case("glsl", "MGFX_SHADER_LANG_GLSL");
-        if (lang_flags & GLSLES) write_case("glsles", "MGFX_SHADER_LANG_GLSLES");
+        if (lang_flags & HLSL5)   write_case("hlsl5", "MGFX_SHADER_LANG_HLSL5");
+        if (lang_flags & GLSL430)   write_case("glsl430", "MGFX_SHADER_LANG_GLSL430");
+        if (lang_flags & GLSL300ES) write_case("glsl300es", "MGFX_SHADER_LANG_GLSL300ES");
         if (lang_flags & MSL)    write_case("msl", "MGFX_SHADER_LANG_MSL");
     }
 
@@ -446,16 +560,16 @@ private:
         };
 
         if (lang_flags & SPIRV)  write_case("spirv", "MGFX_SHADER_LANG_SPIRV");
-        if (lang_flags & HLSL)   write_case("hlsl", "MGFX_SHADER_LANG_HLSL");
-        if (lang_flags & GLSL)   write_case("glsl", "MGFX_SHADER_LANG_GLSL");
-        if (lang_flags & GLSLES) write_case("glsles", "MGFX_SHADER_LANG_GLSLES");
+        if (lang_flags & HLSL5)   write_case("hlsl5", "MGFX_SHADER_LANG_HLSL5");
+        if (lang_flags & GLSL430)   write_case("glsl430", "MGFX_SHADER_LANG_GLSL430");
+        if (lang_flags & GLSL300ES) write_case("glsl300es", "MGFX_SHADER_LANG_GLSL300ES");
         if (lang_flags & MSL)    write_case("msl", "MGFX_SHADER_LANG_MSL");
     }
 };
 
 int main(int argc, char **argv)
 {
-    std::string input_file, output_file, shader_name, lang_string;
+    std::string input_file, output_file, lang_string;
 
     for (int i = 1; i < argc; ++i)
     {
@@ -464,16 +578,14 @@ int main(int argc, char **argv)
             input_file = argv[++i];
         else if ((arg == "--output" || arg == "-o") && i + 1 < argc)
             output_file = argv[++i];
-        else if ((arg == "--name" || arg == "-n") && i + 1 < argc)
-            shader_name = argv[++i];
         else if ((arg == "--lang" || arg == "-l") && i + 1 < argc)
             lang_string = argv[++i];
     }
 
-    if (input_file.empty() || output_file.empty() || shader_name.empty() || lang_string.empty())
+    if (input_file.empty() || output_file.empty() || lang_string.empty())
     {
-        std::cerr << "Usage: " << argv[0] << " -i <input> -o <output> -n <name> -l <langs>\n";
-        std::cerr << "  Languages: spirv,glsl,glsles,hlsl,msl\n";
+        std::cerr << "Usage: " << argv[0] << " -i <input> -o <output> -l <langs>\n";
+        std::cerr << "  Languages: spirv,glsl430,glsl300es,hlsl5,msl\n";
         return 1;
     }
 
@@ -483,9 +595,9 @@ int main(int argc, char **argv)
     while (std::getline(lang_stream, token, ','))
     {
         if      (token == "spirv")  lang_flags |= SPIRV;
-        else if (token == "glsl")   lang_flags |= GLSL;
-        else if (token == "glsles") lang_flags |= GLSLES;
-        else if (token == "hlsl")   lang_flags |= HLSL;
+        else if (token == "glsl430")   lang_flags |= GLSL430;
+        else if (token == "glsl300es") lang_flags |= GLSL300ES;
+        else if (token == "hlsl5")   lang_flags |= HLSL5;
         else if (token == "msl")    lang_flags |= MSL;
         else
         {
@@ -510,6 +622,8 @@ int main(int argc, char **argv)
     std::ofstream header(output_file);
     header << "#pragma once\n\n#include <stdint.h>\n\n";
 
+    const std::string &shader_name = program.name;
+
     if (lang_flags & SPIRV)
     {
         for (const auto &[stage_type, stage] : program.stages)
@@ -521,13 +635,29 @@ int main(int argc, char **argv)
         }
     }
 
-    struct LangInfo { std::string name; std::function<std::string(const std::vector<uint32_t>&)> compile; };
+    struct LangInfo
+    {
+        std::string name;
+        std::function<std::string(const std::vector<uint32_t>&)> compile;
+    };
     std::vector<LangInfo> langs;
-    
-    if (lang_flags & GLSL)   langs.push_back({"glsl", CrossCompiler::to_glsl});
-    if (lang_flags & GLSLES) langs.push_back({"glsles", CrossCompiler::to_glsles});
-    if (lang_flags & HLSL)   langs.push_back({"hlsl", CrossCompiler::to_hlsl});
-    if (lang_flags & MSL)    langs.push_back({"msl", CrossCompiler::to_msl});
+
+    if (lang_flags & GLSL430)
+        langs.push_back({"glsl430", [&](const std::vector<uint32_t> &spirv) {
+            return CrossCompiler::to_glsl430(spirv, program.glsl_options);
+        }});
+    if (lang_flags & GLSL300ES)
+        langs.push_back({"glsl300es", [&](const std::vector<uint32_t> &spirv) {
+            return CrossCompiler::to_glsl300es(spirv, program.glsles_options);
+        }});
+    if (lang_flags & HLSL5)
+        langs.push_back({"hlsl5", [&](const std::vector<uint32_t> &spirv) {
+            return CrossCompiler::to_hlsl5(spirv, program.hlsl_options);
+        }});
+    if (lang_flags & MSL)
+        langs.push_back({"msl", [&](const std::vector<uint32_t> &spirv) {
+            return CrossCompiler::to_msl(spirv, program.msl_options);
+        }});
 
     for (const auto &lang : langs)
     {
