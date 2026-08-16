@@ -1072,7 +1072,6 @@ typedef struct
 {
     mgfx_d3d11_pipeline *current_pipeline;
     ID3D11Device *device;
-    ID3D11DeviceContext *context;
     IDXGISwapChain *swapchain;
     ID3D11DeviceContext *immediate_context;
     ID3D11RenderTargetView *target_view;
@@ -4518,7 +4517,6 @@ static void mgfx_d3d11_init(const mgfx_init_info *init_info)
         .BufferDesc = {
             .Width = (UINT)init_info->width,
             .Height = (UINT)init_info->height,
-            .RefreshRate = { .Numerator = 60, .Denominator = 1 },
             .Format = DXGI_FORMAT_B8G8R8A8_UNORM,
         },
         .SampleDesc = {
