@@ -4517,6 +4517,7 @@ static void mgfx_d3d11_init(const mgfx_init_info *init_info)
         .BufferDesc = {
             .Width = (UINT)init_info->width,
             .Height = (UINT)init_info->height,
+            .RefreshRate = { .Numerator = 0, .Denominator = 1 },
             .Format = DXGI_FORMAT_B8G8R8A8_UNORM,
         },
         .SampleDesc = {
