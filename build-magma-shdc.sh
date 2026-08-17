@@ -17,9 +17,6 @@ clang++ \
     -o "$OUT/magma-shdc" \
     -lglslang \
     -lglslang-default-resource-limits \
-    -lGenericCodeGen \
-    -lMachineIndependent \
-    -lOSDependent \
     -lSPIRV \
     -lSPIRV-Tools \
     -lSPIRV-Tools-opt \
