@@ -1,7 +1,7 @@
 #define MG_IMPL
 #include "mgapp.h"
 
-#define MGFX_VULKAN
+#define MGFX_OPENGL
 #include "mgfx.h"
 
 #include "texture.glsl.h"
