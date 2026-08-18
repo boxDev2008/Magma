@@ -39,10 +39,6 @@
 #define MGFX_MAX_VERTEX_ATTRIBUTES 8
 #endif
 
-#ifndef MGFX_MAX_DESCRIPTOR_CACHE
-#define MGFX_MAX_DESCRIPTOR_CACHE (1 << 10)
-#endif
-
 #ifndef MGFX_MAX_DEVICE_ALLOCATIONS
 #define MGFX_MAX_DEVICE_ALLOCATIONS (1 << 13)
 #endif
@@ -554,29 +550,11 @@ mgfx_vk_descriptor_binding;
 
 typedef struct
 {
-    mgfx_vk_descriptor_binding bindings[MGFX_MAX_BINDABLE_IMAGES];
-    uint64_t hash;
-    uint32_t binding_count;
-}
-mgfx_vk_descriptor_set_key;
-
-typedef struct
-{
-    mgfx_vk_descriptor_set_key key;
-}
-mgfx_vk_cached_descriptor_set;
-
-typedef struct
-{    
-    VkDescriptorSet sets[MGFX_MAX_DESCRIPTOR_CACHE];
-    mgfx_vk_cached_descriptor_set cache[MGFX_MAX_DESCRIPTOR_CACHE];
-    uint32_t cache_size;
-    
     mgfx_vk_descriptor_binding bound_images[MGFX_MAX_BINDABLE_IMAGES];
     bool bound_image_active[MGFX_MAX_BINDABLE_IMAGES];
     bool dirty;
 }
-mgfx_vk_descriptor_cache;
+mgfx_vk_descriptor_state;
 
 typedef uint8_t mgfx_vk_release_queue_entry_type;
 enum
@@ -689,7 +667,7 @@ typedef struct
     }
     scratch_buffer;
     
-    mgfx_vk_descriptor_cache descriptor_cache;
+    mgfx_vk_descriptor_state descriptor_state;
     mgfx_queue release_queue;
     
     uint32_t width, height;
@@ -1544,154 +1522,49 @@ static inline VkIndexType mgfx_vk_get_index_type(mgfx_index_type index_type)
     return index_type == MGFX_INDEX_TYPE_UINT32 ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16;
 }
 
-static uint64_t mgfx_vk_hash_descriptor_key(const mgfx_vk_descriptor_set_key* key)
+static void mgfx_vk_push_image_descriptors(void)
 {
-    uint64_t hash = 14695981039346656037ULL;
-    const uint8_t* data = (const uint8_t*)key->bindings;
-    size_t size = sizeof(mgfx_vk_descriptor_binding) * key->binding_count;
-    
-    for (size_t i = 0; i < size; i++)
-    {
-        hash ^= data[i];
-        hash *= 1099511628211ULL;
-    }
-    
-    return hash;
-}
+    mgfx_vk_descriptor_state *state = &mgfx_ctx.vk.descriptor_state;
+    if (!state->dirty)
+        return;
 
-static bool mgfx_vk_compare_descriptor_keys(const mgfx_vk_descriptor_set_key* a, const mgfx_vk_descriptor_set_key* b)
-{
-    if (a->binding_count != b->binding_count || a->hash != b->hash)
-        return false;
-    
-    return memcmp(a->bindings, b->bindings, sizeof(mgfx_vk_descriptor_binding) * a->binding_count) == 0;
-}
-
-static int32_t mgfx_vk_find_cached_set(mgfx_vk_descriptor_cache* cache, const mgfx_vk_descriptor_set_key* key)
-{
-    for (uint32_t i = 0; i < cache->cache_size; i++)
-        if (mgfx_vk_compare_descriptor_keys(&cache->cache[i].key, key))
-        return (int32_t)i;
-    return -1;
-}
-
-static VkDescriptorSet mgfx_vk_commit_image_descriptor_cache(mgfx_vk_descriptor_cache *cache)
-{
-    if (!cache->dirty)
-        return VK_NULL_HANDLE;
-    
-    mgfx_vk_descriptor_set_key key;
-    key.binding_count = 0;
-    
-    for (uint32_t i = 0; i < MGFX_MAX_BINDABLE_IMAGES; i++)
-    {
-        if (cache->bound_image_active[i])
-            key.bindings[key.binding_count++] = cache->bound_images[i];
-    }
-    
-    if (key.binding_count == 0) return VK_NULL_HANDLE;
-    
-    key.hash = mgfx_vk_hash_descriptor_key(&key);
-    
-    int32_t cached_index = mgfx_vk_find_cached_set(cache, &key);
-    if (cached_index >= 0)
-    {
-        cache->dirty = false;
-        return cache->sets[cached_index];
-    }
-    
-    if (cache->cache_size >= MGFX_MAX_DESCRIPTOR_CACHE)
-        return VK_NULL_HANDLE;
-    
-    uint32_t new_index = cache->cache_size++;
-    
-    VkDescriptorSetAllocateInfo alloc_info = {
-        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-        .descriptorPool = mgfx_ctx.vk.descriptor_pool,
-        .descriptorSetCount = 1,
-        .pSetLayouts = &mgfx_ctx.vk.layouts.image_sampler_layout
-    };
-    vkAllocateDescriptorSets(mgfx_ctx.vk.device.handle, &alloc_info, &cache->sets[new_index]);
-    cache->cache[new_index].key = key;
-    
     VkWriteDescriptorSet writes[MGFX_MAX_BINDABLE_IMAGES];
     VkDescriptorImageInfo image_infos[MGFX_MAX_BINDABLE_IMAGES];
-    
-    for (uint32_t i = 0; i < key.binding_count; i++)
+    uint32_t write_count = 0;
+
+    for (uint32_t i = 0; i < MGFX_MAX_BINDABLE_IMAGES; i++)
     {
-        image_infos[i] = (VkDescriptorImageInfo){
-            .sampler     = key.bindings[i].sampler,
-            .imageView   = key.bindings[i].image_view,
+        if (!state->bound_image_active[i])
+            continue;
+
+        image_infos[write_count] = (VkDescriptorImageInfo){
+            .sampler = state->bound_images[i].sampler,
+            .imageView = state->bound_images[i].image_view,
             .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
         };
-        writes[i] = (VkWriteDescriptorSet){
-            .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            .dstSet          = cache->sets[new_index],
-            .dstBinding      = key.bindings[i].binding,
+        writes[write_count] = (VkWriteDescriptorSet){
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .dstBinding = state->bound_images[i].binding,
             .descriptorCount = 1,
-            .descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-            .pImageInfo      = &image_infos[i]
+            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            .pImageInfo = &image_infos[write_count]
         };
+        write_count++;
     }
-    vkUpdateDescriptorSets(mgfx_ctx.vk.device.handle, key.binding_count, writes, 0, NULL);
-    
-    cache->dirty = false;
-    return cache->sets[new_index];
-}
 
-static void mgfx_vk_remove_cache_entry(mgfx_vk_descriptor_cache* cache, uint32_t index)
-{
-    if (cache->cache_size == 0 || index >= cache->cache_size)
+    if (write_count == 0)
         return;
-    
-    vkFreeDescriptorSets(mgfx_ctx.vk.device.handle, mgfx_ctx.vk.descriptor_pool, 1, &cache->sets[index]);
-    
-    uint32_t last_index = cache->cache_size - 1;
-    if (index != last_index)
-    {
-        cache->cache[index] = cache->cache[last_index];
-        cache->sets[index] = cache->sets[last_index];
-    }
-    
-    cache->cache_size--;
-}
 
-static void mgfx_vk_descriptor_cache_invalidate_image_view(mgfx_vk_descriptor_cache *cache, VkImageView view)
-{
-    for (uint32_t i = 0; i < cache->cache_size; i++)
-        for (uint32_t j = 0; j < cache->cache[i].key.binding_count; j++)
-        if (cache->cache[i].key.bindings[j].image_view == view)
-    {
-        mgfx_vk_remove_cache_entry(cache, i);
-        i--;
-        break;
-    }
-    
-    for (uint32_t i = 0; i < MGFX_MAX_BINDABLE_IMAGES; i++)
-        if (cache->bound_image_active[i] && cache->bound_images[i].image_view == view)
-    {
-        cache->bound_image_active[i] = false;
-        cache->dirty = true;
-    }
-}
+    vkCmdPushDescriptorSet(
+        mgfx_ctx.vk.command_buffer,
+        mgfx_ctx.vk.current_pipeline->bind_point,
+        mgfx_ctx.vk.current_pipeline->pipeline_layout,
+        1,
+        write_count,
+        writes
+    );
 
-static void mgfx_vk_descriptor_cache_invalidate_sampler(mgfx_vk_descriptor_cache *cache, VkSampler sampler)
-{
-    for (uint32_t i = 0; i < cache->cache_size; i++)
-        for (uint32_t j = 0; j < cache->cache[i].key.binding_count; j++)
-        if (cache->cache[i].key.bindings[j].sampler == sampler)
-    {
-        mgfx_vk_remove_cache_entry(cache, i);
-        i--;
-        break;
-    }
-    
-    for (uint32_t i = 0; i < MGFX_MAX_BINDABLE_IMAGES; i++)
-        if (cache->bound_image_active[i] && cache->bound_images[i].sampler == sampler)
-    {
-        cache->bound_image_active[i] = false;
-        cache->dirty = true;
-    }
+    state->dirty = false;
 }
 
 static uint32_t mgfx_vk_find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties)
@@ -1880,12 +1753,10 @@ static void mgfx_vk_recycle(void)
             case MGFX_VK_RELEASE_QUEUE_ENTRY_IMAGE:
             vkDestroyImage(mgfx_ctx.vk.device.handle, entry->image->image, NULL);
             vkFreeMemory(mgfx_ctx.vk.device.handle, entry->image->memory, NULL);
-            mgfx_vk_descriptor_cache_invalidate_image_view(&mgfx_ctx.vk.descriptor_cache, entry->image->view);
             vkDestroyImageView(mgfx_ctx.vk.device.handle, entry->image->view, NULL);
             free(entry->image);
             break;
             case MGFX_VK_RELEASE_QUEUE_ENTRY_SAMPLER:
-            mgfx_vk_descriptor_cache_invalidate_sampler(&mgfx_ctx.vk.descriptor_cache, entry->sampler);
             vkDestroySampler(mgfx_ctx.vk.device.handle, entry->sampler, NULL);
             break;
             case MGFX_VK_RELEASE_QUEUE_ENTRY_PIPELINE:
@@ -2300,12 +2171,14 @@ static void mgfx_vk_destroy_image(mgfx_vk_image *image)
 static void mgfx_vk_bind_image(mgfx_vk_image *image, VkSampler sampler, uint32_t binding)
 {
     MGFX_ASSERT(binding < MGFX_MAX_BINDABLE_IMAGES, "Cannot access binding higher than MGFX_MAX_BINDABLE_IMAGES.");
-    mgfx_vk_descriptor_cache *cache = &mgfx_ctx.vk.descriptor_cache;
-    cache->bound_images[binding].image_view = image->view;
-    cache->bound_images[binding].sampler = sampler;
-    cache->bound_images[binding].binding = binding;
-    cache->bound_image_active[binding] = true;
-    cache->dirty = true;
+    mgfx_vk_descriptor_state *state = &mgfx_ctx.vk.descriptor_state;
+    state->bound_images[binding] = (mgfx_vk_descriptor_binding){
+        .image_view = image->view,
+        .sampler = sampler,
+        .binding = binding
+    };
+    state->bound_image_active[binding] = true;
+    state->dirty = true;
 }
 
 static VkSampler mgfx_vk_create_sampler(const mgfx_sampler_create_info *create_info)
@@ -2868,7 +2741,7 @@ static void mgfx_vk_create_instance(void)
         .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
         .pEngineName = "Magma",
         .engineVersion = VK_MAKE_VERSION(1, 0, 0),
-        .apiVersion = VK_API_VERSION_1_3
+        .apiVersion = VK_API_VERSION_1_4
     };
 
     const char *instance_extensions[] = {
@@ -3026,15 +2899,14 @@ static void mgfx_vk_create_sync_objects(void)
 static void mgfx_vk_create_descriptor_pool(void)
 {
     VkDescriptorPoolSize pool_sizes[] = {
-        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, MGFX_MAX_BINDABLE_UNIFORMS},
-        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MGFX_MAX_DESCRIPTOR_CACHE * MGFX_MAX_BINDABLE_IMAGES}
+        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, MGFX_MAX_BINDABLE_UNIFORMS}
     };
-    
+
     VkDescriptorPoolCreateInfo pool_info = {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
         .flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
-        .maxSets = MGFX_MAX_BINDABLE_UNIFORMS + MGFX_MAX_DESCRIPTOR_CACHE,
-        .poolSizeCount = 2,
+        .maxSets = MGFX_MAX_BINDABLE_UNIFORMS,
+        .poolSizeCount = 1,
         .pPoolSizes = pool_sizes
     };
 
@@ -3074,19 +2946,20 @@ static void mgfx_vk_create_descriptor_set_layouts(void)
             .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT
         };
     }
-    
+
     layout_info.bindingCount = MGFX_MAX_BINDABLE_IMAGES;
     layout_info.pBindings = image_sampler_layout_bindings;
-    
+    layout_info.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
+
     result = vkCreateDescriptorSetLayout(mgfx_ctx.vk.device.handle, &layout_info, NULL, &mgfx_ctx.vk.layouts.image_sampler_layout);
-    MGFX_ASSERT(result == VK_SUCCESS, "Failed to create vulkan combined image sampler descriptor set layout.");
+    MGFX_ASSERT(result == VK_SUCCESS, "Failed to create vulkan push-descriptor image sampler layout.");
 }
 
 static void mgfx_vk_create_scratch_buffer(void)
 {
     mgfx_vk_allocate_buffer(MGFX_MAX_SCRATCH_BUFFER_SIZE, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                            &mgfx_ctx.vk.scratch_buffer.buffer, &mgfx_ctx.vk.scratch_buffer.memory);
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        &mgfx_ctx.vk.scratch_buffer.buffer, &mgfx_ctx.vk.scratch_buffer.memory);
     vkMapMemory(mgfx_ctx.vk.device.handle, mgfx_ctx.vk.scratch_buffer.memory, 0, MGFX_MAX_SCRATCH_BUFFER_SIZE, 0, (void**)&mgfx_ctx.vk.scratch_buffer.data);
     
     VkDescriptorSetAllocateInfo alloc_info = {
@@ -3224,7 +3097,7 @@ static mgfx_result mgfx_vk_begin(void)
     mgfx_ctx.vk.current_pass.depth_image = NULL;
     mgfx_ctx.vk.scratch_buffer.offset = 0;
     mgfx_ctx.vk.inside_pass = false;
-    mgfx_ctx.vk.descriptor_cache.dirty = false;
+    mgfx_ctx.vk.descriptor_state.dirty = false;
 
     return MGFX_RESULT_SUCCESS;
 }
@@ -3294,17 +3167,13 @@ static void mgfx_vk_scissor(int32_t x, int32_t y, uint32_t width, uint32_t heigh
 
 static void mgfx_vk_draw_instanced(uint32_t vertex_count, uint32_t first_vertex, uint32_t instance_count, uint32_t first_instance)
 {
-    VkDescriptorSet set = mgfx_vk_commit_image_descriptor_cache(&mgfx_ctx.vk.descriptor_cache);
-    if (set != VK_NULL_HANDLE)
-        vkCmdBindDescriptorSets(mgfx_ctx.vk.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mgfx_ctx.vk.current_pipeline->pipeline_layout, 1, 1, &set, 0, NULL);
+    mgfx_vk_push_image_descriptors();
     vkCmdDraw(mgfx_ctx.vk.command_buffer, vertex_count, instance_count, first_vertex, first_instance);
 }
 
 static void mgfx_vk_draw_indexed_instanced(uint32_t index_count, uint32_t first_index, int32_t first_vertex, uint32_t instance_count, uint32_t first_instance)
 {
-    VkDescriptorSet set = mgfx_vk_commit_image_descriptor_cache(&mgfx_ctx.vk.descriptor_cache);
-    if (set != VK_NULL_HANDLE)
-        vkCmdBindDescriptorSets(mgfx_ctx.vk.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mgfx_ctx.vk.current_pipeline->pipeline_layout, 1, 1, &set, 0, NULL);
+    mgfx_vk_push_image_descriptors();
     vkCmdDrawIndexed(mgfx_ctx.vk.command_buffer, index_count, instance_count, first_index, first_vertex, first_instance);
 }
 
