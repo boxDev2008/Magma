@@ -19,16 +19,12 @@
 #endif
 #endif
 
-#ifndef MGFX_MAX_BINDABLE_IMAGES
-#define MGFX_MAX_BINDABLE_IMAGES 8
+#ifndef MGFX_MAX_BINDABLE_SHADER_RESOURCES
+#define MGFX_MAX_BINDABLE_SHADER_RESOURCES 16
 #endif
 
 #ifndef MGFX_MAX_BINDABLE_UNIFORMS
 #define MGFX_MAX_BINDABLE_UNIFORMS 4
-#endif
-
-#ifndef MGFX_MAX_BINDABLE_STORAGE_BUFFERS
-#define MGFX_MAX_BINDABLE_STORAGE_BUFFERS 4
 #endif
 
 #ifndef MGFX_MAX_COLOR_ATTACHMENTS
@@ -104,7 +100,8 @@ extern "C" {
     enum
     {
         MGFX_BUFFER_USAGE_INDEX,
-        MGFX_BUFFER_USAGE_VERTEX
+        MGFX_BUFFER_USAGE_VERTEX,
+        MGFX_BUFFER_USAGE_STORAGE
     };
     
     typedef uint32_t mgfx_memory;
@@ -168,9 +165,10 @@ extern "C" {
     typedef uint32_t mgfx_image_usage;
     enum
     {
-        MGFX_IMAGE_USAGE_NONE,
-        MGFX_IMAGE_USAGE_COLOR_ATTACHMENT,
-        MGFX_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT
+        MGFX_IMAGE_USAGE_SAMPLED = 1 << 0,
+        MGFX_IMAGE_USAGE_COLOR_ATTACHMENT = 1 << 1,
+        MGFX_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT = 1 << 2,
+        MGFX_IMAGE_USAGE_STORAGE = 1 << 3
     };
     
     typedef uint32_t mgfx_sampler_filter;
@@ -201,6 +199,14 @@ extern "C" {
     mgfx_sampler_create_info;
     
     typedef void *mgfx_sampler;
+
+    typedef uint32_t mgfx_access;
+    enum
+    {
+        MGFX_ACCESS_READ_WRITE,
+        MGFX_ACCESS_READ_ONLY,
+        MGFX_ACCESS_WRITE_ONLY
+    };
     
     typedef struct
     {
@@ -364,7 +370,15 @@ extern "C" {
         size_t size;
     }
     mgfx_shader_source;
-    
+
+    typedef uint8_t mgfx_shader_resource_type;
+    enum
+    {
+        MGFX_SHADER_RESOURCE_TYPE_SAMPLED_IMAGE,
+        MGFX_SHADER_RESOURCE_TYPE_STORAGE_IMAGE,
+        MGFX_SHADER_RESOURCE_TYPE_STORAGE_BUFFER
+    };
+
     typedef struct
     {
         struct
@@ -379,8 +393,9 @@ extern "C" {
         {
             const char *name;
             int32_t binding;
+            mgfx_shader_resource_type type;
         }
-        sampled_images[MGFX_MAX_BINDABLE_IMAGES];
+        resources[MGFX_MAX_BINDABLE_SHADER_RESOURCES];
         
         mgfx_shader_source vertex;
         mgfx_shader_source fragment;
@@ -451,14 +466,16 @@ extern "C" {
     
     MGFX_API void mgfx_bind_vertex_buffer (mgfx_buffer buffer);
     MGFX_API void mgfx_bind_index_buffer (mgfx_buffer buffer, mgfx_index_type index_type);
+    MGFX_API void mgfx_bind_storage_buffer (mgfx_buffer buffer, uint32_t binding);
     
     MGFX_API void mgfx_bind_uniforms (uint32_t binding, size_t size, void *data);
     
     MGFX_API mgfx_image mgfx_create_image (const mgfx_image_create_info *create_info);
     MGFX_API void mgfx_destroy_image (mgfx_image image);
     MGFX_API void mgfx_update_image (mgfx_image image, size_t size, void *data);
-    MGFX_API void mgfx_bind_image (mgfx_image image, mgfx_sampler sampler, uint32_t binding);
-    
+    MGFX_API void mgfx_bind_sampled_image (mgfx_image image, mgfx_sampler sampler, uint32_t binding);
+    MGFX_API void mgfx_bind_storage_image (mgfx_image image, mgfx_access access, uint32_t binding);
+
     MGFX_API mgfx_sampler mgfx_create_sampler(const mgfx_sampler_create_info *create_info);
     MGFX_API void mgfx_destroy_sampler(mgfx_sampler sampler);
     
@@ -521,6 +538,7 @@ typedef struct
 {
     VkBuffer buffer;
     VkDeviceMemory memory;
+    VkDeviceSize size;
     bool shared_memory;
 }
 mgfx_vk_buffer;
@@ -530,28 +548,25 @@ typedef struct
     VkPipelineLayout pipeline_layout;
     VkPipeline pipeline;
     VkPipelineBindPoint bind_point;
+    VkDescriptorSetLayout resource_layout;
 }
 mgfx_vk_pipeline;
 
 typedef struct
 {
-    union
-    {
-        struct
-        {
-            VkImageView image_view;
-            VkSampler sampler;
-        };
-        VkBuffer buffer; // later for storage buffers
-    };
+    VkImageView image_view;
+    VkSampler sampler;
+    mgfx_vk_buffer *storage_buffer;
     uint32_t binding;
+    mgfx_access access;
+    mgfx_shader_resource_type type;
 }
 mgfx_vk_descriptor_binding;
 
 typedef struct
 {
-    mgfx_vk_descriptor_binding bound_images[MGFX_MAX_BINDABLE_IMAGES];
-    bool bound_image_active[MGFX_MAX_BINDABLE_IMAGES];
+    mgfx_vk_descriptor_binding bound_resources[MGFX_MAX_BINDABLE_SHADER_RESOURCES];
+    bool bound_resources_active[MGFX_MAX_BINDABLE_SHADER_RESOURCES];
     bool dirty;
 }
 mgfx_vk_descriptor_state;
@@ -640,7 +655,6 @@ typedef struct
     struct
     {
         VkDescriptorSetLayout scratch_buffer_layout;
-        VkDescriptorSetLayout image_sampler_layout;
     }
     layouts;
     
@@ -847,6 +861,10 @@ typedef int  GLint;
 #define GL_CLAMP_TO_BORDER                0x812D
 #define GL_MIN                            0x8007
 #define GL_MAX                            0x8008
+#define GL_READ_ONLY                      0x88B8
+#define GL_WRITE_ONLY                     0x88B9
+#define GL_READ_WRITE                     0x88BA
+#define GL_SHADER_STORAGE_BUFFER          0x90D2
 
 #endif
 
@@ -855,6 +873,7 @@ typedef struct
     GLuint id;
     GLenum target;
     GLenum usage;
+    GLsizeiptr size;
 }
 mgfx_gl_buffer;
 
@@ -907,18 +926,14 @@ typedef struct
     GLuint texture_id;
     GLenum texture_target;
     GLenum format;
+    GLenum internal_format;
     uint32_t width, height, depth;
 }
 mgfx_gl_image;
 
 typedef struct
 {
-    GLint min_filter;
-    GLint mag_filter;
-    
-    GLint address_mode_u;
-    GLint address_mode_v;
-    GLint address_mode_w;
+    GLuint id;
 }
 mgfx_gl_sampler;
 
@@ -1006,11 +1021,9 @@ typedef struct
 {
     ID3D11Resource *texture;
     ID3D11ShaderResourceView *view;
-    union
-    {
-        ID3D11RenderTargetView  *rtv;
-        ID3D11DepthStencilView  *dsv;
-    };
+    ID3D11UnorderedAccessView *uav;
+    ID3D11RenderTargetView *rtv;
+    ID3D11DepthStencilView *dsv;
     uint32_t width, height;
     bool shared_memory;
 }
@@ -1019,6 +1032,7 @@ mgfx_d3d11_image;
 typedef struct
 {
     ID3D11Buffer *buffer;
+    ID3D11UnorderedAccessView *uav;
     bool shared_memory;
 }
 mgfx_d3d11_buffer;
@@ -1082,7 +1096,8 @@ typedef void (*mgfx_bind_pipeline_fn)(void *pipeline);
 typedef void *(*mgfx_create_image_fn)(const mgfx_image_create_info *create_info);
 typedef void (*mgfx_destroy_image_fn)(void *image);
 typedef void (*mgfx_update_image_fn)(void *image, size_t size, void *data);
-typedef void (*mgfx_bind_image_fn)(void *image, void *sampler, uint32_t binding);
+typedef void (*mgfx_bind_sampled_image_fn)(void *image, void *sampler, uint32_t binding);
+typedef void (*mgfx_bind_storage_image_fn)(void *image, mgfx_access access, uint32_t binding);
 
 typedef void *(*mgfx_create_sampler_fn)(const mgfx_sampler_create_info *create_info);
 typedef void (*mgfx_destroy_sampler_fn)(void *sampler);
@@ -1093,6 +1108,7 @@ typedef void (*mgfx_update_buffer_fn)(void *buffer, size_t offset, size_t size, 
 
 typedef void (*mgfx_bind_vertex_buffer_fn)(void *buffer);
 typedef void (*mgfx_bind_index_buffer_fn)(void *buffer, mgfx_index_type index_type);
+typedef void (*mgfx_bind_storage_buffer_fn)(void *buffer, uint32_t binding);
 
 typedef void (*mgfx_bind_uniforms_fn)(uint32_t binding, size_t size, void *data);
 
@@ -1139,8 +1155,9 @@ typedef struct
     mgfx_create_image_fn            create_image;
     mgfx_destroy_image_fn           destroy_image;
     mgfx_update_image_fn            update_image;
-    mgfx_bind_image_fn              bind_image;
-    
+    mgfx_bind_sampled_image_fn      bind_sampled_image;
+    mgfx_bind_storage_image_fn      bind_storage_image;
+
     mgfx_create_sampler_fn          create_sampler;
     mgfx_destroy_sampler_fn         destroy_sampler;
     
@@ -1150,6 +1167,7 @@ typedef struct
     
     mgfx_bind_vertex_buffer_fn      bind_vertex_buffer;
     mgfx_bind_index_buffer_fn       bind_index_buffer;
+    mgfx_bind_storage_buffer_fn     bind_storage_buffer;
     
     mgfx_bind_uniforms_fn           bind_uniforms;
     
@@ -1511,10 +1529,16 @@ static inline VkBufferUsageFlags mgfx_vk_get_buffer_usage(mgfx_buffer_usage usag
 
 static inline VkImageUsageFlags mgfx_vk_get_image_usage(mgfx_image_usage usage)
 {
-    return usage == MGFX_IMAGE_USAGE_COLOR_ATTACHMENT ?
-        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT :
-        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-    return usage;
+    VkImageUsageFlags flags = 0;
+    if (usage & MGFX_IMAGE_USAGE_SAMPLED)
+        flags |= VK_IMAGE_USAGE_SAMPLED_BIT;
+    if (usage & MGFX_IMAGE_USAGE_COLOR_ATTACHMENT)
+        flags |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    if (usage & MGFX_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT)
+        flags |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    if (usage & MGFX_IMAGE_USAGE_STORAGE)
+        flags |= VK_IMAGE_USAGE_STORAGE_BIT;
+    return flags;
 }
 
 static inline VkIndexType mgfx_vk_get_index_type(mgfx_index_type index_type)
@@ -1522,33 +1546,78 @@ static inline VkIndexType mgfx_vk_get_index_type(mgfx_index_type index_type)
     return index_type == MGFX_INDEX_TYPE_UINT32 ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16;
 }
 
-static void mgfx_vk_push_image_descriptors(void)
+static inline VkDescriptorType mgfx_vk_shader_resource_to_descriptor_type(mgfx_shader_resource_type type)
+{
+    switch (type)
+    {
+    case MGFX_SHADER_RESOURCE_TYPE_SAMPLED_IMAGE:
+        return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        break;
+    case MGFX_SHADER_RESOURCE_TYPE_STORAGE_IMAGE:
+        return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        break;
+    case MGFX_SHADER_RESOURCE_TYPE_STORAGE_BUFFER:
+        return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        break;
+    }
+    return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+}
+
+static void mgfx_vk_push_resource_descriptors(void)
 {
     mgfx_vk_descriptor_state *state = &mgfx_ctx.vk.descriptor_state;
     if (!state->dirty)
         return;
 
-    VkWriteDescriptorSet writes[MGFX_MAX_BINDABLE_IMAGES];
-    VkDescriptorImageInfo image_infos[MGFX_MAX_BINDABLE_IMAGES];
+    VkWriteDescriptorSet writes[MGFX_MAX_BINDABLE_SHADER_RESOURCES];
+    VkDescriptorImageInfo image_infos[MGFX_MAX_BINDABLE_SHADER_RESOURCES];
+    VkDescriptorBufferInfo buffer_infos[MGFX_MAX_BINDABLE_SHADER_RESOURCES];
     uint32_t write_count = 0;
 
-    for (uint32_t i = 0; i < MGFX_MAX_BINDABLE_IMAGES; i++)
+    for (uint32_t i = 0; i < MGFX_MAX_BINDABLE_SHADER_RESOURCES; i++)
     {
-        if (!state->bound_image_active[i])
+        if (!state->bound_resources_active[i])
             continue;
 
-        image_infos[write_count] = (VkDescriptorImageInfo){
-            .sampler = state->bound_images[i].sampler,
-            .imageView = state->bound_images[i].image_view,
-            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-        };
+        mgfx_vk_descriptor_binding *binding = &state->bound_resources[i];
+
         writes[write_count] = (VkWriteDescriptorSet){
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            .dstBinding = state->bound_images[i].binding,
+            .dstBinding = binding->binding,
             .descriptorCount = 1,
-            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-            .pImageInfo = &image_infos[write_count]
+            .descriptorType = mgfx_vk_shader_resource_to_descriptor_type(binding->type)
         };
+
+        switch (binding->type)
+        {
+            case MGFX_SHADER_RESOURCE_TYPE_SAMPLED_IMAGE:
+                image_infos[write_count] = (VkDescriptorImageInfo){
+                    .sampler = binding->sampler,
+                    .imageView = binding->image_view,
+                    .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+                };
+                writes[write_count].pImageInfo = &image_infos[write_count];
+                break;
+
+            case MGFX_SHADER_RESOURCE_TYPE_STORAGE_IMAGE:
+                image_infos[write_count] = (VkDescriptorImageInfo){
+                    .sampler = VK_NULL_HANDLE,
+                    .imageView = binding->image_view,
+                    .imageLayout = VK_IMAGE_LAYOUT_GENERAL
+                };
+                writes[write_count].pImageInfo = &image_infos[write_count];
+                break;
+
+            case MGFX_SHADER_RESOURCE_TYPE_STORAGE_BUFFER:
+                buffer_infos[write_count] = (VkDescriptorBufferInfo){
+                    .buffer = binding->storage_buffer->buffer,
+                    .offset = 0,
+                    .range = binding->storage_buffer->size
+                };
+                writes[write_count].pBufferInfo = &buffer_infos[write_count];
+                break;
+        }
+
         write_count++;
     }
 
@@ -1762,6 +1831,8 @@ static void mgfx_vk_recycle(void)
             case MGFX_VK_RELEASE_QUEUE_ENTRY_PIPELINE:
             vkDestroyPipeline(mgfx_ctx.vk.device.handle, entry->pipeline->pipeline, NULL);
             vkDestroyPipelineLayout(mgfx_ctx.vk.device.handle, entry->pipeline->pipeline_layout, NULL);
+            if (entry->pipeline->resource_layout)
+                vkDestroyDescriptorSetLayout(mgfx_ctx.vk.device.handle, entry->pipeline->resource_layout, NULL);
             free(entry->pipeline);
             break;
         }
@@ -1965,6 +2036,8 @@ static mgfx_vk_buffer *mgfx_vk_create_buffer(const mgfx_buffer_create_info *crea
     }
     
     buffer->shared_memory = create_info->memory == MGFX_MEMORY_SHARED;
+    buffer->size = create_info->size;
+
     if (create_info->data)
         mgfx_vk_update_buffer(buffer, 0, create_info->size, create_info->data);
     
@@ -1990,6 +2063,19 @@ static void mgfx_vk_bind_vertex_buffer(mgfx_vk_buffer *buffer)
 static void mgfx_vk_bind_index_buffer(mgfx_vk_buffer *buffer, mgfx_index_type index_type)
 {
     vkCmdBindIndexBuffer(mgfx_ctx.vk.command_buffer, buffer->buffer, 0, mgfx_vk_get_index_type(index_type));
+}
+
+static void mgfx_vk_bind_storage_buffer(mgfx_vk_buffer *buffer, uint32_t binding_index)
+{
+    MGFX_ASSERT(binding_index < MGFX_MAX_BINDABLE_SHADER_RESOURCES, "Cannot access binding higher than MGFX_MAX_BINDABLE_SHADER_RESOURCES.");
+    mgfx_vk_descriptor_state *state = &mgfx_ctx.vk.descriptor_state;
+    state->bound_resources[binding_index] = (mgfx_vk_descriptor_binding){
+        .storage_buffer = buffer,
+        .binding = binding_index,
+        .type = MGFX_SHADER_RESOURCE_TYPE_STORAGE_BUFFER
+    };
+    state->bound_resources_active[binding_index] = true;
+    state->dirty = true;
 }
 
 static void mgfx_vk_transition_image_layout_temp(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout)
@@ -2107,7 +2193,6 @@ static mgfx_vk_image *mgfx_vk_create_image(const mgfx_image_create_info *create_
     
     VkImageUsageFlags usage_flags =
         VK_IMAGE_USAGE_TRANSFER_DST_BIT |
-        VK_IMAGE_USAGE_SAMPLED_BIT |
         mgfx_vk_get_image_usage(create_info->usage);
     
     VkImageTiling tiling;
@@ -2168,16 +2253,31 @@ static void mgfx_vk_destroy_image(mgfx_vk_image *image)
     mgfx_queue_push(&mgfx_ctx.vk.release_queue, &entry);
 }
 
-static void mgfx_vk_bind_image(mgfx_vk_image *image, VkSampler sampler, uint32_t binding)
+static void mgfx_vk_bind_sampled_image(mgfx_vk_image *image, VkSampler sampler, uint32_t binding)
 {
-    MGFX_ASSERT(binding < MGFX_MAX_BINDABLE_IMAGES, "Cannot access binding higher than MGFX_MAX_BINDABLE_IMAGES.");
+    MGFX_ASSERT(binding < MGFX_MAX_BINDABLE_SHADER_RESOURCES, "Cannot access binding higher than MGFX_MAX_BINDABLE_SHADER_RESOURCES.");
     mgfx_vk_descriptor_state *state = &mgfx_ctx.vk.descriptor_state;
-    state->bound_images[binding] = (mgfx_vk_descriptor_binding){
+    state->bound_resources[binding] = (mgfx_vk_descriptor_binding){
         .image_view = image->view,
         .sampler = sampler,
-        .binding = binding
+        .binding = binding,
+        .type = MGFX_SHADER_RESOURCE_TYPE_SAMPLED_IMAGE
     };
-    state->bound_image_active[binding] = true;
+    state->bound_resources_active[binding] = true;
+    state->dirty = true;
+}
+
+static void mgfx_vk_bind_storage_image(mgfx_vk_image *image, mgfx_access access, uint32_t binding)
+{
+    MGFX_ASSERT(binding < MGFX_MAX_BINDABLE_SHADER_RESOURCES, "Cannot access binding higher than MGFX_MAX_BINDABLE_SHADER_RESOURCES.");
+    mgfx_vk_descriptor_state *state = &mgfx_ctx.vk.descriptor_state;
+    state->bound_resources[binding] = (mgfx_vk_descriptor_binding){
+        .image_view = image->view,
+        .access = access,
+        .binding = binding,
+        .type = MGFX_SHADER_RESOURCE_TYPE_STORAGE_IMAGE
+    };
+    state->bound_resources_active[binding] = true;
     state->dirty = true;
 }
 
@@ -2236,11 +2336,42 @@ static VkShaderModule mgfx_vk_create_shader(const uint32_t *code, size_t size)
     return shader_module;
 }
 
+static VkDescriptorSetLayout mgfx_vk_create_pipeline_descriptor_set_layout(const mgfx_pipeline_create_info *create_info)
+{
+    if (!create_info->shader.resources[0].name)
+        return VK_NULL_HANDLE;
+
+    VkDescriptorSetLayoutBinding resource_bindings[MGFX_MAX_BINDABLE_SHADER_RESOURCES];
+    uint32_t i = 0;
+    for (; i < MGFX_MAX_BINDABLE_SHADER_RESOURCES && create_info->shader.resources[i].name; i++)
+    {
+        resource_bindings[i] = (VkDescriptorSetLayoutBinding) {
+            .binding = create_info->shader.resources[i].binding,
+            .descriptorType = mgfx_vk_shader_resource_to_descriptor_type(create_info->shader.resources[i].type),
+            .descriptorCount = 1,
+            .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT
+        };
+    }
+
+    VkDescriptorSetLayoutCreateInfo layout_info = {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+        .flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR,
+        .bindingCount = i,
+        .pBindings = resource_bindings
+    };
+
+    VkDescriptorSetLayout layout;
+    VkResult result = vkCreateDescriptorSetLayout(mgfx_ctx.vk.device.handle, &layout_info, NULL, &layout);
+    MGFX_ASSERT(result == VK_SUCCESS, "Failed to create vulkan shader resource layout.");
+
+    return layout;
+}
+
 static void mgfx_vk_fill_graphics_pipeline(mgfx_vk_pipeline *pipeline, const mgfx_pipeline_create_info *create_info)
 {
     VkShaderModule vertex_shader_module = mgfx_vk_create_shader((const uint32_t*)create_info->shader.vertex.code, create_info->shader.vertex.size);
     VkShaderModule fragment_shader_module = mgfx_vk_create_shader((const uint32_t*)create_info->shader.fragment.code, create_info->shader.fragment.size);
-    
+
     VkPipelineShaderStageCreateInfo vert_shader_stage_info = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
         .stage = VK_SHADER_STAGE_VERTEX_BIT,
@@ -2388,14 +2519,16 @@ static void mgfx_vk_fill_graphics_pipeline(mgfx_vk_pipeline *pipeline, const mgf
         .pAttachments = color_blend_attachments
     };
     
+    pipeline->resource_layout = mgfx_vk_create_pipeline_descriptor_set_layout(create_info);
+
     const VkDescriptorSetLayout set_layouts[] = {
         mgfx_ctx.vk.layouts.scratch_buffer_layout,
-        mgfx_ctx.vk.layouts.image_sampler_layout,
+        pipeline->resource_layout
     };
 
     VkPipelineLayoutCreateInfo pipeline_layout_info = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-        .setLayoutCount = 2,
+        .setLayoutCount = pipeline->resource_layout ? 2 : 1,
         .pSetLayouts = set_layouts
     };
     
@@ -2437,15 +2570,16 @@ static void mgfx_vk_fill_graphics_pipeline(mgfx_vk_pipeline *pipeline, const mgf
 static void mgfx_vk_fill_compute_pipeline(mgfx_vk_pipeline *pipeline, const mgfx_pipeline_create_info *create_info)
 {
     VkShaderModule compute_shader = mgfx_vk_create_shader((const uint32_t*)create_info->shader.compute.code, create_info->shader.compute.size);
-    
+    pipeline->resource_layout = mgfx_vk_create_pipeline_descriptor_set_layout(create_info);
+
     const VkDescriptorSetLayout set_layouts[] = {
         mgfx_ctx.vk.layouts.scratch_buffer_layout,
-        mgfx_ctx.vk.layouts.image_sampler_layout
+        pipeline->resource_layout
     };
-    
+
     VkPipelineLayoutCreateInfo layout_info = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-        .setLayoutCount = 2,
+        .setLayoutCount = pipeline->resource_layout ? 2 : 1,
         .pSetLayouts = set_layouts
     };
     
@@ -2923,7 +3057,7 @@ static void mgfx_vk_create_descriptor_set_layouts(void)
             .binding = i,
             .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
             .descriptorCount = 1,
-            .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT
+            .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT
         };
     }
 
@@ -2935,24 +3069,6 @@ static void mgfx_vk_create_descriptor_set_layouts(void)
     
     VkResult result = vkCreateDescriptorSetLayout(mgfx_ctx.vk.device.handle, &layout_info, NULL, &mgfx_ctx.vk.layouts.scratch_buffer_layout);
     MGFX_ASSERT(result == VK_SUCCESS, "Failed to create vulkan uniform buffer descriptor set layout.");
-    
-    VkDescriptorSetLayoutBinding image_sampler_layout_bindings[MGFX_MAX_BINDABLE_IMAGES];
-    for (uint32_t i = 0; i < MGFX_MAX_BINDABLE_IMAGES; i++)
-    {
-        image_sampler_layout_bindings[i] = (VkDescriptorSetLayoutBinding) {
-            .binding = i,
-            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-            .descriptorCount = 1,
-            .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT
-        };
-    }
-
-    layout_info.bindingCount = MGFX_MAX_BINDABLE_IMAGES;
-    layout_info.pBindings = image_sampler_layout_bindings;
-    layout_info.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
-
-    result = vkCreateDescriptorSetLayout(mgfx_ctx.vk.device.handle, &layout_info, NULL, &mgfx_ctx.vk.layouts.image_sampler_layout);
-    MGFX_ASSERT(result == VK_SUCCESS, "Failed to create vulkan push-descriptor image sampler layout.");
 }
 
 static void mgfx_vk_create_scratch_buffer(void)
@@ -3047,7 +3163,6 @@ static void mgfx_vk_shutdown(void)
     mgfx_vk_recycle();
     mgfx_destroy_queue(&mgfx_ctx.vk.release_queue);
     
-    vkDestroyDescriptorSetLayout(mgfx_ctx.vk.device.handle, mgfx_ctx.vk.layouts.image_sampler_layout, NULL);
     vkDestroyDescriptorSetLayout(mgfx_ctx.vk.device.handle, mgfx_ctx.vk.layouts.scratch_buffer_layout, NULL);
     
     vkDestroyBuffer(mgfx_ctx.vk.device.handle, mgfx_ctx.vk.scratch_buffer.buffer, NULL);
@@ -3167,13 +3282,13 @@ static void mgfx_vk_scissor(int32_t x, int32_t y, uint32_t width, uint32_t heigh
 
 static void mgfx_vk_draw_instanced(uint32_t vertex_count, uint32_t first_vertex, uint32_t instance_count, uint32_t first_instance)
 {
-    mgfx_vk_push_image_descriptors();
+    mgfx_vk_push_resource_descriptors();
     vkCmdDraw(mgfx_ctx.vk.command_buffer, vertex_count, instance_count, first_vertex, first_instance);
 }
 
 static void mgfx_vk_draw_indexed_instanced(uint32_t index_count, uint32_t first_index, int32_t first_vertex, uint32_t instance_count, uint32_t first_instance)
 {
-    mgfx_vk_push_image_descriptors();
+    mgfx_vk_push_resource_descriptors();
     vkCmdDrawIndexed(mgfx_ctx.vk.command_buffer, index_count, instance_count, first_index, first_vertex, first_instance);
 }
 
@@ -3189,6 +3304,7 @@ static void mgfx_vk_draw_indexed(uint32_t index_count, uint32_t first_index, int
 
 static void mgfx_vk_dispatch(uint32_t x, uint32_t y, uint32_t z)
 {
+    mgfx_vk_push_resource_descriptors();
     vkCmdDispatch(mgfx_ctx.vk.command_buffer, x, y, z);
 }
 
@@ -3199,7 +3315,7 @@ static void mgfx_vk_bind_uniforms(uint32_t binding, size_t size, void *data)
     mgfx_ctx.vk.scratch_buffer.bind_offsets[binding] = mgfx_ctx.vk.scratch_buffer.offset;
     mgfx_ctx.vk.scratch_buffer.offset = mgfx_stride_align(mgfx_ctx.vk.scratch_buffer.offset + (uint32_t)size, alignment);
     
-    vkCmdBindDescriptorSets(mgfx_ctx.vk.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mgfx_ctx.vk.current_pipeline->pipeline_layout, 0, 1, &mgfx_ctx.vk.scratch_buffer.ub_set, MGFX_MAX_BINDABLE_UNIFORMS, mgfx_ctx.vk.scratch_buffer.bind_offsets);
+    vkCmdBindDescriptorSets(mgfx_ctx.vk.command_buffer, mgfx_ctx.vk.current_pipeline->bind_point, mgfx_ctx.vk.current_pipeline->pipeline_layout, 0, 1, &mgfx_ctx.vk.scratch_buffer.ub_set, MGFX_MAX_BINDABLE_UNIFORMS, mgfx_ctx.vk.scratch_buffer.bind_offsets);
 }
 
 #endif // MGFX_VULKAN
@@ -3279,6 +3395,13 @@ _MGFX_XMACRO(glTexImage2D,              void,   (GLenum target, GLint level, GLi
 _MGFX_XMACRO(glTexImage3D,              void,   (GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLenum format, GLenum type, const void* pixels)) \
 _MGFX_XMACRO(glTexSubImage2D,           void,   (GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const void* pixels)) \
 _MGFX_XMACRO(glTexSubImage3D,           void,   (GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLenum type, const void* pixels)) \
+_MGFX_XMACRO(glTexStorage2D,            void,   (GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height)) \
+_MGFX_XMACRO(glTexStorage3D,            void,   (GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth)) \
+_MGFX_XMACRO(glBindImageTexture,        void,   (GLuint unit, GLuint texture, GLint level, GLboolean layered, GLint layer, GLenum access, GLenum format)) \
+_MGFX_XMACRO(glGenSamplers,             void,   (GLsizei n, GLuint* samplers)) \
+_MGFX_XMACRO(glDeleteSamplers,          void,   (GLsizei n, const GLuint* samplers)) \
+_MGFX_XMACRO(glBindSampler,             void,   (GLuint unit, GLuint sampler)) \
+_MGFX_XMACRO(glSamplerParameteri,       void,   (GLuint sampler, GLenum pname, GLint param)) \
 _MGFX_XMACRO(glCreateShader,            GLuint, (GLenum type)) \
 _MGFX_XMACRO(glFramebufferTexture2D,    void,   (GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level)) \
 _MGFX_XMACRO(glCreateProgram,           GLuint, (void)) \
@@ -3297,7 +3420,6 @@ _MGFX_XMACRO(glScissor,                 void,   (GLint x, GLint y, GLsizei width
 _MGFX_XMACRO(glBufferData,              void,   (GLenum target, GLsizeiptr size, const void* data, GLenum usage)) \
 _MGFX_XMACRO(glBufferSubData,           void,   (GLenum target, GLintptr offset, GLsizeiptr size, const void* data)) \
 _MGFX_XMACRO(glBlendFuncSeparate,       void,   (GLenum sfactorRGB, GLenum dfactorRGB, GLenum sfactorAlpha, GLenum dfactorAlpha)) \
-_MGFX_XMACRO(glTexParameteri,           void,   (GLenum target, GLenum pname, GLint param)) \
 _MGFX_XMACRO(glEnable,                  void,   (GLenum cap)) \
 _MGFX_XMACRO(glAttachShader,            void,   (GLuint program, GLuint shader)) \
 _MGFX_XMACRO(glDepthFunc,               void,   (GLenum func)) \
@@ -3493,8 +3615,9 @@ static inline GLenum mgfx_gl_get_buffer_target(mgfx_buffer_usage usage)
 {
     switch (usage)
     {
-        case MGFX_BUFFER_USAGE_VERTEX: return GL_ARRAY_BUFFER;
-        case MGFX_BUFFER_USAGE_INDEX: return GL_ELEMENT_ARRAY_BUFFER;
+        case MGFX_BUFFER_USAGE_VERTEX:  return GL_ARRAY_BUFFER;
+        case MGFX_BUFFER_USAGE_INDEX:   return GL_ELEMENT_ARRAY_BUFFER;
+        case MGFX_BUFFER_USAGE_STORAGE: return GL_SHADER_STORAGE_BUFFER;
     }
     return GL_ARRAY_BUFFER;
 }
@@ -3547,6 +3670,7 @@ static mgfx_gl_buffer *mgfx_gl_create_buffer(const mgfx_buffer_create_info *crea
     mgfx_gl_buffer *buffer = (mgfx_gl_buffer*)calloc(1, sizeof(mgfx_gl_buffer));
     buffer->target = mgfx_gl_get_buffer_target(create_info->usage);
     buffer->usage = mgfx_gl_get_data_usage(create_info->memory);
+    buffer->size = (GLsizeiptr)create_info->size;
     glGenBuffers(1, &buffer->id);
     glBindBuffer(buffer->target, buffer->id);
     glBufferData(buffer->target, create_info->size, create_info->data, buffer->usage);
@@ -3569,6 +3693,15 @@ static void mgfx_gl_bind_index_buffer(mgfx_gl_buffer *buffer, mgfx_index_type in
 {
     mgfx_ctx.gl.index_type = mgfx_gl_get_index_type(index_type);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer->id);
+}
+
+static void mgfx_gl_bind_storage_buffer(mgfx_gl_buffer *buffer, uint32_t binding)
+{
+#if defined(__EMSCRIPTEN__)
+    MGFX_ASSERT(false, "Storage buffers are not supported in OpenGL ES 3.0.");
+#else
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, binding, buffer->id);
+#endif
 }
 
 static void mgfx_gl_destroy_buffer(mgfx_gl_buffer *buffer)
@@ -3680,19 +3813,37 @@ static mgfx_gl_image *mgfx_gl_create_image(const mgfx_image_create_info *create_
 
     glBindTexture(image->texture_target, image->texture_id);
 
-    GLenum internal_format = mgfx_gl_get_internal_format(create_info->format);
+    image->internal_format = mgfx_gl_get_internal_format(create_info->format);
     image->format = mgfx_gl_get_format(create_info->format);
 
     const GLenum type =
         create_info->format == MGFX_FORMAT_DEPTH_STENCIL ? GL_UNSIGNED_INT_24_8 :
         create_info->format == MGFX_FORMAT_DEPTH ? GL_UNSIGNED_INT : GL_UNSIGNED_BYTE;
 
+#if !defined(__EMSCRIPTEN__)
     if (image->texture_target == GL_TEXTURE_2D)
-        glTexImage2D(GL_TEXTURE_2D, 0, internal_format,
+    {
+        glTexStorage2D(GL_TEXTURE_2D, 1, image->internal_format, create_info->width, create_info->height);
+        if (create_info->data)
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0,
+                create_info->width, create_info->height, image->format, type, create_info->data);
+    }
+    else if (image->texture_target == GL_TEXTURE_3D)
+    {
+        glTexStorage3D(GL_TEXTURE_3D, 1, image->internal_format,
+            create_info->width, create_info->height, create_info->depth);
+        if (create_info->data)
+            glTexSubImage3D(GL_TEXTURE_3D, 0, 0, 0, 0,
+                create_info->width, create_info->height, create_info->depth, image->format, type, create_info->data);
+    }
+#else
+    if (image->texture_target == GL_TEXTURE_2D)
+        glTexImage2D(GL_TEXTURE_2D, 0, image->internal_format,
             create_info->width, create_info->height, 0, image->format, type, create_info->data);
     else if (image->texture_target == GL_TEXTURE_3D)
-        glTexImage3D(GL_TEXTURE_3D, 0, internal_format,
+        glTexImage3D(GL_TEXTURE_3D, 0, image->internal_format,
             create_info->width, create_info->height, create_info->depth, 0, image->format, type, create_info->data);
+#endif
 
     image->width = create_info->width;
     image->height = create_info->height;
@@ -3712,39 +3863,69 @@ static void mgfx_gl_update_image(mgfx_gl_image *image, size_t size, void *data)
     glBindTexture(image->texture_target, image->texture_id);
     if (image->texture_target == GL_TEXTURE_2D)
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0,
-                        image->width, image->height, image->format, GL_UNSIGNED_BYTE, data);
+            image->width, image->height, image->format, GL_UNSIGNED_BYTE, data);
     else if (image->texture_target == GL_TEXTURE_3D)
         glTexSubImage3D(GL_TEXTURE_3D, 0, 0, 0, 0,
-                        image->width, image->height, image->depth, image->format, GL_UNSIGNED_BYTE, data);
+            image->width, image->height, image->depth, image->format, GL_UNSIGNED_BYTE, data);
 }
 
-static void mgfx_gl_bind_image(mgfx_gl_image *image, mgfx_gl_sampler *sampler, uint32_t binding)
+static void mgfx_gl_bind_sampled_image(mgfx_gl_image *image, mgfx_gl_sampler *sampler, uint32_t binding)
 {
     glActiveTexture(GL_TEXTURE0 + binding);
     glBindTexture(image->texture_target, image->texture_id);
-    glTexParameteri(image->texture_target, GL_TEXTURE_MIN_FILTER, sampler->min_filter);
-    glTexParameteri(image->texture_target, GL_TEXTURE_MAG_FILTER, sampler->mag_filter);
-    glTexParameteri(image->texture_target, GL_TEXTURE_WRAP_S, sampler->address_mode_u);
-    glTexParameteri(image->texture_target, GL_TEXTURE_WRAP_T, sampler->address_mode_v);
-    glTexParameteri(image->texture_target, GL_TEXTURE_WRAP_R, sampler->address_mode_w);
+    glBindSampler(binding, sampler->id);
+}
+
+#if !defined(__EMSCRIPTEN__)
+static inline GLenum mgfx_gl_get_access(mgfx_access access)
+{
+    switch (access)
+    {
+        case MGFX_ACCESS_READ_ONLY:  return GL_READ_ONLY;
+        case MGFX_ACCESS_WRITE_ONLY: return GL_WRITE_ONLY;
+        case MGFX_ACCESS_READ_WRITE: return GL_READ_WRITE;
+    }
+    return GL_READ_WRITE;
+}
+#endif
+
+static void mgfx_gl_bind_storage_image(mgfx_gl_image *image, mgfx_access access, uint32_t binding)
+{
+#if defined(__EMSCRIPTEN__)
+    MGFX_ASSERT(false, "Storage images are not supported in OpenGL ES 3.0.");
+#else
+    const GLboolean layered = (image->texture_target == GL_TEXTURE_3D) ? GL_TRUE : GL_FALSE;
+    glBindImageTexture(
+        binding,
+        image->texture_id,
+        0,
+        layered,
+        0,
+        mgfx_gl_get_access(access),
+        image->internal_format
+    );
+#endif
 }
 
 static mgfx_gl_sampler *mgfx_gl_create_sampler(const mgfx_sampler_create_info *create_info)
 {
     mgfx_gl_sampler *sampler = (mgfx_gl_sampler*)calloc(1, sizeof(mgfx_gl_sampler));
-    
-    sampler->min_filter = mgfx_gl_get_filter(create_info->min_filter);
-    sampler->mag_filter = mgfx_gl_get_filter(create_info->mag_filter);
-    
-    sampler->address_mode_u = mgfx_gl_get_address_mode(create_info->address_mode_u);
-    sampler->address_mode_v = mgfx_gl_get_address_mode(create_info->address_mode_v);
-    sampler->address_mode_w = mgfx_gl_get_address_mode(create_info->address_mode_w);
-    
+
+    glGenSamplers(1, &sampler->id);
+
+    glSamplerParameteri(sampler->id, GL_TEXTURE_MIN_FILTER, mgfx_gl_get_filter(create_info->min_filter));
+    glSamplerParameteri(sampler->id, GL_TEXTURE_MAG_FILTER, mgfx_gl_get_filter(create_info->mag_filter));
+
+    glSamplerParameteri(sampler->id, GL_TEXTURE_WRAP_S, mgfx_gl_get_address_mode(create_info->address_mode_u));
+    glSamplerParameteri(sampler->id, GL_TEXTURE_WRAP_T, mgfx_gl_get_address_mode(create_info->address_mode_v));
+    glSamplerParameteri(sampler->id, GL_TEXTURE_WRAP_R, mgfx_gl_get_address_mode(create_info->address_mode_w));
+
     return sampler;
 }
 
 static void mgfx_gl_destroy_sampler(mgfx_gl_sampler *sampler)
 {
+    glDeleteSamplers(1, &sampler->id);
     free(sampler);
 }
 
@@ -3872,10 +4053,12 @@ static void mgfx_gl_fill_graphics_pipeline(mgfx_gl_pipeline *pipeline, const mgf
         glUniformBlockBinding(pipeline->program_id, index, create_info->shader.uniform_blocks[i].binding);
     }
     
-    for (uint32_t i = 0; i < MGFX_MAX_BINDABLE_IMAGES && create_info->shader.sampled_images[i].name; i++)
+    for (uint32_t i = 0; i < MGFX_MAX_BINDABLE_SHADER_RESOURCES && create_info->shader.resources[i].name; i++)
     {
-        const GLint index = glGetUniformLocation(pipeline->program_id, create_info->shader.sampled_images[i].name);
-        glUniform1iv(index, 1, &create_info->shader.sampled_images[i].binding);
+        if (create_info->shader.resources[i].type != MGFX_SHADER_RESOURCE_TYPE_SAMPLED_IMAGE)
+            continue;
+        const GLint index = glGetUniformLocation(pipeline->program_id, create_info->shader.resources[i].name);
+        glUniform1iv(index, 1, &create_info->shader.resources[i].binding);
     }
     
     uint32_t attribute_count = 0;
@@ -4553,12 +4736,22 @@ static void mgfx_d3d11_bind_uniforms(uint32_t binding, size_t size, void *data)
 
 static mgfx_d3d11_buffer *mgfx_d3d11_create_buffer(const mgfx_buffer_create_info *create_info)
 {
+    MGFX_ASSERT(!(create_info->usage == MGFX_BUFFER_USAGE_STORAGE && create_info->memory == MGFX_MEMORY_SHARED),
+        "D3D11 storage buffers must use MGFX_MEMORY_DEVICE (UAVs require D3D11_USAGE_DEFAULT).");
+
     mgfx_d3d11_buffer *buffer = (mgfx_d3d11_buffer*)calloc(1, sizeof(mgfx_d3d11_buffer));
-    
+
     D3D11_BUFFER_DESC desc = {
         .ByteWidth = (UINT)create_info->size,
         .BindFlags = mgfx_d3d11_get_bind_flags(create_info->usage)
     };
+
+    if (create_info->usage == MGFX_BUFFER_USAGE_STORAGE)
+    {
+        desc.BindFlags |= D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_SHADER_RESOURCE;
+        desc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+        desc.StructureByteStride = 4;
+    }
 
     if (create_info->memory == MGFX_MEMORY_DEVICE)
     {
@@ -4579,9 +4772,22 @@ static mgfx_d3d11_buffer *mgfx_d3d11_create_buffer(const mgfx_buffer_create_info
         init_data.pSysMem = create_info->data;
         init_data_ptr = &init_data;
     }
-    
+
     MGFX_D3D11_CALL(mgfx_ctx.d3d11.device, CreateBuffer, &desc, init_data_ptr, &buffer->buffer);
-    
+
+    if (create_info->usage == MGFX_BUFFER_USAGE_STORAGE)
+    {
+        D3D11_UNORDERED_ACCESS_VIEW_DESC uav_desc = {
+            .Format = DXGI_FORMAT_UNKNOWN,
+            .ViewDimension = D3D11_UAV_DIMENSION_BUFFER,
+            .Buffer = {
+                .FirstElement = 0,
+                .NumElements = (UINT)(create_info->size / 4),
+            }
+        };
+        MGFX_D3D11_CALL(mgfx_ctx.d3d11.device, CreateUnorderedAccessView, (ID3D11Resource*)buffer->buffer, &uav_desc, &buffer->uav);
+    }
+
     return buffer;
 }
 
@@ -4612,8 +4818,25 @@ static void mgfx_d3d11_bind_index_buffer(mgfx_d3d11_buffer *buffer, mgfx_index_t
     MGFX_D3D11_CALL(mgfx_ctx.d3d11.immediate_context, IASetIndexBuffer, buffer->buffer, mgfx_d3d11_get_index_type(index_type), 0);
 }
 
+static void mgfx_d3d11_bind_storage_buffer(mgfx_d3d11_buffer *buffer, uint32_t binding)
+{
+    if (mgfx_ctx.d3d11.current_pipeline->type == MGFX_D3D11_PIPELINE_TYPE_COMPUTE)
+    {
+        UINT initial_count = (UINT)-1;
+        MGFX_D3D11_CALL(mgfx_ctx.d3d11.immediate_context, CSSetUnorderedAccessViews, binding, 1, &buffer->uav, &initial_count);
+    }
+    else
+    {
+        UINT initial_count = (UINT)-1;
+        MGFX_D3D11_CALL(mgfx_ctx.d3d11.immediate_context, OMSetRenderTargetsAndUnorderedAccessViews,
+            D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, NULL, NULL,
+            binding, 1, &buffer->uav, &initial_count);
+    }
+}
+
 static void mgfx_d3d11_destroy_buffer(mgfx_d3d11_buffer *buffer)
 {
+    MGFX_D3D11_SAFE_RELEASE(buffer->uav);
     MGFX_D3D11_SAFE_RELEASE(buffer->buffer);
     free(buffer);
 }
@@ -4647,8 +4870,7 @@ static mgfx_d3d11_image *mgfx_d3d11_create_image(const mgfx_image_create_info *c
             .MipLevels = 1,
             .ArraySize = 1,
             .Format = format,
-            .SampleDesc = { .Count = 1 },
-            .BindFlags = D3D11_BIND_SHADER_RESOURCE
+            .SampleDesc = { .Count = 1 }
         };
         
         if (create_info->memory == MGFX_MEMORY_SHARED)
@@ -4657,10 +4879,14 @@ static mgfx_d3d11_image *mgfx_d3d11_create_image(const mgfx_image_create_info *c
             texture_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
         }
         else texture_desc.Usage = D3D11_USAGE_DEFAULT;
-        
-        if (create_info->usage == MGFX_IMAGE_USAGE_COLOR_ATTACHMENT)
+
+        if (create_info->usage & MGFX_IMAGE_USAGE_SAMPLED)
+            texture_desc.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
+        if (create_info->usage & MGFX_IMAGE_USAGE_STORAGE)
+            texture_desc.BindFlags |= D3D11_BIND_UNORDERED_ACCESS;
+        if (create_info->usage & MGFX_IMAGE_USAGE_COLOR_ATTACHMENT)
             texture_desc.BindFlags |= D3D11_BIND_RENDER_TARGET;
-        else if (create_info->usage == MGFX_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT)
+        if (create_info->usage & MGFX_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT)
             texture_desc.BindFlags |= D3D11_BIND_DEPTH_STENCIL;
         
         MGFX_D3D11_CALL(mgfx_ctx.d3d11.device, CreateTexture2D, &texture_desc, init_data_ptr, (ID3D11Texture2D**)&image->texture);
@@ -4673,13 +4899,16 @@ static mgfx_d3d11_image *mgfx_d3d11_create_image(const mgfx_image_create_info *c
             .Height = create_info->height,
             .Depth = create_info->depth,
             .MipLevels = 1,
-            .Format = format,
-            .BindFlags = D3D11_BIND_SHADER_RESOURCE
+            .Format = format
         };
 
-        if (create_info->usage == MGFX_IMAGE_USAGE_COLOR_ATTACHMENT)
+        if (create_info->usage & MGFX_IMAGE_USAGE_SAMPLED)
+            texture_desc.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
+        if (create_info->usage & MGFX_IMAGE_USAGE_STORAGE)
+            texture_desc.BindFlags |= D3D11_BIND_UNORDERED_ACCESS;
+        if (create_info->usage & MGFX_IMAGE_USAGE_COLOR_ATTACHMENT)
             texture_desc.BindFlags |= D3D11_BIND_RENDER_TARGET;
-        else if (create_info->usage == MGFX_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT)
+        if (create_info->usage & MGFX_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT)
             texture_desc.BindFlags |= D3D11_BIND_DEPTH_STENCIL;
         
         if (create_info->memory == MGFX_MEMORY_SHARED)
@@ -4695,7 +4924,7 @@ static mgfx_d3d11_image *mgfx_d3d11_create_image(const mgfx_image_create_info *c
 
     MGFX_D3D11_CALL(mgfx_ctx.d3d11.device, CreateShaderResourceView, (ID3D11Resource*)image->texture, &view_desc, &image->view);
     
-    if (create_info->usage == MGFX_IMAGE_USAGE_COLOR_ATTACHMENT)
+    if (create_info->usage & MGFX_IMAGE_USAGE_COLOR_ATTACHMENT)
     {
         D3D11_RENDER_TARGET_VIEW_DESC rtv_desc = { .Format = format };
 
@@ -4714,13 +4943,26 @@ static mgfx_d3d11_image *mgfx_d3d11_create_image(const mgfx_image_create_info *c
 
         MGFX_D3D11_CALL(mgfx_ctx.d3d11.device, CreateRenderTargetView, image->texture, &rtv_desc, &image->rtv);
     }
-    else if (create_info->usage == MGFX_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT)
+    if (create_info->usage & MGFX_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT)
     {
         D3D11_DEPTH_STENCIL_VIEW_DESC dsv_desc = {
             .Format = mgfx_d3d11_get_dsv_format(create_info->format),
             .ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D
         };
         MGFX_D3D11_CALL(mgfx_ctx.d3d11.device, CreateDepthStencilView, image->texture, &dsv_desc, &image->dsv);
+    }
+    if (create_info->usage & MGFX_IMAGE_USAGE_STORAGE)
+    {
+        D3D11_UNORDERED_ACCESS_VIEW_DESC uav_desc = {
+            .Format = format,
+            .ViewDimension = (create_info->type == MGFX_IMAGE_TYPE_3D)
+                ? D3D11_UAV_DIMENSION_TEXTURE3D
+                : D3D11_UAV_DIMENSION_TEXTURE2D
+        };
+        if (create_info->type == MGFX_IMAGE_TYPE_3D)
+            uav_desc.Texture3D.WSize = create_info->depth ? create_info->depth : 1;
+
+        MGFX_D3D11_CALL(mgfx_ctx.d3d11.device, CreateUnorderedAccessView, (ID3D11Resource*)image->texture, &uav_desc, &image->uav);
     }
     
     image->width = create_info->width;
@@ -4732,6 +4974,7 @@ static mgfx_d3d11_image *mgfx_d3d11_create_image(const mgfx_image_create_info *c
 
 static void mgfx_d3d11_destroy_image(mgfx_d3d11_image *image)
 {
+    MGFX_D3D11_SAFE_RELEASE(image->uav);
     MGFX_D3D11_SAFE_RELEASE(image->rtv);
     MGFX_D3D11_SAFE_RELEASE(image->view);
     MGFX_D3D11_SAFE_RELEASE(image->texture);
@@ -4744,12 +4987,11 @@ static void mgfx_d3d11_update_image(mgfx_d3d11_image *image, size_t size, void *
     {
         D3D11_MAPPED_SUBRESOURCE mapped = { 0 };
         MGFX_D3D11_CALL(mgfx_ctx.d3d11.immediate_context, Map,
-                        (ID3D11Resource*)image->texture, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+            (ID3D11Resource*)image->texture, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
         const uint32_t row_pitch = (uint32_t)size / image->height;
         for (uint32_t y = 0; y < image->height; y++)
             memcpy((uint8_t*)mapped.pData + y * mapped.RowPitch,
-                    (uint8_t*)data + y * row_pitch,
-                    row_pitch);
+                (uint8_t*)data + y * row_pitch, row_pitch);
         MGFX_D3D11_CALL(mgfx_ctx.d3d11.immediate_context, Unmap, (ID3D11Resource*)image->texture, 0);
         return;
     }
@@ -4760,10 +5002,26 @@ static void mgfx_d3d11_update_image(mgfx_d3d11_image *image, size_t size, void *
     MGFX_D3D11_CALL(mgfx_ctx.d3d11.immediate_context, UpdateSubresource, (ID3D11Resource*)image->texture, 0, NULL, data, row_pitch, depth_pitch);
 }
 
-static void mgfx_d3d11_bind_image(mgfx_d3d11_image *image, ID3D11SamplerState *sampler, uint32_t binding)
+static void mgfx_d3d11_bind_sampled_image(mgfx_d3d11_image *image, ID3D11SamplerState *sampler, uint32_t binding)
 {
     MGFX_D3D11_CALL(mgfx_ctx.d3d11.immediate_context, PSSetShaderResources, binding, 1, &image->view);
     MGFX_D3D11_CALL(mgfx_ctx.d3d11.immediate_context, PSSetSamplers, binding, 1, &sampler);
+}
+
+static void mgfx_d3d11_bind_storage_image(mgfx_d3d11_image *image, mgfx_access access, uint32_t binding)
+{
+    if (mgfx_ctx.d3d11.current_pipeline->type == MGFX_D3D11_PIPELINE_TYPE_COMPUTE)
+    {
+        UINT initial_count = (UINT)-1;
+        MGFX_D3D11_CALL(mgfx_ctx.d3d11.immediate_context, CSSetUnorderedAccessViews, binding, 1, &image->uav, &initial_count);
+    }
+    else
+    {
+        UINT initial_count = (UINT)-1;
+        MGFX_D3D11_CALL(mgfx_ctx.d3d11.immediate_context, OMSetRenderTargetsAndUnorderedAccessViews,
+            D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, NULL, NULL,
+            binding, 1, &image->uav, &initial_count);
+    }
 }
 
 static ID3D11SamplerState *mgfx_d3d11_create_sampler(const mgfx_sampler_create_info *create_info)
@@ -4876,6 +5134,19 @@ static mgfx_d3d11_pipeline *mgfx_d3d11_create_pipeline(const mgfx_pipeline_creat
         MGFX_D3D11_CALL(mgfx_ctx.d3d11.device, CreateComputeShader, MGFX_D3D11_CALL0(cs_blob, GetBufferPointer), MGFX_D3D11_CALL0(cs_blob, GetBufferSize), NULL, &pipeline->compute_shader);
         
         MGFX_D3D11_CALL0(cs_blob, Release);
+
+        for (uint32_t i = 0; i < MGFX_MAX_BINDABLE_UNIFORMS && create_info->shader.uniform_blocks[i].size; i++)
+        {
+            D3D11_BUFFER_DESC buffer_desc = {
+                .ByteWidth = mgfx_stride_align(create_info->shader.uniform_blocks[i].size, 16),
+                .Usage = D3D11_USAGE_DYNAMIC,
+                .BindFlags = D3D11_BIND_CONSTANT_BUFFER,
+                .CPUAccessFlags = D3D11_CPU_ACCESS_WRITE
+            };
+            uint32_t binding = create_info->shader.uniform_blocks[i].binding;
+            MGFX_D3D11_CALL(mgfx_ctx.d3d11.device, CreateBuffer, &buffer_desc, NULL, &pipeline->constant_buffers[binding]);
+        }
+
         pipeline->type = MGFX_D3D11_PIPELINE_TYPE_COMPUTE;
         return pipeline;
     }
@@ -5076,10 +5347,12 @@ mgfx_ctx.destroy_buffer = (mgfx_destroy_buffer_fn) mgfx_##backend##_destroy_buff
 mgfx_ctx.update_buffer  = (mgfx_update_buffer_fn)  mgfx_##backend##_update_buffer; \
 mgfx_ctx.bind_vertex_buffer = (mgfx_bind_vertex_buffer_fn) mgfx_##backend##_bind_vertex_buffer; \
 mgfx_ctx.bind_index_buffer  = (mgfx_bind_index_buffer_fn)  mgfx_##backend##_bind_index_buffer; \
+mgfx_ctx.bind_storage_buffer  = (mgfx_bind_storage_buffer_fn)  mgfx_##backend##_bind_storage_buffer; \
 mgfx_ctx.create_image  = (mgfx_create_image_fn)  mgfx_##backend##_create_image; \
 mgfx_ctx.destroy_image = (mgfx_destroy_image_fn) mgfx_##backend##_destroy_image; \
 mgfx_ctx.update_image  = (mgfx_update_image_fn)  mgfx_##backend##_update_image; \
-mgfx_ctx.bind_image    = (mgfx_bind_image_fn)    mgfx_##backend##_bind_image; \
+mgfx_ctx.bind_sampled_image = (mgfx_bind_sampled_image_fn) mgfx_##backend##_bind_sampled_image; \
+mgfx_ctx.bind_storage_image = (mgfx_bind_storage_image_fn) mgfx_##backend##_bind_storage_image; \
 mgfx_ctx.create_sampler = (mgfx_create_sampler_fn)  mgfx_##backend##_create_sampler; \
 mgfx_ctx.destroy_sampler  = (mgfx_destroy_sampler_fn) mgfx_##backend##_destroy_sampler; \
 mgfx_ctx.draw                     = mgfx_##backend##_draw; \
@@ -5235,6 +5508,11 @@ void mgfx_bind_index_buffer(mgfx_buffer buffer, mgfx_index_type index_type)
     mgfx_ctx.bind_index_buffer(buffer, index_type);
 }
 
+void mgfx_bind_storage_buffer(mgfx_buffer buffer, uint32_t binding)
+{
+    mgfx_ctx.bind_storage_buffer(buffer, binding);
+}
+
 void mgfx_bind_uniforms(uint32_t binding, size_t size, void *data)
 {
     mgfx_ctx.bind_uniforms(binding, size, data);
@@ -5257,9 +5535,14 @@ void mgfx_update_image(mgfx_image image, size_t size, void *data)
     mgfx_ctx.update_image(image, size, data);
 }
 
-void mgfx_bind_image(mgfx_image image, mgfx_sampler sampler, uint32_t binding)
+void mgfx_bind_sampled_image(mgfx_image image, mgfx_sampler sampler, uint32_t binding)
 {
-    mgfx_ctx.bind_image(image, sampler, binding);
+    mgfx_ctx.bind_sampled_image(image, sampler, binding);
+}
+
+void mgfx_bind_storage_image(mgfx_image image, mgfx_access access, uint32_t binding)
+{
+    mgfx_ctx.bind_storage_image(image, access, binding);
 }
 
 mgfx_sampler mgfx_create_sampler(const mgfx_sampler_create_info *create_info)

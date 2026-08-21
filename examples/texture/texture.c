@@ -22,6 +22,7 @@ void mg_app_on_start(void)
         .height = mg_app_height(),
         .vsync = true
     });
+
     vb = mgfx_create_buffer(&(mgfx_buffer_create_info){
         .usage = MGFX_BUFFER_USAGE_VERTEX,
         .data = (float[]){
@@ -49,12 +50,16 @@ void mg_app_on_start(void)
         },
         .width = 2,
         .height = 2,
-        .format = MGFX_FORMAT_RGBA8_UNORM
+        .format = MGFX_FORMAT_RGBA8_UNORM,
+        .usage = MGFX_IMAGE_USAGE_SAMPLED
     });
 
     sampler = mgfx_create_sampler(&(mgfx_sampler_create_info){
         .min_filter = MGFX_SAMPLER_FILTER_NEAREST,
-        .mag_filter = MGFX_SAMPLER_FILTER_NEAREST
+        .mag_filter = MGFX_SAMPLER_FILTER_NEAREST,
+        .address_mode_u = MGFX_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+        .address_mode_v = MGFX_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+        .address_mode_w = MGFX_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE
     });
 }
 
@@ -74,7 +79,7 @@ void mg_app_on_update(void)
 
     mgfx_bind_pass(&(mgfx_pass_info){.clear = {0.05f, 0.05f, 0.05f, 1.0f}});
     mgfx_bind_pipeline(pip);
-    mgfx_bind_image(image, sampler, 0);
+    mgfx_bind_sampled_image(image, sampler, 0);
     mgfx_bind_vertex_buffer(vb);
     mgfx_draw(4, 0);
 

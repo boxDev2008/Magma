@@ -489,8 +489,9 @@ static inline const mgfx_shader get_texture_shader(mgfx_shader_lang lang) {
             break;
     }
 
-    shader.sampled_images[0].name = "tex0";
-    shader.sampled_images[0].binding = 0;
+    shader.resources[0].name = "tex0";
+    shader.resources[0].binding = 0;
+    shader.resources[0].type = MGFX_SHADER_RESOURCE_TYPE_SAMPLED_IMAGE;
     return shader;
 }
 

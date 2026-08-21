@@ -28,7 +28,7 @@ Magma is a minimal set of single-header modules for making games and apps in C/C
 
 ## mgapp.h
 
-A minimal platform abstraction supporting **Windows**, **Linux (Xlib)**, and **Emscripten (Web)**. macOS support is coming soon.
+A minimal platform abstraction supporting **Windows**, **Linux (Xlib)**, and **Web (Emscripten)**. macOS support is coming soon.
 
 ```c
 #define MG_IMPL
