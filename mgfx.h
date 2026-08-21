@@ -554,7 +554,7 @@ mgfx_vk_pipeline;
 
 typedef struct
 {
-    VkImageView image_view;
+    mgfx_vk_image *image;
     VkSampler sampler;
     mgfx_vk_buffer *storage_buffer;
     uint32_t binding;
@@ -654,9 +654,9 @@ typedef struct
     
     struct
     {
-        VkDescriptorSetLayout scratch_buffer_layout;
+        VkDescriptorSetLayout scratch_buffer;
     }
-    layouts;
+    global_layouts;
     
     mgfx_vk_pipeline *current_pipeline;
     
@@ -1593,7 +1593,7 @@ static void mgfx_vk_push_resource_descriptors(void)
             case MGFX_SHADER_RESOURCE_TYPE_SAMPLED_IMAGE:
                 image_infos[write_count] = (VkDescriptorImageInfo){
                     .sampler = binding->sampler,
-                    .imageView = binding->image_view,
+                    .imageView = binding->image->view,
                     .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
                 };
                 writes[write_count].pImageInfo = &image_infos[write_count];
@@ -1602,7 +1602,7 @@ static void mgfx_vk_push_resource_descriptors(void)
             case MGFX_SHADER_RESOURCE_TYPE_STORAGE_IMAGE:
                 image_infos[write_count] = (VkDescriptorImageInfo){
                     .sampler = VK_NULL_HANDLE,
-                    .imageView = binding->image_view,
+                    .imageView = binding->image->view,
                     .imageLayout = VK_IMAGE_LAYOUT_GENERAL
                 };
                 writes[write_count].pImageInfo = &image_infos[write_count];
@@ -1999,8 +1999,8 @@ static void mgfx_vk_update_buffer(mgfx_vk_buffer *buffer, size_t offset, size_t 
         VkDeviceMemory staging_memory;
         
         mgfx_vk_allocate_buffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                                &staging_buffer, &staging_memory);
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            &staging_buffer, &staging_memory);
         
         void *_data;
         vkMapMemory(mgfx_ctx.vk.device.handle, staging_memory, 0, size, 0, &_data);
@@ -2258,7 +2258,7 @@ static void mgfx_vk_bind_sampled_image(mgfx_vk_image *image, VkSampler sampler, 
     MGFX_ASSERT(binding < MGFX_MAX_BINDABLE_SHADER_RESOURCES, "Cannot access binding higher than MGFX_MAX_BINDABLE_SHADER_RESOURCES.");
     mgfx_vk_descriptor_state *state = &mgfx_ctx.vk.descriptor_state;
     state->bound_resources[binding] = (mgfx_vk_descriptor_binding){
-        .image_view = image->view,
+        .image = image,
         .sampler = sampler,
         .binding = binding,
         .type = MGFX_SHADER_RESOURCE_TYPE_SAMPLED_IMAGE
@@ -2272,7 +2272,7 @@ static void mgfx_vk_bind_storage_image(mgfx_vk_image *image, mgfx_access access,
     MGFX_ASSERT(binding < MGFX_MAX_BINDABLE_SHADER_RESOURCES, "Cannot access binding higher than MGFX_MAX_BINDABLE_SHADER_RESOURCES.");
     mgfx_vk_descriptor_state *state = &mgfx_ctx.vk.descriptor_state;
     state->bound_resources[binding] = (mgfx_vk_descriptor_binding){
-        .image_view = image->view,
+        .image = image,
         .access = access,
         .binding = binding,
         .type = MGFX_SHADER_RESOURCE_TYPE_STORAGE_IMAGE
@@ -2522,7 +2522,7 @@ static void mgfx_vk_fill_graphics_pipeline(mgfx_vk_pipeline *pipeline, const mgf
     pipeline->resource_layout = mgfx_vk_create_pipeline_descriptor_set_layout(create_info);
 
     const VkDescriptorSetLayout set_layouts[] = {
-        mgfx_ctx.vk.layouts.scratch_buffer_layout,
+        mgfx_ctx.vk.global_layouts.scratch_buffer,
         pipeline->resource_layout
     };
 
@@ -2573,7 +2573,7 @@ static void mgfx_vk_fill_compute_pipeline(mgfx_vk_pipeline *pipeline, const mgfx
     pipeline->resource_layout = mgfx_vk_create_pipeline_descriptor_set_layout(create_info);
 
     const VkDescriptorSetLayout set_layouts[] = {
-        mgfx_ctx.vk.layouts.scratch_buffer_layout,
+        mgfx_ctx.vk.global_layouts.scratch_buffer,
         pipeline->resource_layout
     };
 
@@ -3048,7 +3048,7 @@ static void mgfx_vk_create_descriptor_pool(void)
     MGFX_ASSERT(result == VK_SUCCESS, "Failed to create vulkan descriptor pool.");
 }
 
-static void mgfx_vk_create_descriptor_set_layouts(void)
+static void mgfx_vk_create_global_descriptor_set_layouts(void)
 {
     VkDescriptorSetLayoutBinding scratch_buffer_layout_bindings[MGFX_MAX_BINDABLE_UNIFORMS];
     for (uint32_t i = 0; i < MGFX_MAX_BINDABLE_UNIFORMS; i++)
@@ -3067,7 +3067,7 @@ static void mgfx_vk_create_descriptor_set_layouts(void)
         .pBindings = scratch_buffer_layout_bindings
     };
     
-    VkResult result = vkCreateDescriptorSetLayout(mgfx_ctx.vk.device.handle, &layout_info, NULL, &mgfx_ctx.vk.layouts.scratch_buffer_layout);
+    VkResult result = vkCreateDescriptorSetLayout(mgfx_ctx.vk.device.handle, &layout_info, NULL, &mgfx_ctx.vk.global_layouts.scratch_buffer);
     MGFX_ASSERT(result == VK_SUCCESS, "Failed to create vulkan uniform buffer descriptor set layout.");
 }
 
@@ -3082,7 +3082,7 @@ static void mgfx_vk_create_scratch_buffer(void)
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
         .descriptorPool = mgfx_ctx.vk.descriptor_pool,
         .descriptorSetCount = 1,
-        .pSetLayouts = &mgfx_ctx.vk.layouts.scratch_buffer_layout
+        .pSetLayouts = &mgfx_ctx.vk.global_layouts.scratch_buffer
     };
     
     VkResult result = vkAllocateDescriptorSets(mgfx_ctx.vk.device.handle, &alloc_info, &mgfx_ctx.vk.scratch_buffer.ub_set);
@@ -3148,7 +3148,7 @@ static void mgfx_vk_init(const mgfx_init_info *init_info)
     mgfx_ctx.vk.vsync = init_info->vsync;
     mgfx_vk_create_or_recreate_swapchain();
     
-    mgfx_vk_create_descriptor_set_layouts();
+    mgfx_vk_create_global_descriptor_set_layouts();
     mgfx_vk_create_descriptor_pool();
     
     mgfx_vk_create_scratch_buffer();
@@ -3163,7 +3163,7 @@ static void mgfx_vk_shutdown(void)
     mgfx_vk_recycle();
     mgfx_destroy_queue(&mgfx_ctx.vk.release_queue);
     
-    vkDestroyDescriptorSetLayout(mgfx_ctx.vk.device.handle, mgfx_ctx.vk.layouts.scratch_buffer_layout, NULL);
+    vkDestroyDescriptorSetLayout(mgfx_ctx.vk.device.handle, mgfx_ctx.vk.global_layouts.scratch_buffer, NULL);
     
     vkDestroyBuffer(mgfx_ctx.vk.device.handle, mgfx_ctx.vk.scratch_buffer.buffer, NULL);
     vkFreeMemory(mgfx_ctx.vk.device.handle, mgfx_ctx.vk.scratch_buffer.memory, NULL);
