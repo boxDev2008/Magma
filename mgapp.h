@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 #ifndef MG_APP_API
-#if defined(_WIN32) && defined(MG_DLL) && defined(MG_APP_IMPL)
+#if defined(_WIN32) && defined(MG_DLL) && (defined(MG_IMPL) || defined(MG_APP_IMPL))
 #define MG_APP_API __declspec(dllexport)
 #elif defined(_WIN32) && defined(MG_DLL)
 #define MG_APP_API __declspec(dllimport)
@@ -319,7 +319,7 @@ int main(void) { \
     return mg_app_run(&info); \
 }
 
-#if defined(MG_IMPL) || defined(MGAPP_IMPL)
+#if defined(MG_IMPL) || defined(MG_APP_IMPL)
 
 #include <string.h>
 

@@ -48,7 +48,7 @@
 #endif
 
 #ifndef MGFX_API
-#if defined(_WIN32) && defined(MG_DLL) && defined(MGFX_IMPL)
+#if defined(_WIN32) && defined(MG_DLL) && (defined(MG_IMPL) || defined(MGFX_IMPL))
 #define MGFX_API __declspec(dllexport)
 #elif defined(_WIN32) && defined(MG_DLL)
 #define MGFX_API __declspec(dllimport)
