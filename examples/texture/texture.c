@@ -6,20 +6,18 @@
 
 #include "texture.glsl.h"
 
-MG_DEFINE_APP("Texture")
-
 static mgfx_pipeline pip;
 static mgfx_buffer vb;
 static mgfx_image image;
 static mgfx_sampler sampler;
 
-void mg_app_on_start(void)
+void on_start(void)
 {
     mgfx_init(&(mgfx_init_info){
-        .primary_handle = mg_app_primary_handle(),
-        .secondary_handle = mg_app_secondary_handle(),
-        .width = mg_app_width(),
-        .height = mg_app_height(),
+        .primary_handle = mgapp_primary_handle(),
+        .secondary_handle = mgapp_secondary_handle(),
+        .width = mgapp_width(),
+        .height = mgapp_height(),
         .vsync = true
     });
 
@@ -35,7 +33,7 @@ void mg_app_on_start(void)
     });
 
     pip = mgfx_create_pipeline(&(mgfx_pipeline_create_info){
-        .vertex_attributes = {
+        .vertex_layout = {
             MGFX_VERTEX_FORMAT_FLOAT2,
             MGFX_VERTEX_FORMAT_FLOAT2
         },
@@ -63,7 +61,7 @@ void mg_app_on_start(void)
     });
 }
 
-void mg_app_on_end(void)
+void on_end(void)
 {
     mgfx_destroy_sampler(sampler);
     mgfx_destroy_image(image);
@@ -72,7 +70,7 @@ void mg_app_on_end(void)
     mgfx_shutdown();
 }
 
-void mg_app_on_update(void)
+void on_update(void)
 {
     if (mgfx_begin() != MGFX_RESULT_SUCCESS)
         return;
@@ -86,8 +84,21 @@ void mg_app_on_update(void)
     mgfx_end();
 }
 
-void mg_app_on_event(const mg_app_event *event)
+void on_event(const mgapp_event *event)
 {
-    if (event->type == MG_APP_EVENT_RESIZE)
-        mgfx_resize(event->window_width, event->window_height);
+    if (event->type == MGAPP_EVENT_RESIZE)
+        mgfx_resize(event->window.width, event->window.height);
+}
+
+mgapp_init_info mgapp_main(void)
+{
+    return (mgapp_init_info) {
+        .title = "Texture",
+        .events = {
+            .start = on_start,
+            .end = on_end,
+            .update = on_update,
+            .event = on_event
+        }
+    };
 }
