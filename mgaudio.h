@@ -76,11 +76,11 @@ MGAUDIO_API uint32_t mgaudio_sample_rate(void);
 MGAUDIO_API uint32_t mgaudio_channels(void);
 
 MGAUDIO_API mgaudio_result mgaudio_wav_decode(const void *data, size_t size, mgaudio_wav *wav);
-MGAUDIO_API mgaudio_result mgaudio_wav_load(const char *path, mgaudio_wav *wav);
+MGAUDIO_API mgaudio_result mgaudio_wav_decode_file(const char *path, mgaudio_wav *wav);
 MGAUDIO_API void mgaudio_wav_free(mgaudio_wav *wav);
 
-MGAUDIO_API void *mgaudio_wav_encode(const float *samples, uint64_t frames, uint32_t channels, uint32_t sample_rate, mgaudio_wav_format format, size_t *out_size);
-MGAUDIO_API mgaudio_result mgaudio_wav_save(const char *path, const float *samples, uint64_t frames, uint32_t channels, uint32_t sample_rate, mgaudio_wav_format format);
+MGAUDIO_API void *mgaudio_wav_encode_data(const float *samples, uint64_t frames, uint32_t channels, uint32_t sample_rate, mgaudio_wav_format format, size_t *out_size);
+MGAUDIO_API mgaudio_result mgaudio_wav_encode_file(const char *path, const float *samples, uint64_t frames, uint32_t channels, uint32_t sample_rate, mgaudio_wav_format format);
 
 #ifdef __cplusplus
 } // extern "C"
@@ -722,7 +722,7 @@ static inline FILE *mgaudio_fopen(const char *path, const char *mode)
 #endif
 }
 
-mgaudio_result mgaudio_wav_load(const char *path, mgaudio_wav *wav)
+mgaudio_result mgaudio_wav_decode_file(const char *path, mgaudio_wav *wav)
 {
     FILE *file = mgaudio_fopen(path, "rb");
     if (!file)
@@ -764,7 +764,7 @@ void mgaudio_wav_free(mgaudio_wav *wav)
     memset(wav, 0, sizeof(*wav));
 }
 
-void *mgaudio_wav_encode(const float *samples, uint64_t frames, uint32_t channels, uint32_t sample_rate, mgaudio_wav_format format, size_t *out_size)
+void *mgaudio_wav_encode_data(const float *samples, uint64_t frames, uint32_t channels, uint32_t sample_rate, mgaudio_wav_format format, size_t *out_size)
 {
     if (!samples || channels == 0 || sample_rate == 0)
         return NULL;
@@ -835,10 +835,10 @@ void *mgaudio_wav_encode(const float *samples, uint64_t frames, uint32_t channel
     return out;
 }
 
-mgaudio_result mgaudio_wav_save(const char *path, const float *samples, uint64_t frames, uint32_t channels, uint32_t sample_rate, mgaudio_wav_format format)
+mgaudio_result mgaudio_wav_encode_file(const char *path, const float *samples, uint64_t frames, uint32_t channels, uint32_t sample_rate, mgaudio_wav_format format)
 {
     size_t size = 0;
-    void *data = mgaudio_wav_encode(samples, frames, channels, sample_rate, format, &size);
+    void *data = mgaudio_wav_encode_data(samples, frames, channels, sample_rate, format, &size);
     if (!data)
         return MGAUDIO_RESULT_FAILURE;
 
