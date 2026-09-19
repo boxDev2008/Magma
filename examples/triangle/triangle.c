@@ -62,8 +62,8 @@ void on_update(void)
 
 void on_event(const mgapp_event *event)
 {
-    //if (event->type == MGAPP_EVENT_RESIZE)
-        //mgfx_resize(event->window.width, event->window.height);
+    if (event->type == MGAPP_EVENT_RESIZE)
+        mgfx_resize(event->window.width, event->window.height);
 }
 
 mgapp_init_info mgapp_main(void)
