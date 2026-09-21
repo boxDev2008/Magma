@@ -2636,6 +2636,7 @@ void mgfx_vk_bind_pipeline(mgfx_vk_pipeline *pipeline)
 {
     vkCmdBindPipeline(mgfx_ctx.vk.command_buffer, pipeline->bind_point, pipeline->pipeline);
     mgfx_ctx.vk.current_pipeline = pipeline;
+    memset(mgfx_ctx.vk.descriptor_state.bound_resources_active, 0, sizeof(mgfx_ctx.vk.descriptor_state.bound_resources_active));
 }
 
 static void mgfx_vk_transition_image_layout(VkCommandBuffer cmd, VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout, int layer_count)
@@ -3245,6 +3246,16 @@ static void mgfx_vk_shutdown(void)
     vkDestroyDevice(mgfx_ctx.vk.device.handle, NULL);
     
     vkDestroySurfaceKHR(mgfx_ctx.vk.instance, mgfx_ctx.vk.surface, NULL);
+
+#ifdef MGFX_DEBUG
+    if (mgfx_ctx.vk.debug_messenger)
+    {
+        PFN_vkDestroyDebugUtilsMessengerEXT destroy_debug_messenger =
+            (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(mgfx_ctx.vk.instance, "vkDestroyDebugUtilsMessengerEXT");
+        if (destroy_debug_messenger)
+            destroy_debug_messenger(mgfx_ctx.vk.instance, mgfx_ctx.vk.debug_messenger, NULL);
+    }
+#endif
     vkDestroyInstance(mgfx_ctx.vk.instance, NULL);
 }
 

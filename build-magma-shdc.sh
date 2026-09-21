@@ -18,8 +18,8 @@ clang++ \
     -lglslang \
     -lglslang-default-resource-limits \
     -lSPIRV \
-    -lSPIRV-Tools \
     -lSPIRV-Tools-opt \
+    -lSPIRV-Tools \
     -lspirv-cross-glsl \
     -lspirv-cross-hlsl \
     -lspirv-cross-msl \

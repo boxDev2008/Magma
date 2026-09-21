@@ -413,6 +413,9 @@ mgapp_emscripten_state;
 
 #elif defined(_WIN32)
 
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 #include <windows.h>
 #include <windowsx.h>
 #pragma comment(lib, "user32")
