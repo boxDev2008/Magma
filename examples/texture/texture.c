@@ -42,10 +42,10 @@ void on_start(void)
     });
 
     image = mgfx_create_image(&(mgfx_image_create_info){
-        .data = (void*)(uint32_t[]){
+        .subimages = {(void*)(uint32_t[]){
             0xFFFFFFFF, 0xFF000000,
             0xFF000000, 0xFFFFFFFF
-        },
+        }},
         .width = 2,
         .height = 2,
         .format = MGFX_FORMAT_RGBA8_UNORM,
