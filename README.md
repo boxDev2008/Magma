@@ -158,6 +158,9 @@ mgapp_init_info mgapp_main(void)
 }
 ```
 
+### Screenshots
+<img width="800" src="content/screenshots/raytrace.png" alt="Magma graphics rendering example">
+
 ---
 
 ## mgmath.h
